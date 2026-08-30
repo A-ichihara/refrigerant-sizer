@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aisin GHP Piping Sizer - アイシン GHP配管サイズ選定システム</title>
+    <meta name="description" content="アイシン製ガスヒートポンプ（GHP）空調システムに対応した冷媒配管サイズ選定・BOM集計シミュレーター。">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 8mm;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-size: 10pt;
+            }
+            header, .sidebar:first-of-type, .header-actions, .add-node-bar, #delete-node-btn {
+                display: none !important;
+            }
+            main {
+                display: block !important;
+                grid-template-columns: 1fr !important;
+                gap: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            .canvas-container {
+                border: none !important;
+                background: none !important;
+                box-shadow: none !important;
+                height: auto !important;
+                overflow: visible !important;
+                padding: 1rem 0 !important;
+            }
+            .canvas-container::before {
+                display: none !important;
+            }
+            .node-card {
+                background: #f8fafc !important;
+                border: 2px solid #cbd5e1 !important;
+                color: #0f172a !important;
+                box-shadow: none !important;
+            }
+            .type-outdoor { background: #e0f2fe !important; color: #0369a1 !important; }
+            .type-branch { background: #fef3c7 !important; color: #b45309 !important; }
+            .type-indoor { background: #dcfce7 !important; color: #15803d !important; }
+            .sidebar:last-of-type {
+                border: none !important;
+                background: none !important;
+                box-shadow: none !important;
+                margin-top: 2cm !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+            .pipe-summary-item {
+                background: #f8fafc !important;
+                border: 1px solid #e2e8f0 !important;
+                color: #0f172a !important;
+            }
+            .pipe-length-badge {
+                background: #e2e8f0 !important;
+                color: #0f172a !important;
+            }
+            .warning-panel {
+                display: none !important;
+            }
+            .pipe-label-bg {
+                fill: #ffffff !important;
+                stroke: #0284c7 !important;
+            }
+            .pipe-label-text {
+                fill: #0f172a !important;
+                font-weight: 700 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header>
+        <div class="logo-container">
+            <div class="logo-badge" style="background: linear-gradient(135deg, #00876c, #00b48f);">A</div>
+            <div class="logo-text">
+                <h1>Aisin GHP Piping Sizer</h1>
+                <p>アイシン GHP空調配管サイズ選定システム (ハイブリッドGHP・マルチエグゼ)</p>
+            </div>
+        </div>
+        
+        <!-- Target series & Gas type selector dropdown -->
+        <div style="display:flex; align-items:center; gap:16px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+                <label for="gas-type-select" style="font-size:0.775rem; font-weight:600; color:var(--text-secondary);">燃料ガス:</label>
+                <select id="gas-type-select" class="form-select" style="padding:5px 10px; font-weight:600; border-color:var(--color-primary); color:var(--color-secondary); background:rgba(0,180,143,0.08); cursor:pointer;">
+                    <option value="city_gas_13a">都市ガス 13A (45MJ/m³)</option>
+                    <option value="lpg">LPガス (プロパン)</option>
+                </select>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <label for="series-select" style="font-size:0.775rem; font-weight:600; color:var(--text-secondary);">選定シリーズ:</label>
+                <select id="series-select" class="form-select" style="padding:5px 10px; font-weight:600; border-color:var(--color-primary); color:var(--color-secondary); background:rgba(0,180,143,0.08); cursor:pointer;">
+                    <option value="aisin_ghp_xair">GHP エグゼ (XAIR 7.0 / R410A)</option>
+                    <option value="aisin_ghp_heat_recovery">GHP エグゼ 冷暖同時 (HR仕様・3管式)</option>
+                    <option value="aisin_ghp_standard">GHP 標準マルチシリーズ</option>
+                    <option value="aisin_ghp_hybrid">ハイブリッドGHP (スマートマルチ)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button class="btn" id="btn-history" title="仕様や品番の変更履歴を確認します">
+                <span>📜 更新履歴</span>
+            </button>
+            <button class="btn" id="btn-load-sample" title="標準的な系統サンプルを読み込みます">
+                <span>📂 サンプル読込</span>
+            </button>
+            <button class="btn" id="btn-force-sizeup" title="最遠配管相当長に関わらず、主管サイズアップを強制適用します">
+                <span>⚡ 主管サイズUP</span>
+            </button>
+            <button class="btn" id="btn-reset" title="系統図を初期状態にリセットします">
+                <span>🔄 リセット</span>
+            </button>
+            <button class="btn" id="btn-export" title="現在の設計データをJSONファイルとして保存します">
+                <span>💾 保存</span>
+            </button>
+            <button class="btn" id="btn-import" title="保存したJSONファイルを読み込んで復元します">
+                <span>📤 読込</span>
+            </button>
+            <button class="btn btn-primary" id="btn-print" title="印刷またはPDFとして出力します">
+                <span>🖨️ PDF/印刷出力</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main>
+        <!-- Left Sidebar: Property Editor -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>機器プロパティ</h2>
+            </div>
+            <div class="sidebar-content" id="property-editor">
+                <div style="color: var(--text-muted); font-size: 0.85rem; text-align: center; margin-top: 2rem;">
+                    系統図内の機器をクリックして、プロパティを編集します。
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center: Interactive Horizontal Tree Canvas -->
+        <section class="canvas-container" id="tree-canvas">
+            <svg id="connection-svg" class="connection-svg"></svg>
+            <!-- Dynamic tree injected here -->
+        </section>
+
+        <!-- Right Sidebar: BOM & Diagnostics -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>集計 & 設計チェック</h2>
+            </div>
+            <div class="sidebar-content">
+                <div id="totals-panel"></div>
+                <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <div style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:8px;">設計診断</div>
+                    <div id="warning-panel"></div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 Aisin GHP Piping Sizer (Development Beta). 本システムはアイシン製GHP空調機器の簡易選定用です。実設計の際は必ずメーカーの最新技術資料をご参照ください。</p>
+    </footer>
+
+    <!-- 更新履歴モーダル -->
+    <div class="modal-overlay" id="history-modal-overlay">
+        <div class="modal-window" style="max-width: 660px; width: 94%;">
+            <div class="modal-header">
+                <span class="modal-title">📜 仕様・品番 更新履歴 (アイシン GHP)</span>
+                <button class="modal-close" id="history-modal-close" aria-label="閉じる">×</button>
+            </div>
+            <div class="modal-body" style="max-height: 65vh; overflow-y: auto; padding: 1.5rem;">
+                <div id="history-check-status" style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:1rem; padding:8px 12px; background:rgba(0,180,143,0.06); border-radius:var(--radius-sm); border:1px solid rgba(0,180,143,0.12);"></div>
+                <div id="history-list-container"></div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between; align-items: center;">
+                <button class="btn" id="btn-force-spec-check" title="今すぐ最新仕様をチェックします" style="font-size:0.8rem;">🔍 今すぐチェック</button>
+                <button class="btn btn-primary" id="history-modal-ok">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Engine and Controller Scripts -->
+    <script src="js/engine.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
