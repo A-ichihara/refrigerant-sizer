@@ -19,6 +19,60 @@ class RefrigerantSizerEngine {
         // ガス管サイズ一覧 (mm φ)
         this.GAS_SIZES = [9.5, 12.7, 15.9, 19.1, 22.2, 25.4, 28.6, 31.8, 38.1, 41.3];
 
+        // 全部入り冷媒サイズマスター表 (日本キャリア技術資料準拠)
+        this.MASTER_PIPE_TABLES = {
+            cooling_heating_switch: {
+                title: "日本キャリア 【冷暖切替】 冷媒管サイズ表 (全パターン網羅)",
+                systemType: "2pipe",
+                rules: [
+                    "① 室外機〜室内機間の配管相当長が90mを超える場合 → 主管の液管・ガス管共1サイズアップする。",
+                    "② 第1分岐〜最遠の室内機までの配管長が40mを超える場合 → 第1分岐〜最遠室内機分岐管までの液管・ガス管共1サイズアップする。",
+                    "③ 室外機〜室内機間高低差が50mを超える場合 → 主管の液管のみ1サイズアップする。",
+                    "④ その他条件については日本キャリア技術資料・冷媒配管接続要領を必ず参照のこと。"
+                ],
+                headers: ["記号", "液管 (mm)", "ガス管 (mm)", "室内機 (kW)", "分岐後 (kW)", "室内機合計kW / 室外機 (kW)", "備考 / サイズUP値"],
+                rows: [
+                    { code: "1", liquid: "6.4", gas: "12.7", indoorKw: "〜5.6", branchKw: "—", outdoorKw: "—", notes: "—" },
+                    { code: "2", liquid: "9.5", gas: "15.9", indoorKw: "7.1〜16.0", branchKw: "〜16.0", outdoorKw: "—", notes: "—" },
+                    { code: "3", liquid: "9.5", gas: "19.1", indoorKw: "22.4", branchKw: "16.1〜22.4", outdoorKw: "22.4", notes: "—" },
+                    { code: "4", liquid: "9.5", gas: "22.2", indoorKw: "28.0", branchKw: "22.5〜28.0", outdoorKw: "28.0", notes: "—" },
+                    { code: "5", liquid: "12.7", gas: "19.1", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "分岐〜最遠室内機間: \"2\"の1サイズUPの値" },
+                    { code: "6", liquid: "12.7", gas: "22.2", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 22.4kWの1サイズUP値 / 分岐間: \"3\"の1サイズUP値" },
+                    { code: "7", liquid: "12.7", gas: "25.4", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 28.0kWの1サイズUP値 / 分岐間: \"4\"の1サイズUP値" },
+                    { code: "8", liquid: "12.7", gas: "28.6", indoorKw: "—", branchKw: "28.1〜45.0", outdoorKw: "33.5〜45.0", notes: "—" },
+                    { code: "9", liquid: "15.9", gas: "28.6", indoorKw: "—", branchKw: "45.1〜68.0", outdoorKw: "50.0〜68.0", notes: "配管相当長90m超(主管): 33.5〜45.0kWの1サイズUP値" },
+                    { code: "10", liquid: "19.1", gas: "34.9", indoorKw: "—", branchKw: "68.1〜85.0", outdoorKw: "73.0〜85.0", notes: "配管相当長90m超(主管): 50.0〜68.0kWの1サイズUP値" },
+                    { code: "11", liquid: "19.1", gas: "41.3", indoorKw: "—", branchKw: "85.1〜", outdoorKw: "90.0〜", notes: "配管相当長90m超(主管): 73.0〜85.0kWの1サイズUP値" },
+                    { code: "12", liquid: "22.2", gas: "41.3", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 90.0kW〜の1サイズUP値 (ガス管φ41.3のサイズUPは不可)" }
+                ]
+            },
+            cooling_heating_free: {
+                title: "日本キャリア 【冷暖同時】 冷媒管サイズ表 (全パターン網羅)",
+                systemType: "3pipe",
+                rules: [
+                    "① 室外機〜室内機間の配管相当長が90mを超える場合 → 主管の液管のみ1サイズアップする。",
+                    "② 第1分岐〜最遠の室内機までの配管長が40mを超える場合 → 第1分岐〜最遠室内機分岐管までの液管のみ1サイズアップする。",
+                    "③ 室外機〜FSユニット間は3管式 (液管・吐出ガス管・吸入ガス管)、FSユニット〜室内機間は必ず2管式 (液管・ガス管)。",
+                    "④ その他条件については日本キャリア技術資料・冷媒配管接続要領を必ず参照のこと。"
+                ],
+                headers: ["記号", "液管 (mm)", "吐出ガス管 (mm)", "吸入ガス管 (mm)", "分岐後 (kW)", "室内機合計kW / 室外機 (kW)", "備考 / サイズUP値"],
+                rows: [
+                    { code: "A", liquid: "9.5", highLowGas: "15.9", suctionGas: "19.1", branchKw: "〜22.4", outdoorKw: "22.4 (8HP)", notes: "—" },
+                    { code: "B", liquid: "9.5", highLowGas: "19.1", suctionGas: "22.2", branchKw: "22.5〜28.0", outdoorKw: "28.0 (10HP)", notes: "—" },
+                    { code: "C", liquid: "12.7", highLowGas: "15.9", suctionGas: "19.1", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 22.4kWの液管のみ1サイズUP値" },
+                    { code: "D", liquid: "12.7", highLowGas: "19.1", suctionGas: "22.2", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 28.0kWの液管のみ1サイズUP値" },
+                    { code: "E", liquid: "12.7", highLowGas: "19.1", suctionGas: "28.6", branchKw: "28.1〜45.0", outdoorKw: "33.5〜45.0 (12-16HP)", notes: "—" },
+                    { code: "F", liquid: "15.9", highLowGas: "19.1", suctionGas: "28.6", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 33.5〜45.0kWの液管のみ1サイズUP値" },
+                    { code: "G", liquid: "15.9", highLowGas: "22.2", suctionGas: "28.6", branchKw: "45.1〜56.0", outdoorKw: "50.0〜56.0 (18-20HP)", notes: "—" },
+                    { code: "H", liquid: "19.1", highLowGas: "22.2", suctionGas: "28.6", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 50.0〜56.0kWの液管のみ1サイズUP値" },
+                    { code: "I", liquid: "15.9", highLowGas: "28.6", suctionGas: "28.6", branchKw: "56.1〜68.0", outdoorKw: "61.5〜68.0 (22-24HP)", notes: "—" },
+                    { code: "J", liquid: "19.1", highLowGas: "28.6", suctionGas: "28.6", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 61.5〜68.0kWの液管のみ1サイズUP値" },
+                    { code: "K", liquid: "19.1", highLowGas: "28.6", suctionGas: "38.1", branchKw: "68.1〜", outdoorKw: "73.0〜 (26HP〜)", notes: "—" },
+                    { code: "L", liquid: "22.2", highLowGas: "28.6", suctionGas: "38.1", branchKw: "—", outdoorKw: "—", notes: "配管相当長90m超(主管): 73.0kW〜の液管のみ1サイズUP値" }
+                ]
+            }
+        };
+
         // 室内機形状スタイルと対応可能容量 (kW) のマッピング
         this.INDOOR_STYLES = {
             cassette_4way: {
@@ -251,8 +305,7 @@ class RefrigerantSizerEngine {
 
         if (isManualSizeUp) {
             liquid = this.sizeUpPipe(liquid, this.LIQUID_SIZES);
-            dischargeGas = this.sizeUpPipe(dischargeGas, this.GAS_SIZES);
-            suctionGas = this.sizeUpPipe(suctionGas, this.GAS_SIZES);
+            // ※3管式（冷暖同時）は技術資料に従い「液管のみ」サイズアップ（吐出ガス・吸入ガスはサイズアップしない）
         }
 
         return { liquid, dischargeGas, suctionGas };
@@ -331,35 +384,39 @@ class RefrigerantSizerEngine {
                 const len = child.length || 0;
                 totals.totalLength += len;
 
-                if (seriesId === 'super_multi_u_r') {
-                    // super_multi_u_r (冷暖同時) 3管・2管ハイブリッド判定
-                    if (node.type === 'outdoor' || node.type === 'branch') {
-                        if (child.type === 'fs_unit') {
-                            // 室外機〜FSユニット間は3管式
-                            const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
-                            child.pipeSizeText = `液管: φ${sizes.liquid} / 吐出ガス: φ${sizes.dischargeGas} / 吸入ガス: φ${sizes.suctionGas}`;
-                            child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.dischargeGas, lowGas: sizes.suctionGas };
+                if (child.type === 'indoor') {
+                    // ★末端の室内機につながる冷媒管はどのシリーズ・メーカーでも必ず2管（液管・ガス管）
+                    const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
+                    child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
+                    child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
 
-                            totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
-                            totals.highGasPipes[sizes.dischargeGas] = (totals.highGasPipes[sizes.dischargeGas] || 0) + len;
-                            totals.lowGasPipes[sizes.suctionGas] = (totals.lowGasPipes[sizes.suctionGas] || 0) + len;
+                    totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
+                    totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
 
-                            this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings);
-                        } else {
-                            // 直接接続
-                            const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
-                            child.pipeSizeText = `液管: φ${sizes.liquid} / 吐出ガス: φ${sizes.dischargeGas} / 吸入ガス: φ${sizes.suctionGas}`;
-                            child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.dischargeGas, lowGas: sizes.suctionGas };
-                            
-                            warnings.push({
-                                type: 'danger',
-                                message: `冷暖同時(スーパーマルチu)系統では、室外機と室内機の間にFSユニットが必要です。(${child.name})`
-                            });
+                    if (seriesId === 'super_multi_u_r' && !inFSDownstream) {
+                        warnings.push({
+                            type: 'danger',
+                            message: `冷暖同時(スーパーマルチu)系統では、室内機の上流にFSユニット(流路切替ユニット)の設置が必要です。(${child.name})`
+                        });
+                    }
 
-                            this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
-                        }
-                    } else if (inFSDownstream) {
-                        // FSユニットから下流は2管式
+                    this.processNodeSizing(child, seriesId, isManualSizeUp, inFSDownstream, outdoorCap, totals, warnings);
+                } else if (seriesId === 'super_multi_u_r') {
+                    // super_multi_u_r (冷暖同時 3管式)
+                    if (!inFSDownstream) {
+                        // FSユニット上流（室外機〜分岐継手、分岐継手〜分岐継手、分岐継手〜FSユニット）: 3管式
+                        const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
+                        child.pipeSizeText = `液管: φ${sizes.liquid} / 吐出ガス: φ${sizes.dischargeGas} / 吸入ガス: φ${sizes.suctionGas}`;
+                        child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.dischargeGas, lowGas: sizes.suctionGas };
+
+                        totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
+                        totals.highGasPipes[sizes.dischargeGas] = (totals.highGasPipes[sizes.dischargeGas] || 0) + len;
+                        totals.lowGasPipes[sizes.suctionGas] = (totals.lowGasPipes[sizes.suctionGas] || 0) + len;
+
+                        const nextInFS = child.type === 'fs_unit';
+                        this.processNodeSizing(child, seriesId, isManualSizeUp, nextInFS, outdoorCap, totals, warnings);
+                    } else {
+                        // FSユニット下流: 2管式
                         const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
                         child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                         child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
@@ -377,6 +434,9 @@ class RefrigerantSizerEngine {
 
                     totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                     totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
+
+                    this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
+                }
 
                     if (node.type === 'branch') {
                         node.jointModel = this.selectJointModel(childKw);

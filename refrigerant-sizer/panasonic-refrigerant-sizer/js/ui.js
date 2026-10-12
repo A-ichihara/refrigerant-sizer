@@ -150,33 +150,100 @@ class RefrigerantSizerUI {
         card.className = `node-card`;
         if (node.id === this.activeNodeId) card.classList.add('active');
 
-        let badgeText = '室外';
-        let badgeClass = 'badge-outdoor';
-        if (node.type === 'branch') { badgeText = '分岐'; badgeClass = 'badge-branch'; }
-        else if (node.type === 'indoor') { badgeText = '室内'; badgeClass = 'badge-indoor'; }
-        else if (node.type === 'solenoid_kit') { badgeText = '電磁弁'; badgeClass = 'badge-solenoid'; }
+        // バッジ表記 (パナソニック公式呼称)
+        let badgeText = '室外機';
+        let badgeClass = 'type-outdoor';
+        if (node.type === 'branch') { badgeText = '分岐用継手'; badgeClass = 'type-branch'; }
+        else if (node.type === 'indoor') { 
+            const styleConfig = this.engine.INDOOR_STYLES ? this.engine.INDOOR_STYLES[node.indoorStyle || 'cassette_4way'] : null;
+            const styleShort = styleConfig ? styleConfig.name.split(' ')[0] : 'カセット形';
+            badgeText = `室内機 [${styleShort}]`; 
+            badgeClass = 'type-indoor'; 
+        }
+        else if (node.type === 'solenoid_kit') { badgeText = '電磁弁キット'; badgeClass = 'type-bs-unit'; }
 
-        let capText = '';
+        // スペック一覧
+        let specHtml = '';
         if (node.type === 'outdoor') {
-            capText = `${node.capacity.toFixed(1)} kW (${this.getHpFromKw(node.capacity)}馬力)`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">定格容量:</span><span class="spec-val">${node.capacity.toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">馬力相当:</span><span class="spec-val">${this.getHpFromKw(node.capacity)} 馬力</span></div>
+            `;
         } else if (node.type === 'indoor') {
-            capText = `${node.capacity.toFixed(1)} kW (${this.getIndoorLabelFromKw(node.capacity)})`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">容量型番:</span><span class="spec-val">${this.getIndoorLabelFromKw(node.capacity)}</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
+        } else if (node.type === 'solenoid_kit') {
+            const childIndoors = this.countIndoors(node);
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${(node.capacitySum || 0).toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">接続台数:</span><span class="spec-val">${childIndoors} 台</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
         } else {
-            capText = `下流: ${(node.capacitySum || 0).toFixed(1)} kW`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${(node.capacitySum || 0).toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">継手品番:</span><span class="spec-val" style="color:var(--color-warning);">${node.jointModel || node.modelNumber || '-'}</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
         }
 
+        // 配管結果バッジ
+        let pipeHtml = '';
+        if (node.type !== 'outdoor') {
+            if (node.pipes && node.pipes.type === '3pipe') {
+                pipeHtml = `
+                    <div class="pipe-result-badge">
+                        <div>液管: φ${node.pipes.liquid}</div>
+                        <div style="color:var(--color-warning);">吐出ガス: φ${node.pipes.highGas}</div>
+                        <div style="color:var(--color-secondary);">吸入ガス: φ${node.pipes.lowGas}</div>
+                    </div>
+                `;
+            } else if (node.pipes && node.pipes.type === '2pipe') {
+                pipeHtml = `
+                    <div class="pipe-result-badge">
+                        <div>液管: φ${node.pipes.liquid}</div>
+                        <div>ガス管: φ${node.pipes.gas}</div>
+                    </div>
+                `;
+            } else if (node.pipeSizeText) {
+                pipeHtml = `<div class="pipe-result-badge"><div>${node.pipeSizeText}</div></div>`;
+            }
+        } else {
+            const is3Pipe = this.activeSeriesId === 'fsv_uxe3';
+            if (is3Pipe) {
+                const sizes = this.engine.selectThreePipeSize(node.capacity, this.enableManualSizeUp);
+                pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        <div>液管: φ${sizes.liquid} (主管)</div>
+                        <div style="color:var(--color-warning);">吐出ガス: φ${sizes.dischargeGas} (主管)</div>
+                        <div style="color:var(--color-secondary);">吸入ガス: φ${sizes.suctionGas} (主管)</div>
+                    </div>
+                `;
+            } else {
+                const sizes = this.engine.selectTwoPipeSize(node.capacity, this.enableManualSizeUp);
+                pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        <div>液管: φ${sizes.liquid} (主管)</div>
+                        <div>ガス管: φ${sizes.gas} (主管)</div>
+                    </div>
+                `;
+            }
+        }
+
+        // HTML 組み立て (ダイキン共通レイアウト)
         card.innerHTML = `
             <div class="node-header">
-                <span class="node-badge ${badgeClass}">${badgeText}</span>
-                <span class="node-title" title="${node.name}">${node.name}</span>
+                <span class="node-type ${badgeClass}">${badgeText}</span>
+                ${node.type !== 'outdoor' ? `<span class="spec-val" style="font-size:0.75rem;">${node.length}m</span>` : ''}
             </div>
-            <div class="node-info">
-                <span>容量:</span>
-                <span><strong>${capText}</strong></span>
+            <div class="node-title" title="${node.name}">${node.name}</div>
+            <div style="font-size: 0.725rem; font-family: var(--font-mono); color: var(--color-secondary); margin-bottom: 8px; padding: 2px 6px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.08); border-radius: 4px; display: inline-block;">
+                品番: ${node.modelNumber || '-'}
             </div>
-            ${node.length > 0 ? `<div class="node-info"><span>配管長:</span><span>${node.length} m</span></div>` : ''}
-            ${node.modelNumber ? `<div class="node-catalog-model">${node.modelNumber}</div>` : ''}
-            ${node.pipeSizeText ? `<div class="pipe-info">${node.pipeSizeText}</div>` : ''}
+            <div class="node-specs">${specHtml}</div>
+            ${pipeHtml}
         `;
 
         card.addEventListener('click', (e) => {
@@ -201,13 +268,13 @@ class RefrigerantSizerUI {
     drawConnections() {
         if (!this.svgCanvas) return;
         
-        const paths = this.svgCanvas.querySelectorAll('path');
-        paths.forEach(p => p.remove());
+        this.svgCanvas.innerHTML = '';
 
         this.svgCanvas.setAttribute('width', this.canvas.scrollWidth);
         this.svgCanvas.setAttribute('height', this.canvas.scrollHeight);
 
-        this.drawNodeConnectorRecursive(this.systemTree);
+        const currentTree = (this.sizerResult && this.sizerResult.tree) ? this.sizerResult.tree : this.systemTree;
+        this.drawNodeConnectorRecursive(currentTree);
     }
 
     drawNodeConnectorRecursive(node) {
@@ -256,32 +323,93 @@ class RefrigerantSizerUI {
                 this.svgCanvas.appendChild(path);
 
                 // 配管道中への冷媒サイズ記号（ラベル）自動記入
-                if (child.pipeLiquid || child.pipeGas || child.pipeHighGas) {
-                    let labelText = `L:φ${child.pipeLiquid || '-'} G:φ${child.pipeGas || '-'}`;
-                    if (child.pipeHighGas) {
-                        labelText = `L:φ${child.pipeLiquid} H:φ${child.pipeHighGas} S:φ${child.pipeLowGas}`;
-                    }
+                const pLiquid = child.pipeLiquid || (child.pipes && child.pipes.liquid);
+                const pGas = child.pipeGas || (child.pipes && child.pipes.gas);
+                const pHighGas = child.pipeHighGas || (child.pipes && child.pipes.highGas);
+                const pLowGas = child.pipeLowGas || (child.pipes && child.pipes.lowGas);
+
+                if (pLiquid || pGas || pHighGas) {
                     const midX = (startX + endX) / 2;
                     const midY = (startY + endY) / 2;
-                    const labelWidth = (child.pipeHighGas) ? 140 : 104;
+                    const is3Pipe = !!pHighGas;
+
+                    // 区間種別判定
+                    let segmentLabel = '分岐→室内機';
+                    let segmentColor = '#10b981';
+                    if (node.type === 'outdoor') {
+                        segmentLabel = '室外機→分岐';
+                        segmentColor = '#00a2e8';
+                    } else if (child.type === 'branch') {
+                        segmentLabel = '分岐→分岐';
+                        segmentColor = '#f59e0b';
+                    } else if (child.type === 'solenoid_kit') {
+                        segmentLabel = '→電磁弁キット';
+                        segmentColor = '#a855f7';
+                    } else if (child.type === 'bs_unit') {
+                        segmentLabel = '→BSユニット';
+                        segmentColor = '#a855f7';
+                    }
+
+                    const labelWidth = is3Pipe ? 130 : 118;
+                    const rowH = 16;
+                    const rows = is3Pipe ? 4 : 3;
+                    const boxH = rows * rowH + 6;
+                    const boxY = midY - boxH / 2;
 
                     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    
+
                     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('class', 'pipe-label-bg');
-                    rect.setAttribute('x', midX - (labelWidth / 2));
-                    rect.setAttribute('y', midY - 11);
+                    rect.setAttribute('x', midX - labelWidth / 2);
+                    rect.setAttribute('y', boxY);
                     rect.setAttribute('width', labelWidth);
-                    rect.setAttribute('height', 22);
-
-                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('class', 'pipe-label-text');
-                    text.setAttribute('x', midX);
-                    text.setAttribute('y', midY);
-                    text.textContent = labelText;
-
+                    rect.setAttribute('height', boxH);
+                    rect.setAttribute('rx', '5');
+                    rect.setAttribute('stroke', segmentColor);
                     g.appendChild(rect);
-                    g.appendChild(text);
+
+                    const tHeader = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    tHeader.setAttribute('class', 'pipe-label-header');
+                    tHeader.setAttribute('x', midX);
+                    tHeader.setAttribute('y', boxY + rowH - 2);
+                    tHeader.setAttribute('fill', segmentColor);
+                    tHeader.textContent = segmentLabel;
+                    g.appendChild(tHeader);
+
+                    const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    tLiq.setAttribute('class', 'pipe-label-text');
+                    tLiq.setAttribute('x', midX);
+                    tLiq.setAttribute('y', boxY + rowH * 2 - 2);
+                    tLiq.setAttribute('fill', '#e0f2fe');
+                    tLiq.textContent = '液管: φ' + (pLiquid || '-');
+                    g.appendChild(tLiq);
+
+                    if (is3Pipe) {
+                        const tHLG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tHLG.setAttribute('class', 'pipe-label-text');
+                        tHLG.setAttribute('x', midX);
+                        tHLG.setAttribute('y', boxY + rowH * 3 - 2);
+                        tHLG.setAttribute('fill', '#fbbf24');
+                        tHLG.textContent = '吐出ガス: φ' + (pHighGas || '-');
+                        g.appendChild(tHLG);
+
+                        const tSG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tSG.setAttribute('class', 'pipe-label-text');
+                        tSG.setAttribute('x', midX);
+                        tSG.setAttribute('y', boxY + rowH * 4 - 2);
+                        tSG.setAttribute('fill', '#00d2ff');
+                        tSG.textContent = '吸入ガス: φ' + (pLowGas || '-');
+                        g.appendChild(tSG);
+                    } else {
+                        const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tGas.setAttribute('class', 'pipe-label-text');
+                        tGas.setAttribute('x', midX);
+                        tGas.setAttribute('y', boxY + rowH * 3 - 2);
+                        tGas.setAttribute('fill', '#00d2ff');
+                        tGas.textContent = 'ガス管: φ' + (pGas || '-');
+                        g.appendChild(tGas);
+                    }
+
                     this.svgCanvas.appendChild(g);
                 }
 
@@ -524,11 +652,11 @@ class RefrigerantSizerUI {
             this.clampCapacityForStyle(node);
         }
 
-        // MF3シリーズ以外で電磁弁キットが存在する場合は自動修復（通常分岐に置換）
-        if (this.activeSeriesId !== 'fsv_mf3') {
+        // UXE3(冷暖同時)シリーズ以外で電磁弁キットが存在する場合は自動修復（通常分岐用継手に置換）
+        if (this.activeSeriesId !== 'fsv_uxe3' && this.activeSeriesId !== 'fsv_mf3') {
             if (node.type === 'solenoid_kit') {
                 node.type = 'branch';
-                node.name = node.name.replace('電磁弁キット', '分岐ジョイント');
+                node.name = node.name.replace('電磁弁キット', '分岐用継手');
             }
         }
 
@@ -824,11 +952,11 @@ class RefrigerantSizerUI {
     }
 
     loadSamplePresetForSeries() {
-        if (this.activeSeriesId === 'fsv_mf3') {
-            // MF3用: 3管式冷暖同時電磁弁キット系統
+        if (this.activeSeriesId === 'fsv_uxe3' || this.activeSeriesId === 'fsv_mf3') {
+            // UXE3用: 3管式冷暖同時電磁弁キット系統
             this.systemTree = {
                 id: "root",
-                name: "室外機 (MF3 10馬力)",
+                name: "室外機 U-P280UXE3 (10馬力)",
                 type: "outdoor",
                 capacity: 28.0,
                 length: 0,
@@ -1194,6 +1322,17 @@ class RefrigerantSizerUI {
         const currentSeries = this.engine.SERIES_DATABASE[this.activeSeriesId];
         const match = currentSeries.indoorTypes.find(i => Math.abs(i.kw - kw) < 0.1);
         return match ? match.type.split(' ')[0] : `P${(kw * 10).toFixed(0)}形`;
+    }
+
+    countIndoors(node) {
+        if (!node) return 0;
+        let count = node.type === 'indoor' ? 1 : 0;
+        if (node.children) {
+            for (const child of node.children) {
+                count += this.countIndoors(child);
+            }
+        }
+        return count;
     }
 
     // ===== 更新履歴モーダル制御 =====

@@ -133,7 +133,8 @@ header {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    margin-left: 7rem;
+    gap: 2.5rem;
+    margin-left: 11rem;
     position: relative;
 }
 
@@ -166,41 +167,78 @@ header {
 
 /* SVG Line Pipe Label Text */
 .pipe-label-bg {
-    fill: rgba(11, 15, 25, 0.85);
+    fill: rgba(8, 12, 22, 0.92);
     stroke: var(--color-primary);
-    stroke-width: 1px;
-    rx: 4px;
-    ry: 4px;
+    stroke-width: 1.5px;
+}
+.pipe-label-header {
+    fill: #00a2e8;
+    font-size: 10px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: auto;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 .pipe-label-text {
     fill: #00d2ff;
-    font-size: 10px;
+    font-size: 10.5px;
     font-family: var(--font-mono);
     font-weight: 600;
     text-anchor: middle;
-    dominant-baseline: central;
+    dominant-baseline: auto;
 }
 
-/* Main Layout */
+/* Main Layout (3カラム: ダイキン準拠) */
 main {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 320px 1fr 340px;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    height: calc(100vh - 70px);
     overflow: hidden;
-    background: radial-gradient(circle at 30% 30%, #0f182c 0%, var(--bg-base) 100%);
 }
 
-/* Sidebar */
+/* Sidebar Containers (ダイキン準拠) */
 .sidebar {
-    background: var(--bg-surface-solid);
-    border-left: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.sidebar-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
     padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-    overflow-y: auto;
 }
 
+/* sidebar-panel (後方互換) */
 .sidebar-panel {
     background: rgba(255, 255, 255, 0.02);
     border: 1px solid var(--border-color);
@@ -222,13 +260,52 @@ main {
     margin-bottom: 0.25rem;
 }
 
-/* Canvas Container */
+/* Canvas Container (ダイキン準拠: auto scroll対応) */
 .canvas-container {
-    display: flex;
-    flex-direction: column;
+    background: rgba(15, 22, 42, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
     position: relative;
-    overflow: hidden;
+    overflow: auto !important;
+    display: block !important;
+    padding: 2.5rem;
+    box-shadow: inset 0 4px 20px rgba(0,0,0,0.4);
 }
+
+/* Canvas grid dot background */
+.canvas-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: 24px 24px;
+    background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Custom Scrollbar */
+.canvas-container::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar,
+.sidebar-content::-webkit-scrollbar { width: 8px; height: 8px; }
+.canvas-container::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track,
+.sidebar-content::-webkit-scrollbar-track { background: rgba(11, 15, 25, 0.5); border-radius: 4px; }
+.canvas-container::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb,
+.sidebar-content::-webkit-scrollbar-thumb { background: rgba(0, 90, 255, 0.3); border-radius: 4px; }
+.canvas-container::-webkit-scrollbar-thumb:hover,
+.modal-body::-webkit-scrollbar-thumb:hover,
+.sidebar-content::-webkit-scrollbar-thumb:hover { background: rgba(0, 90, 255, 0.6); }
+
+/* (山履き対策: 上記の新sidebar定義が优先されるためコメントアウト) */
+/* .sidebar { 旧定義 - 上記の新定義に統合されたため削除 } */
+
+/* (山履き対策) */
 
 .canvas-header {
     padding: 0.85rem 1.5rem;
@@ -309,25 +386,21 @@ main {
 }
 
 .node-card {
-    background: var(--bg-surface);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-color);
+    background: var(--bg-surface-solid);
+    border: 2px solid var(--border-color);
     border-radius: var(--radius-md);
-    width: 200px;
-    padding: 10px 14px;
-    margin: 10px 40px; /* Space for connectors */
-    cursor: pointer;
+    padding: 12px 16px;
+    width: 220px;
     position: relative;
-    transition: all var(--transition-normal);
     box-shadow: var(--shadow-sm);
+    transition: var(--transition-normal);
+    cursor: pointer;
 }
 
 .node-card:hover {
-    background: var(--bg-surface-hover);
-    border-color: rgba(255, 255, 255, 0.2);
+    border-color: var(--color-primary);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 4px 12px rgba(15, 98, 254, 0.15);
 }
 
 .node-card.active {
@@ -340,66 +413,73 @@ main {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
 }
 
 .node-card .node-title {
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     color: var(--text-primary);
+    margin-bottom: 4px;
 }
 
-.node-card .node-badge {
-    font-size: 0.6rem;
-    padding: 2px 6px;
-    border-radius: 4px;
+/* Node type badges */
+.node-type {
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.type-outdoor, .badge-outdoor { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.type-branch, .badge-branch { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.type-bs-unit, .badge-solenoid { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.type-indoor, .badge-indoor { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+
+.node-specs {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 6px;
 }
 
-/* Node type colors */
-.badge-outdoor { background: #3b82f6; color: #fff; }
-.badge-branch { background: #10b981; color: #fff; }
-.badge-indoor { background: #f59e0b; color: #fff; }
-.badge-solenoid { background: #a855f7; color: #fff; } /* Purple for Solenoid Kit */
-
-.node-card .node-info {
-    font-size: 0.72rem;
-    color: var(--text-secondary);
-    margin: 2px 0;
+.spec-item {
     display: flex;
     justify-content: space-between;
 }
 
-.node-card .node-catalog-model {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--color-secondary);
-    font-weight: 600;
-    margin-top: 4px;
-    border-top: 1px dashed rgba(255,255,255,0.06);
-    padding-top: 4px;
+.spec-lbl {
+    color: var(--text-muted);
 }
 
-.node-card .pipe-info {
+.spec-val {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.pipe-result-badge {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.725rem;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.08);
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-top: 4px;
-    text-align: center;
-    border: 1px solid rgba(56, 189, 248, 0.15);
+    color: var(--color-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .tree-children {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    gap: 2.5rem;
     position: relative;
 }
 

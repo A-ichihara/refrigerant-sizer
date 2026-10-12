@@ -149,33 +149,100 @@ class RefrigerantSizerUI {
         card.className = `node-card`;
         if (node.id === this.activeNodeId) card.classList.add('active');
 
-        let badgeText = '室外';
-        let badgeClass = 'badge-outdoor';
-        if (node.type === 'branch') { badgeText = '分岐'; badgeClass = 'badge-branch'; }
-        else if (node.type === 'indoor') { badgeText = '室内'; badgeClass = 'badge-indoor'; }
-        else if (node.type === 'fs_unit') { badgeText = 'FSﾕﾆｯﾄ'; badgeClass = 'badge-fs'; }
+        // バッジ表記
+        let badgeText = '室外機';
+        let badgeClass = 'type-outdoor';
+        if (node.type === 'branch') { badgeText = '分岐ジョイント'; badgeClass = 'type-branch'; }
+        else if (node.type === 'indoor') { 
+            const styleConfig = this.engine.INDOOR_STYLES ? this.engine.INDOOR_STYLES[node.indoorStyle || 'cassette_4way'] : null;
+            const styleShort = styleConfig ? styleConfig.name.split(' ')[0] : 'カセット形';
+            badgeText = `室内機 [${styleShort}]`; 
+            badgeClass = 'type-indoor'; 
+        }
+        else if (node.type === 'fs_unit') { badgeText = 'FSユニット'; badgeClass = 'type-bs-unit'; }
 
-        let capText = '';
+        // スペック一覧
+        let specHtml = '';
         if (node.type === 'outdoor') {
-            capText = `${node.capacity.toFixed(1)} kW (${this.getHpFromKw(node.capacity)}馬力)`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">定格容量:</span><span class="spec-val">${node.capacity.toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">馬力相当:</span><span class="spec-val">${this.getHpFromKw(node.capacity)} 馬力</span></div>
+            `;
         } else if (node.type === 'indoor') {
-            capText = `${node.capacity.toFixed(1)} kW (${this.getIndoorLabelFromKw(node.capacity)})`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">容量型番:</span><span class="spec-val">${this.getIndoorLabelFromKw(node.capacity)}</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
+        } else if (node.type === 'fs_unit') {
+            const childIndoors = this.countIndoors(node);
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${(node.capacitySum || 0).toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">接続台数:</span><span class="spec-val">${childIndoors} 台</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
         } else {
-            capText = `下流: ${(node.capacitySum || 0).toFixed(1)} kW`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${(node.capacitySum || 0).toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">ジョイント形名:</span><span class="spec-val" style="color:var(--color-warning);">${node.modelNumber || '-'}</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
         }
 
+        // 配管結果バッジ
+        let pipeHtml = '';
+        if (node.type !== 'outdoor') {
+            if (node.pipes && node.pipes.type === '3pipe') {
+                pipeHtml = `
+                    <div class="pipe-result-badge">
+                        <div>液管: φ${node.pipes.liquid}</div>
+                        <div style="color:var(--color-warning);">高圧ガス: φ${node.pipes.highGas}</div>
+                        <div style="color:var(--color-secondary);">低圧ガス: φ${node.pipes.lowGas}</div>
+                    </div>
+                `;
+            } else if (node.pipes && node.pipes.type === '2pipe') {
+                pipeHtml = `
+                    <div class="pipe-result-badge">
+                        <div>液管: φ${node.pipes.liquid}</div>
+                        <div>ガス管: φ${node.pipes.gas}</div>
+                    </div>
+                `;
+            } else if (node.pipeSizeText) {
+                pipeHtml = `<div class="pipe-result-badge"><div>${node.pipeSizeText}</div></div>`;
+            }
+        } else {
+            const is3Pipe = this.isThreePipeSystem();
+            if (is3Pipe && node.pipes && node.pipes.type === '3pipe') {
+                pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        <div>液管: φ${node.pipes.liquid} (主管)</div>
+                        <div style="color:var(--color-warning);">高圧ガス: φ${node.pipes.highGas} (主管)</div>
+                        <div style="color:var(--color-secondary);">低圧ガス: φ${node.pipes.lowGas} (主管)</div>
+                    </div>
+                `;
+            } else if (node.pipes && node.pipes.type === '2pipe') {
+                pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        <div>液管: φ${node.pipes.liquid} (主管)</div>
+                        <div>ガス管: φ${node.pipes.gas} (主管)</div>
+                    </div>
+                `;
+            } else if (node.pipeSizeText) {
+                pipeHtml = `<div class="pipe-result-badge" style="color: var(--text-muted);"><div>${node.pipeSizeText}</div></div>`;
+            }
+        }
+
+        // HTML 組み立て
         card.innerHTML = `
             <div class="node-header">
-                <span class="node-badge ${badgeClass}">${badgeText}</span>
-                <span class="node-title" title="${node.name}">${node.name}</span>
+                <span class="node-type ${badgeClass}">${badgeText}</span>
+                ${node.type !== 'outdoor' ? `<span class="spec-val" style="font-size:0.75rem;">${node.length}m</span>` : ''}
             </div>
-            <div class="node-info">
-                <span>容量:</span>
-                <span><strong>${capText}</strong></span>
+            <div class="node-title" title="${node.name}">${node.name}</div>
+            <div style="font-size: 0.725rem; font-family: var(--font-mono); color: var(--color-secondary); margin-bottom: 8px; padding: 2px 6px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.08); border-radius: 4px; display: inline-block;">
+                形名: ${node.modelNumber || '-'}
             </div>
-            ${node.length > 0 ? `<div class="node-info"><span>配管長:</span><span>${node.length} m</span></div>` : ''}
-            ${node.modelNumber ? `<div class="node-catalog-model">${node.modelNumber}</div>` : ''}
-            ${node.pipeSizeText ? `<div class="pipe-info">${node.pipeSizeText}</div>` : ''}
+            <div class="node-specs">${specHtml}</div>
+            ${pipeHtml}
         `;
 
         card.addEventListener('click', (e) => {
@@ -200,13 +267,13 @@ class RefrigerantSizerUI {
     drawConnections() {
         if (!this.svgCanvas) return;
         
-        const paths = this.svgCanvas.querySelectorAll('path');
-        paths.forEach(p => p.remove());
+        this.svgCanvas.innerHTML = '';
 
         this.svgCanvas.setAttribute('width', this.canvas.scrollWidth);
         this.svgCanvas.setAttribute('height', this.canvas.scrollHeight);
 
-        this.drawNodeConnectorRecursive(this.systemTree);
+        const currentTree = (this.sizerResult && this.sizerResult.tree) ? this.sizerResult.tree : this.systemTree;
+        this.drawNodeConnectorRecursive(currentTree);
     }
 
     drawNodeConnectorRecursive(node) {
@@ -255,32 +322,93 @@ class RefrigerantSizerUI {
                 this.svgCanvas.appendChild(path);
 
                 // 配管道中への冷媒サイズ記号（ラベル）自動記入
-                if (child.pipeLiquid || child.pipeGas || child.pipeHighGas) {
-                    let labelText = `L:φ${child.pipeLiquid || '-'} G:φ${child.pipeGas || '-'}`;
-                    if (child.pipeHighGas) {
-                        labelText = `L:φ${child.pipeLiquid} H:φ${child.pipeHighGas} S:φ${child.pipeLowGas}`;
-                    }
+                const pLiquid = child.pipeLiquid || (child.pipes && child.pipes.liquid);
+                const pGas = child.pipeGas || (child.pipes && child.pipes.gas);
+                const pHighGas = child.pipeHighGas || (child.pipes && child.pipes.highGas);
+                const pLowGas = child.pipeLowGas || (child.pipes && child.pipes.lowGas);
+
+                if (pLiquid || pGas || pHighGas) {
                     const midX = (startX + endX) / 2;
                     const midY = (startY + endY) / 2;
-                    const labelWidth = (child.pipeHighGas) ? 140 : 104;
+                    const is3Pipe = !!pHighGas;
+
+                    // 区間種別判定
+                    let segmentLabel = '分岐→室内機';
+                    let segmentColor = '#10b981';
+                    if (node.type === 'outdoor') {
+                        segmentLabel = '室外機→分岐';
+                        segmentColor = '#00a2e8';
+                    } else if (child.type === 'branch') {
+                        segmentLabel = '分岐→分岐';
+                        segmentColor = '#f59e0b';
+                    } else if (child.type === 'fs_unit') {
+                        segmentLabel = '→FSユニット';
+                        segmentColor = '#f57c00';
+                    } else if (child.type === 'bs_unit') {
+                        segmentLabel = '→BSユニット';
+                        segmentColor = '#a855f7';
+                    }
+
+                    const labelWidth = is3Pipe ? 130 : 118;
+                    const rowH = 16;
+                    const rows = is3Pipe ? 4 : 3;
+                    const boxH = rows * rowH + 6;
+                    const boxY = midY - boxH / 2;
 
                     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    
+
                     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('class', 'pipe-label-bg');
-                    rect.setAttribute('x', midX - (labelWidth / 2));
-                    rect.setAttribute('y', midY - 11);
+                    rect.setAttribute('x', midX - labelWidth / 2);
+                    rect.setAttribute('y', boxY);
                     rect.setAttribute('width', labelWidth);
-                    rect.setAttribute('height', 22);
-
-                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('class', 'pipe-label-text');
-                    text.setAttribute('x', midX);
-                    text.setAttribute('y', midY);
-                    text.textContent = labelText;
-
+                    rect.setAttribute('height', boxH);
+                    rect.setAttribute('rx', '5');
+                    rect.setAttribute('stroke', segmentColor);
                     g.appendChild(rect);
-                    g.appendChild(text);
+
+                    const tHeader = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    tHeader.setAttribute('class', 'pipe-label-header');
+                    tHeader.setAttribute('x', midX);
+                    tHeader.setAttribute('y', boxY + rowH - 2);
+                    tHeader.setAttribute('fill', segmentColor);
+                    tHeader.textContent = segmentLabel;
+                    g.appendChild(tHeader);
+
+                    const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    tLiq.setAttribute('class', 'pipe-label-text');
+                    tLiq.setAttribute('x', midX);
+                    tLiq.setAttribute('y', boxY + rowH * 2 - 2);
+                    tLiq.setAttribute('fill', '#e0f2fe');
+                    tLiq.textContent = '液管: φ' + (pLiquid || '-');
+                    g.appendChild(tLiq);
+
+                    if (is3Pipe) {
+                        const tHLG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tHLG.setAttribute('class', 'pipe-label-text');
+                        tHLG.setAttribute('x', midX);
+                        tHLG.setAttribute('y', boxY + rowH * 3 - 2);
+                        tHLG.setAttribute('fill', '#fbbf24');
+                        tHLG.textContent = '吐出ガス: φ' + (pHighGas || '-');
+                        g.appendChild(tHLG);
+
+                        const tSG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tSG.setAttribute('class', 'pipe-label-text');
+                        tSG.setAttribute('x', midX);
+                        tSG.setAttribute('y', boxY + rowH * 4 - 2);
+                        tSG.setAttribute('fill', '#00d2ff');
+                        tSG.textContent = '吸入ガス: φ' + (pLowGas || '-');
+                        g.appendChild(tSG);
+                    } else {
+                        const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tGas.setAttribute('class', 'pipe-label-text');
+                        tGas.setAttribute('x', midX);
+                        tGas.setAttribute('y', boxY + rowH * 3 - 2);
+                        tGas.setAttribute('fill', '#00d2ff');
+                        tGas.textContent = 'ガス管: φ' + (pGas || '-');
+                        g.appendChild(tGas);
+                    }
+
                     this.svgCanvas.appendChild(g);
                 }
 
@@ -619,10 +747,129 @@ class RefrigerantSizerUI {
 
         this.renderPipeSizeTable();
         overlay.classList.add('active');
+        overlay.classList.add('show');
 
-        const closeModal = () => overlay.classList.remove('active');
+        const closeModal = () => {
+            overlay.classList.remove('active');
+            overlay.classList.remove('show');
+        };
         btnOk.onclick = closeModal;
         btnClose.onclick = closeModal;
+    }
+
+    /** ⑥ 全部入り冷媒サイズマスター表モーダルの制御 */
+    openMasterPipeSizeModal(initialTab = 'cooling_heating_switch') {
+        const overlay = document.getElementById('master-pipesize-modal-overlay');
+        const btnOk = document.getElementById('master-pipesize-modal-ok');
+        const btnClose = document.getElementById('master-pipesize-modal-close');
+        const tabSwitch = document.getElementById('tab-master-switch');
+        const tabFree = document.getElementById('tab-master-free');
+
+        if (!overlay) return;
+
+        let currentTab = initialTab;
+
+        const updateTabUI = () => {
+            if (tabSwitch && tabFree) {
+                if (currentTab === 'cooling_heating_switch') {
+                    tabSwitch.style.background = 'rgba(16, 185, 129, 0.18)';
+                    tabSwitch.style.borderColor = '#10b981';
+                    tabSwitch.style.color = '#10b981';
+                    tabFree.style.background = 'rgba(255, 255, 255, 0.03)';
+                    tabFree.style.borderColor = 'var(--border-color)';
+                    tabFree.style.color = 'var(--text-secondary)';
+                } else {
+                    tabFree.style.background = 'rgba(16, 185, 129, 0.18)';
+                    tabFree.style.borderColor = '#10b981';
+                    tabFree.style.color = '#10b981';
+                    tabSwitch.style.background = 'rgba(255, 255, 255, 0.03)';
+                    tabSwitch.style.borderColor = 'var(--border-color)';
+                    tabSwitch.style.color = 'var(--text-secondary)';
+                }
+            }
+            this.renderMasterPipeSizeTable(currentTab);
+        };
+
+        if (tabSwitch) {
+            tabSwitch.onclick = () => {
+                currentTab = 'cooling_heating_switch';
+                updateTabUI();
+            };
+        }
+        if (tabFree) {
+            tabFree.onclick = () => {
+                currentTab = 'cooling_heating_free';
+                updateTabUI();
+            };
+        }
+
+        updateTabUI();
+        overlay.classList.add('active');
+        overlay.classList.add('show');
+
+        const closeModal = () => {
+            overlay.classList.remove('active');
+            overlay.classList.remove('show');
+        };
+        if (btnOk) btnOk.onclick = closeModal;
+        if (btnClose) btnClose.onclick = closeModal;
+    }
+
+    /** 全部入り冷媒サイズマスター表のレンダリング */
+    renderMasterPipeSizeTable(tabKey) {
+        const container = document.getElementById('master-pipesize-table-container');
+        if (!container || !this.engine.MASTER_PIPE_TABLES) return;
+
+        const tableData = this.engine.MASTER_PIPE_TABLES[tabKey];
+        if (!tableData) {
+            container.innerHTML = '<div style="color:var(--text-muted); padding:1rem; text-align:center;">該当するマスターテーブルが存在しません。</div>';
+            return;
+        }
+
+        const is3Pipe = tableData.systemType === '3pipe';
+
+        let html = `
+            <div style="background:rgba(0,75,147,0.06); padding:12px 16px; border-radius:var(--radius-sm); border:1px solid rgba(0,75,147,0.2); margin-bottom:1rem;">
+                <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem; margin-bottom:6px;">${tableData.title}</div>
+                <div style="font-size:0.775rem; color:var(--text-secondary); line-height:1.6;">
+                    ${tableData.rules.map(r => `<div>${r}</div>`).join('')}
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="pipe-detail-table" style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.04);">
+                            ${tableData.headers.map(h => `<th style="padding:8px 10px; border:1px solid var(--border-color); text-align:center; font-weight:700; color:var(--text-primary);">${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        tableData.rows.forEach(row => {
+            html += `<tr style="border-bottom:1px solid var(--border-color);">`;
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-weight:700; background:rgba(0,75,147,0.04); font-family:var(--font-mono);">${row.code}</td>`;
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-family:var(--font-mono); font-weight:700; color:var(--color-primary);">φ${row.liquid}</td>`;
+            if (is3Pipe) {
+                html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-family:var(--font-mono); font-weight:700; color:var(--color-warning);">φ${row.highLowGas}</td>`;
+                html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-family:var(--font-mono); font-weight:700; color:var(--color-secondary);">φ${row.suctionGas}</td>`;
+            } else {
+                html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-family:var(--font-mono); font-weight:700; color:var(--color-secondary);">φ${row.gas}</td>`;
+                html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center;">${row.indoorKw || '—'}</td>`;
+            }
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center;">${row.branchKw || '—'}</td>`;
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center;">${row.outdoorKw || '—'}</td>`;
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">${row.notes || '—'}</td>`;
+            html += `</tr>`;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = html;
     }
 
     /** システム全区間の配管サイズテーブル生成 */
@@ -643,7 +890,7 @@ class RefrigerantSizerUI {
                         <th>下流容量</th>
                         <th>配管実長</th>
                         <th>液管サイズ</th>
-                        ${is3Pipe ? '<th>高低圧ガス管</th><th>吸入ガス管</th>' : '<th>ガス管サイズ</th>'}
+                        ${is3Pipe ? '<th>吐出ガス管</th><th>吸入ガス管</th>' : '<th>ガス管サイズ</th>'}
                         <th>型番 / 状態</th>
                     </tr>
                 </thead>
@@ -654,6 +901,7 @@ class RefrigerantSizerUI {
             let typeStr = "分岐継手";
             if (node.type === 'outdoor') typeStr = "室外機 (主管)";
             else if (node.type === 'indoor') typeStr = "室内機配管";
+            else if (node.type === 'fs_unit') typeStr = "FSユニット";
 
             const nameStr = parentName ? `${parentName} ➔ ${node.name}` : node.name;
             const capStr = node.type === 'indoor' ? `${node.capacity.toFixed(1)} kW` : `${(node.capacitySum || node.capacity || 0).toFixed(1)} kW`;
@@ -696,6 +944,14 @@ class RefrigerantSizerUI {
 
     bindEvents() {
         window.addEventListener('resize', () => this.drawConnections());
+
+        const btnMasterPipe = document.getElementById('btn-master-pipesize');
+        if (btnMasterPipe) {
+            btnMasterPipe.addEventListener('click', () => {
+                const is3P = this.activeSeriesId === 'super_multi_u_r';
+                this.openMasterPipeSizeModal(is3P ? 'cooling_heating_free' : 'cooling_heating_switch');
+            });
+        }
 
         const btnShowPipe = document.getElementById('btn-show-pipesize');
         if (btnShowPipe) {
@@ -1201,6 +1457,21 @@ class RefrigerantSizerUI {
         const currentSeries = this.engine.SERIES_DATABASE[this.activeSeriesId];
         const match = currentSeries.indoorTypes.find(i => Math.abs(i.kw - kw) < 0.1);
         return match ? match.type.split(' ')[0] : `P${(kw * 10).toFixed(0)}形`;
+    }
+
+    isThreePipeSystem() {
+        return this.activeSeriesId === 'super_multi_u_r';
+    }
+
+    countIndoors(node) {
+        if (!node) return 0;
+        let count = node.type === 'indoor' ? 1 : 0;
+        if (node.children) {
+            for (const child of node.children) {
+                count += this.countIndoors(child);
+            }
+        }
+        return count;
     }
 
     // ===== 更新履歴モーダル制御 =====

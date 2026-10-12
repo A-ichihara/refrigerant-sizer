@@ -524,8 +524,8 @@ input:checked + .slider:before {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 1.5rem;
-    margin-left: 7rem;
+    gap: 2.5rem;
+    margin-left: 11rem;
     position: relative;
 }
 
@@ -657,7 +657,8 @@ input:checked + .slider:before {
     transition: opacity var(--transition-normal);
 }
 
-.modal-overlay.active {
+.modal-overlay.active,
+.modal-overlay.show {
     opacity: 1;
     pointer-events: all;
 }
@@ -674,7 +675,8 @@ input:checked + .slider:before {
     transition: transform var(--transition-normal);
 }
 
-.modal-overlay.active .modal-window {
+.modal-overlay.active .modal-window,
+.modal-overlay.show .modal-window {
     transform: scale(1);
 }
 
@@ -831,18 +833,26 @@ footer {
 
 /* SVG Line Pipe Label Text */
 .pipe-label-bg {
-    fill: rgba(11, 15, 25, 0.85);
+    fill: rgba(8, 12, 22, 0.92);
     stroke: var(--color-primary);
-    stroke-width: 1px;
-    rx: 4px;
-    ry: 4px;
+    stroke-width: 1.5px;
+}
+.pipe-label-header {
+    fill: #00a2e8;
+    font-size: 10px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: auto;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 .pipe-label-text {
     fill: #00d2ff;
-    font-size: 10px;
+    font-size: 10.5px;
     font-family: var(--font-mono);
     font-weight: 600;
     text-anchor: middle;
-    dominant-baseline: central;
+    dominant-baseline: auto;
 }
 

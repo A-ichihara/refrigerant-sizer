@@ -25,6 +25,72 @@ class RefrigerantSizerEngine {
         // ガス管サイズ一覧 (mm φ) - 2管式・3管式共用
         this.GAS_SIZES = [9.5, 12.7, 15.9, 19.1, 22.2, 25.4, 28.6, 31.8, 34.9, 38.1, 41.3, 44.5, 54.0];
 
+        // 全部入り冷媒サイズマスター表 (添付Excel表完全準拠)
+        this.MASTER_PIPE_TABLES = {
+            cooling_heating_switch: {
+                title: "ダイキンEHP 【冷暖切替】 冷媒管サイズ表 (全パターン網羅)",
+                systemType: "2pipe",
+                rules: [
+                    "① 室外機〜室内機間の配管相当長が90mを超える場合 → 主管の液管・ガス管共1サイズアップする。",
+                    "② 第1分岐〜最遠の室内機までの配管長が40mを超える場合 → 第1分岐〜最遠の室内機が接続している分岐管までの液管・ガス管共1サイズアップする。",
+                    "③ 室外内・外機間高低差が50mを超える場合（室外機が下の場合は40mを超える場合） → 室外機〜第1分岐まで（主管）の液管のみ1サイズアップする。",
+                    "④ その他条件についてはダイキン技術資料、カタログの冷媒配管接続要領を必ず読むこと。"
+                ],
+                headers: ["記号", "液管 (mm)", "ガス管 (mm)", "室内機 (kW)", "分岐後 (kW)", "室内機合計kW / 室外機 (kW)", "備考 / サイズUP値"],
+                rows: [
+                    { code: "1", liquid: "6.4", gas: "12.7", indoorKw: "1.6〜5.6", branchKw: "—", outdoorKw: "—", notes: "—" },
+                    { code: "2", liquid: "9.5", gas: "15.9", indoorKw: "7.1〜16.0", branchKw: "〜17.5", outdoorKw: "—", notes: "—" },
+                    { code: "3", liquid: "9.5", gas: "19.1", indoorKw: "22.4", branchKw: "17.6〜22.9", outdoorKw: "22.4", notes: "—" },
+                    { code: "4", liquid: "9.5", gas: "22.2", indoorKw: "28.0", branchKw: "23.0〜28.9", outdoorKw: "28.0", notes: "—" },
+                    { code: "5", liquid: "12.7", gas: "19.1", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "分岐〜最遠室内機間(②) : \"2\"の1サイズUPの値" },
+                    { code: "6", liquid: "12.7", gas: "22.2", indoorKw: "—", branchKw: "29.0〜42.9", outdoorKw: "33.5, 40.0", notes: "配管相当長(①) : 22.4kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"3\"の1サイズUPの値" },
+                    { code: "7", liquid: "12.7", gas: "25.4", indoorKw: "45.0, 56.0", branchKw: "43.0〜61.9", outdoorKw: "45.0〜61.5 (設備用PAC40.0 最大45.0)", notes: "配管相当長(①) : 28.0kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"4\"の1サイズUPの値" },
+                    { code: "8", liquid: "12.7", gas: "28.6", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "—" },
+                    { code: "9", liquid: "15.9", gas: "25.4", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 33.5, 40.0kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"5\"の1サイズUPの値" },
+                    { code: "10", liquid: "15.9", gas: "28.6", indoorKw: "—", branchKw: "62.0〜86.9", outdoorKw: "67.0〜85.0", notes: "配管相当長(①) : 45.0〜61.5kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"6\"の1サイズUPの値" },
+                    { code: "11", liquid: "15.9", gas: "31.8", indoorKw: "—", branchKw: "87.0〜112.9", outdoorKw: "90.0〜112.0", notes: "—" },
+                    { code: "12", liquid: "19.1", gas: "31.8", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 67.0〜85.0kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"9\"の1サイズUPの値" },
+                    { code: "13", liquid: "19.1", gas: "38.1", indoorKw: "—", branchKw: "113.0〜", outdoorKw: "118.0〜", notes: "配管相当長(①) : 90.0〜112.0kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"10\"の1サイズUPの値" },
+                    { code: "14", liquid: "22.2", gas: "38.1", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 118.0kW〜の1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"12\"の1サイズUPの値 (ガス管φ38.1のサイズUPは不可)" }
+                ]
+            },
+            cooling_heating_free: {
+                title: "ダイキンEHP 【冷暖フリー】 冷媒管サイズ表 (全パターン網羅)",
+                systemType: "3pipe",
+                rules: [
+                    "① 室外機〜室内機間の配管相当長が90mを超える場合 → 主管の液管のみ1サイズアップする。",
+                    "② 第1分岐〜最遠の室内機までの配管長が40mを超える場合 → 第1分岐〜最遠の室内機が接続している分岐管までの液管のみサイズアップする。",
+                    "③ 室外内・外機間高低差が50mを超える場合（室外機が下の場合は40mを超える場合） → 室外機〜第1分岐まで（主管）の液管のみ1サイズアップする。",
+                    "④ その他条件についてはダイキン技術資料、カタログの冷媒配管接続要領を必ず読むこと。"
+                ],
+                headers: ["記号", "液管 (mm)", "高低圧ガス管 (mm)", "吸入ガス管 (mm)", "分岐後 (kW)", "室内機合計kW / 室外機 (kW)", "備考 / サイズUP値"],
+                rows: [
+                    { code: "A", liquid: "9.5", highLowGas: "12.7", suctionGas: "15.9", branchKw: "〜17.4", outdoorKw: "—", notes: "—" },
+                    { code: "B", liquid: "9.5", highLowGas: "15.9", suctionGas: "19.1", branchKw: "17.5〜22.9", outdoorKw: "22.4", notes: "—" },
+                    { code: "C", liquid: "9.5", highLowGas: "15.9", suctionGas: "22.2", branchKw: "23.0〜28.9", outdoorKw: "28.0", notes: "—" },
+                    { code: "D", liquid: "12.7", highLowGas: "12.7", suctionGas: "15.9", branchKw: "—", outdoorKw: "—", notes: "分岐〜最遠室内機間(②) : \"A\"の1サイズUPの値" },
+                    { code: "E", liquid: "12.7", highLowGas: "15.9", suctionGas: "19.1", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 22.4kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"B\"の液管のみ1サイズUPの値" },
+                    { code: "F", liquid: "12.7", highLowGas: "15.9", suctionGas: "22.2", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 28.0kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"C\"の液管のみ1サイズUPの値" },
+                    { code: "G", liquid: "12.7", highLowGas: "19.1", suctionGas: "22.2", branchKw: "29.0〜42.9", outdoorKw: "33.5, 40.0", notes: "—" },
+                    { code: "H", liquid: "12.7", highLowGas: "19.1", suctionGas: "25.4", branchKw: "43.0〜46.9", outdoorKw: "45.0", notes: "—" },
+                    { code: "I", liquid: "12.7", highLowGas: "22.2", suctionGas: "25.4", branchKw: "47.0〜61.9", outdoorKw: "50.0〜61.5", notes: "—" },
+                    { code: "J", liquid: "15.9", highLowGas: "19.1", suctionGas: "22.2", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 33.5, 40.0kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"G\"の液管のみ1サイズUPの値" },
+                    { code: "K", liquid: "15.9", highLowGas: "19.1", suctionGas: "25.4", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 45.0kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"H\"の液管のみ1サイズUPの値" },
+                    { code: "L", liquid: "15.9", highLowGas: "22.2", suctionGas: "25.4", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 50.0〜61.5kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"I\"の液管のみ1サイズUPの値" },
+                    { code: "M", liquid: "15.9", highLowGas: "22.2", suctionGas: "28.6", branchKw: "62.0〜74.9", outdoorKw: "67.0〜73.0", notes: "—" },
+                    { code: "N", liquid: "15.9", highLowGas: "25.4", suctionGas: "28.6", branchKw: "75.0〜86.9", outdoorKw: "77.5〜85.0", notes: "—" },
+                    { code: "O", liquid: "15.9", highLowGas: "25.4", suctionGas: "31.8", branchKw: "87.0〜101.9", outdoorKw: "90.0〜100.0", notes: "—" },
+                    { code: "P", liquid: "15.9", highLowGas: "28.6", suctionGas: "31.8", branchKw: "102.0〜112.9", outdoorKw: "106.0〜112.0", notes: "—" },
+                    { code: "Q", liquid: "19.1", highLowGas: "22.2", suctionGas: "28.6", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 67.0〜73.0kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"M\"の液管のみ1サイズUPの値" },
+                    { code: "R", liquid: "19.1", highLowGas: "25.4", suctionGas: "28.6", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 77.5〜85.0kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"N\"の液管のみ1サイズUPの値" },
+                    { code: "S", liquid: "19.1", highLowGas: "25.4", suctionGas: "31.8", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 90.0〜100.0kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"O\"の液管のみ1サイズUPの値" },
+                    { code: "T", liquid: "19.1", highLowGas: "28.6", suctionGas: "31.8", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 106.0〜112.0kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"P\"の液管のみ1サイズUPの値" },
+                    { code: "U", liquid: "19.1", highLowGas: "28.6", suctionGas: "38.1", branchKw: "113.0〜", outdoorKw: "118.0〜150.0", notes: "—" },
+                    { code: "V", liquid: "22.2", highLowGas: "28.6", suctionGas: "38.1", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 118.0〜150.0kWの液管のみ1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"U\"の液管のみ1サイズUPの値" }
+                ]
+            }
+        };
+
         // 室内機形状スタイルと対応可能容量 (kW) のマッピング
         this.INDOOR_STYLES = {
             cassette_4way: {
@@ -307,37 +373,48 @@ class RefrigerantSizerEngine {
 
     // ==================== 2管式 配管サイズ選定 ====================
 
+    /**
+     * 室内機配管サイズ選定 (2管式共通・全シリーズ・全メーカー末端)
+     * 添付技術資料 【冷暖切替】 記号1, 2, 3, 4, 7に基づく
+     */
+    getIndoorPipeSize(kw) {
+        if (kw <= 5.6)  return { liquid: 6.4, gas: 12.7 }; // 記号1: 1.6〜5.6kW
+        if (kw <= 16.0) return { liquid: 9.5, gas: 15.9 }; // 記号2: 7.1〜16.0kW
+        if (kw <= 22.4) return { liquid: 9.5, gas: 19.1 }; // 記号3: 22.4kW
+        if (kw <= 28.0) return { liquid: 9.5, gas: 22.2 }; // 記号4: 28.0kW
+        return { liquid: 12.7, gas: 25.4 };                // 記号7: 45.0, 56.0kW
+    }
+
     getBranchPipeSize(capacityKw, seriesId) {
         if (seriesId === 'machi_multi' || seriesId === 'skyair') {
-            if (capacityKw < 16.0)       return { liquid: 9.5, gas: 15.9 };
-            if (capacityKw < 22.4)       return { liquid: 9.5, gas: 19.1 };
-                                         return { liquid: 9.5, gas: 22.2 };
+            if (capacityKw < 16.0) return { liquid: 9.5, gas: 15.9 };
+            if (capacityKw < 22.4) return { liquid: 9.5, gas: 19.1 };
+            return { liquid: 9.5, gas: 22.2 };
         }
         if (seriesId === 'package_industrial') {
-            if (capacityKw < 16.0)       return { liquid: 9.5,  gas: 15.9 };
-            if (capacityKw < 22.4)       return { liquid: 9.5,  gas: 19.1 };
-            if (capacityKw < 33.0)       return { liquid: 9.5,  gas: 22.2 };
-            if (capacityKw < 47.0)       return { liquid: 12.7, gas: 28.6 };
-            if (capacityKw < 71.0)       return { liquid: 15.9, gas: 28.6 };
-            if (capacityKw < 101.0)      return { liquid: 19.1, gas: 34.9 };
-            if (capacityKw < 135.0)      return { liquid: 19.1, gas: 41.3 };
-                                         return { liquid: 22.2, gas: 44.5 };
+            if (capacityKw <= 22.4) return { liquid: 9.5,  gas: 19.1 };
+            if (capacityKw <= 28.0) return { liquid: 9.5,  gas: 22.2 };
+            if (capacityKw <= 45.0) return { liquid: 12.7, gas: 28.6 };
+            if (capacityKw <= 61.5) return { liquid: 15.9, gas: 28.6 };
+            if (capacityKw <= 101.0) return { liquid: 19.1, gas: 34.9 };
+            return { liquid: 19.1, gas: 41.3 };
         }
-        // 標準VRV (vrv7_x, vrv7_x_high_cop, vrv7_a, vrv7_rx)
-        if (capacityKw < 16.0)           return { liquid: 9.5,  gas: 15.9 };
-        if (capacityKw < 22.4)           return { liquid: 9.5,  gas: 19.1 };
-        if (capacityKw < 33.0)           return { liquid: 9.5,  gas: 22.2 };
-        if (capacityKw < 47.0)           return { liquid: 12.7, gas: 28.6 };
-        if (capacityKw < 71.0)           return { liquid: 15.9, gas: 28.6 };
-        if (capacityKw < 101.0)          return { liquid: 19.1, gas: 34.9 };
-                                         return { liquid: 19.1, gas: 41.3 };
+        // 標準VRV (vrv7_x, vrv7_x_high_cop, vrv7_a, vrv7_rx) 添付技術資料【冷暖切替】準拠
+        if (capacityKw <= 17.5)  return { liquid: 9.5,  gas: 15.9 }; // 記号2: 〜17.5kW
+        if (capacityKw <= 22.9)  return { liquid: 9.5,  gas: 19.1 }; // 記号3: 17.6〜22.9kW
+        if (capacityKw <= 28.9)  return { liquid: 9.5,  gas: 22.2 }; // 記号4: 23.0〜28.9kW
+        if (capacityKw <= 42.9)  return { liquid: 12.7, gas: 22.2 }; // 記号6: 29.0〜42.9kW
+        if (capacityKw <= 61.9)  return { liquid: 12.7, gas: 25.4 }; // 記号7: 43.0〜61.9kW
+        if (capacityKw <= 86.9)  return { liquid: 15.9, gas: 28.6 }; // 記号10: 62.0〜86.9kW
+        if (capacityKw <= 112.9) return { liquid: 15.9, gas: 31.8 }; // 記号11: 87.0〜112.9kW
+        return { liquid: 19.1, gas: 38.1 };                          // 記号13: 113.0kW〜
     }
 
     getOutdoorMainPipeSize(outdoorKw, seriesId) {
         if (seriesId === 'machi_multi' || seriesId === 'skyair') {
             if (outdoorKw <= 14.0) return { liquid: 9.5, gas: 15.9 };
             if (outdoorKw <= 22.4) return { liquid: 9.5, gas: 19.1 };
-                                   return { liquid: 9.5, gas: 22.2 };
+            return { liquid: 9.5, gas: 22.2 };
         }
         if (seriesId === 'package_industrial') {
             if (outdoorKw <= 22.4)  return { liquid: 9.5,  gas: 19.1 };
@@ -345,44 +422,53 @@ class RefrigerantSizerEngine {
             if (outdoorKw <= 45.0)  return { liquid: 12.7, gas: 28.6 };
             if (outdoorKw <= 61.5)  return { liquid: 15.9, gas: 28.6 };
             if (outdoorKw <= 101.0) return { liquid: 19.1, gas: 34.9 };
-            if (outdoorKw <= 135.0) return { liquid: 19.1, gas: 41.3 };
-                                    return { liquid: 22.2, gas: 44.5 };
+            return { liquid: 19.1, gas: 41.3 };
         }
-        // 標準VRV全シリーズ共通
-        if (outdoorKw <= 14.0)  return { liquid: 9.5,  gas: 15.9 };
-        if (outdoorKw <= 22.4)  return { liquid: 9.5,  gas: 19.1 };
-        if (outdoorKw <= 28.0)  return { liquid: 9.5,  gas: 22.2 };
-        if (outdoorKw <= 40.0)  return { liquid: 12.7, gas: 28.6 };
-        if (outdoorKw <= 61.5)  return { liquid: 15.9, gas: 28.6 };
-        if (outdoorKw <= 96.0)  return { liquid: 19.1, gas: 34.9 };
-                                return { liquid: 19.1, gas: 41.3 };
+        // 標準VRV全シリーズ共通 添付技術資料【冷暖切替】準拠
+        if (outdoorKw <= 22.4)  return { liquid: 9.5,  gas: 19.1 }; // 記号3: 22.4kW
+        if (outdoorKw <= 28.0)  return { liquid: 9.5,  gas: 22.2 }; // 記号4: 28.0kW
+        if (outdoorKw <= 40.0)  return { liquid: 12.7, gas: 22.2 }; // 記号6: 33.5, 40.0kW
+        if (outdoorKw <= 61.5)  return { liquid: 12.7, gas: 25.4 }; // 記号7: 45.0〜61.5kW
+        if (outdoorKw <= 85.0)  return { liquid: 15.9, gas: 28.6 }; // 記号10: 67.0〜85.0kW
+        if (outdoorKw <= 112.0) return { liquid: 15.9, gas: 31.8 }; // 記号11: 90.0〜112.0kW
+        return { liquid: 19.1, gas: 38.1 };                          // 記号13: 118.0kW〜
     }
 
     // ==================== 3管式（VRV R冷暖フリー）配管サイズ選定 ====================
 
     /**
      * 3管式（液・高低圧ガス・吸入ガス）の分岐後配管サイズを返す
+     * 添付技術資料 【冷暖フリー】 準拠 (記号A, B, C, G, H, I, M, N, O, P, U)
      */
     getBranchPipeSize3(capacityKw) {
-        if (capacityKw < 16.0)  return { liquid: 9.5,  highLowGas: 15.9, suctionGas: 19.1 };
-        if (capacityKw < 22.4)  return { liquid: 12.7, highLowGas: 19.1, suctionGas: 22.2 };
-        if (capacityKw < 33.0)  return { liquid: 15.9, highLowGas: 22.2, suctionGas: 25.4 };
-        if (capacityKw < 47.0)  return { liquid: 15.9, highLowGas: 22.2, suctionGas: 28.6 };
-        if (capacityKw < 71.0)  return { liquid: 19.1, highLowGas: 25.4, suctionGas: 28.6 };
-        if (capacityKw < 101.0) return { liquid: 19.1, highLowGas: 28.6, suctionGas: 31.8 };
-                                 return { liquid: 19.1, highLowGas: 28.6, suctionGas: 38.1 };
+        if (capacityKw <= 17.4)  return { liquid: 9.5,  highLowGas: 12.7, suctionGas: 15.9 }; // 記号A: 〜17.4kW
+        if (capacityKw <= 22.9)  return { liquid: 9.5,  highLowGas: 15.9, suctionGas: 19.1 }; // 記号B: 17.5〜22.9kW
+        if (capacityKw <= 28.9)  return { liquid: 9.5,  highLowGas: 15.9, suctionGas: 22.2 }; // 記号C: 23.0〜28.9kW
+        if (capacityKw <= 42.9)  return { liquid: 12.7, highLowGas: 19.1, suctionGas: 22.2 }; // 記号G: 29.0〜42.9kW
+        if (capacityKw <= 46.9)  return { liquid: 12.7, highLowGas: 19.1, suctionGas: 25.4 }; // 記号H: 43.0〜46.9kW
+        if (capacityKw <= 61.9)  return { liquid: 12.7, highLowGas: 22.2, suctionGas: 25.4 }; // 記号I: 47.0〜61.9kW
+        if (capacityKw <= 74.9)  return { liquid: 15.9, highLowGas: 22.2, suctionGas: 28.6 }; // 記号M: 62.0〜74.9kW
+        if (capacityKw <= 86.9)  return { liquid: 15.9, highLowGas: 25.4, suctionGas: 28.6 }; // 記号N: 75.0〜86.9kW
+        if (capacityKw <= 101.9) return { liquid: 15.9, highLowGas: 25.4, suctionGas: 31.8 }; // 記号O: 87.0〜101.9kW
+        if (capacityKw <= 112.9) return { liquid: 15.9, highLowGas: 28.6, suctionGas: 31.8 }; // 記号P: 102.0〜112.9kW
+        return { liquid: 19.1, highLowGas: 28.6, suctionGas: 38.1 };                          // 記号U: 113.0kW〜
     }
 
     /**
      * 3管式の室外機主管サイズを返す
+     * 添付技術資料 【冷暖フリー】 準拠 (記号B, C, G, H, I, M, N, O, P, U)
      */
     getOutdoorMainPipeSize3(outdoorKw) {
-        if (outdoorKw <= 22.4)  return { liquid: 9.5,  highLowGas: 15.9, suctionGas: 19.1 };
-        if (outdoorKw <= 28.0)  return { liquid: 12.7, highLowGas: 19.1, suctionGas: 22.2 };
-        if (outdoorKw <= 40.0)  return { liquid: 15.9, highLowGas: 22.2, suctionGas: 28.6 };
-        if (outdoorKw <= 61.5)  return { liquid: 19.1, highLowGas: 25.4, suctionGas: 28.6 };
-        if (outdoorKw <= 101.0) return { liquid: 19.1, highLowGas: 28.6, suctionGas: 31.8 };
-                                 return { liquid: 19.1, highLowGas: 28.6, suctionGas: 38.1 };
+        if (outdoorKw <= 22.4)  return { liquid: 9.5,  highLowGas: 15.9, suctionGas: 19.1 }; // 記号B: 22.4kW
+        if (outdoorKw <= 28.0)  return { liquid: 9.5,  highLowGas: 15.9, suctionGas: 22.2 }; // 記号C: 28.0kW
+        if (outdoorKw <= 40.0)  return { liquid: 12.7, highLowGas: 19.1, suctionGas: 22.2 }; // 記号G: 33.5, 40.0kW
+        if (outdoorKw <= 45.0)  return { liquid: 12.7, highLowGas: 19.1, suctionGas: 25.4 }; // 記号H: 45.0kW
+        if (outdoorKw <= 61.5)  return { liquid: 12.7, highLowGas: 22.2, suctionGas: 25.4 }; // 記号I: 50.0〜61.5kW
+        if (outdoorKw <= 73.0)  return { liquid: 15.9, highLowGas: 22.2, suctionGas: 28.6 }; // 記号M: 67.0〜73.0kW
+        if (outdoorKw <= 85.0)  return { liquid: 15.9, highLowGas: 25.4, suctionGas: 28.6 }; // 記号N: 77.5〜85.0kW
+        if (outdoorKw <= 100.0) return { liquid: 15.9, highLowGas: 25.4, suctionGas: 31.8 }; // 記号O: 90.0〜100.0kW
+        if (outdoorKw <= 112.0) return { liquid: 15.9, highLowGas: 28.6, suctionGas: 31.8 }; // 記号P: 106.0〜112.0kW
+        return { liquid: 19.1, highLowGas: 28.6, suctionGas: 38.1 };                          // 記号U: 118.0〜150.0kW
     }
 
     // ==================== 分岐継手選定 ====================
@@ -610,13 +696,20 @@ class RefrigerantSizerEngine {
         return sum;
     }
 
-    // 3管/2管ハイブリッドサイズ選定
+    // 3管/2管ハイブリッドサイズ選定 (末端室内機は必ず2管)
     selectInitialSizesForNode(node, outdoorKw, seriesId) {
         const seriesConfig = this.SERIES_DATABASE[seriesId] || this.SERIES_DATABASE.vrv7_x;
         const is3Pipe = seriesConfig.pipeSystem === '3pipe';
 
-        if (is3Pipe && !node.inBSDownstream) {
-            // BSユニット上流（3管）
+        if (node.type === 'indoor') {
+            // 末端の室内機につながる冷媒管はどのメーカー・全シリーズでも必ず2管（液管・ガス管）
+            const s = this.getIndoorPipeSize(node.capacity);
+            node.pipeLiquid = s.liquid;
+            node.pipeGas = s.gas;
+            delete node.pipeHighLowGas;
+            delete node.pipeSuctionGas;
+        } else if (is3Pipe && !node.inBSDownstream) {
+            // BSユニット上流（3管区間: 室外機〜分岐継手、分岐継手〜分岐継手、分岐継手〜BSユニット）
             if (node.type === 'outdoor') {
                 const s = this.getOutdoorMainPipeSize3(outdoorKw);
                 node.pipeLiquid = s.liquid; node.pipeHighLowGas = s.highLowGas; node.pipeSuctionGas = s.suctionGas;
@@ -632,7 +725,7 @@ class RefrigerantSizerEngine {
                 node.modelNumber = this.generateBSUnitModel(node);
             }
         } else {
-            // BSユニット下流または通常シリーズ（2管）
+            // BSユニット下流または通常シリーズ（2管区間）
             if (node.type === 'outdoor') {
                 const s = this.getOutdoorMainPipeSize(outdoorKw, seriesId);
                 node.pipeLiquid = s.liquid; node.pipeGas = s.gas;
@@ -654,13 +747,15 @@ class RefrigerantSizerEngine {
 
     applyMainPipeSizeUp(rootNode, is3Pipe) {
         if (rootNode.type !== 'outdoor') return;
+        // 液管は2管式・3管式ともに1サイズアップ
         rootNode.pipeLiquid = this.getNextSize(rootNode.pipeLiquid, 'liquid');
-        if (is3Pipe) {
-            rootNode.pipeHighLowGas = this.getNextSize(rootNode.pipeHighLowGas, 'gas');
-            rootNode.pipeSuctionGas = this.getNextSize(rootNode.pipeSuctionGas, 'gas');
-        } else {
-            rootNode.pipeGas = this.getNextSize(rootNode.pipeGas, 'gas');
+        if (!is3Pipe) {
+            // 2管式（冷暖切換）はガス管も1サイズアップ（ただしφ38.1はサイズアップ不可）
+            if (rootNode.pipeGas < 38.1) {
+                rootNode.pipeGas = this.getNextSize(rootNode.pipeGas, 'gas');
+            }
         }
+        // ※3管式（冷暖フリー）では技術資料に基づき「液管のみ」サイズアップ（高低圧・吸入ガス管はサイズアップしない）
         rootNode.isSizedUp = true;
     }
 

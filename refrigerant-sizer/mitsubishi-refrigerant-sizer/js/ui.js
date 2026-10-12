@@ -1,4 +1,4 @@
-/**
+﻿/**
  * UI Renderer and Event Controller (三菱電機版)
  * 
  * 機能:
@@ -159,37 +159,100 @@ class RefrigerantSizerUI {
         if (node.id === this.activeNodeId) card.classList.add('active');
 
         // バッジ表記
-        let badgeText = '室外';
-        let badgeClass = 'badge-outdoor';
-        if (node.type === 'branch') { badgeText = '分岐'; badgeClass = 'badge-branch'; }
-        else if (node.type === 'indoor') { badgeText = '室内'; badgeClass = 'badge-indoor'; }
-        else if (node.type === 'bc_controller') { badgeText = '親BC'; badgeClass = 'badge-bc'; }
-        else if (node.type === 'sub_bc_controller') { badgeText = '子BC'; badgeClass = 'badge-sub-bc'; }
+        let badgeText = '室外ユニット';
+        let badgeClass = 'type-outdoor';
+        if (node.type === 'branch') { badgeText = '分配管'; badgeClass = 'type-branch'; }
+        else if (node.type === 'indoor') { 
+            const styleConfig = this.engine.INDOOR_STYLES ? this.engine.INDOOR_STYLES[node.indoorStyle || 'cassette_4way'] : null;
+            const styleShort = styleConfig ? styleConfig.name.split(' ')[0] : 'カセット形';
+            badgeText = `室内ユニット [${styleShort}]`; 
+            badgeClass = 'type-indoor'; 
+        }
+        else if (node.type === 'bc_controller') { badgeText = 'BCコントローラー'; badgeClass = 'type-bs-unit'; }
+        else if (node.type === 'sub_bc_controller') { badgeText = '子BCコントローラー'; badgeClass = 'type-sub-bc'; }
 
-        // 容量ラベル表示
-        let capText = '';
+        // スペック一覧
+        let specHtml = '';
         if (node.type === 'outdoor') {
-            capText = `${node.capacity.toFixed(1)} kW (${this.getHpFromKw(node.capacity)}馬力)`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">定格容量:</span><span class="spec-val">${node.capacity.toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">馬力相当:</span><span class="spec-val">${this.getHpFromKw(node.capacity)} 馬力</span></div>
+            `;
         } else if (node.type === 'indoor') {
-            capText = `${node.capacity.toFixed(1)} kW (${this.getIndoorLabelFromKw(node.capacity)})`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">容量型番:</span><span class="spec-val">${this.getIndoorLabelFromKw(node.capacity)}</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
+        } else if (node.type === 'bc_controller' || node.type === 'sub_bc_controller') {
+            const childIndoors = this.countIndoors(node);
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${(node.capacitySum || 0).toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">接続台数:</span><span class="spec-val">${childIndoors} 台</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
         } else {
-            // BCや分岐は下流合計
-            capText = `下流: ${(node.capacitySum || 0).toFixed(1)} kW`;
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${(node.capacitySum || 0).toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">分配管型名:</span><span class="spec-val" style="color:var(--color-warning);">${node.modelNumber || '-'}</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
+        }
+
+        // 配管結果バッジ
+        let pipeHtml = '';
+        if (node.type !== 'outdoor') {
+            if (node.pipeHighLowGas !== undefined && node.pipeSuctionGas !== undefined) {
+                pipeHtml = `
+                    <div class="pipe-result-badge">
+                        <div>液管: φ${node.pipeLiquid}</div>
+                        <div style="color:var(--color-warning);">高低圧ガス: φ${node.pipeHighLowGas}</div>
+                        <div style="color:var(--color-secondary);">吸入ガス: φ${node.pipeSuctionGas}</div>
+                    </div>
+                `;
+            } else if (node.pipeLiquid && node.pipeGas) {
+                pipeHtml = `
+                    <div class="pipe-result-badge">
+                        <div>液管: φ${node.pipeLiquid}</div>
+                        <div>ガス管: φ${node.pipeGas}</div>
+                    </div>
+                `;
+            } else if (node.pipeSizeText) {
+                pipeHtml = `<div class="pipe-result-badge"><div>${node.pipeSizeText}</div></div>`;
+            }
+        } else {
+            const is3Pipe = this.isThreePipeSystem();
+            if (is3Pipe && node.pipeHighLowGas && node.pipeSuctionGas) {
+                pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        <div>液管: φ${node.pipeLiquid} (主配管)</div>
+                        <div style="color:var(--color-warning);">高低圧ガス: φ${node.pipeHighLowGas} (主配管)</div>
+                        <div style="color:var(--color-secondary);">吸入ガス: φ${node.pipeSuctionGas} (主配管)</div>
+                    </div>
+                `;
+            } else if (node.pipeLiquid && node.pipeGas) {
+                pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        <div>液管: φ${node.pipeLiquid} (主配管)</div>
+                        <div>ガス管: φ${node.pipeGas} (主配管)</div>
+                    </div>
+                `;
+            } else if (node.pipeSizeText) {
+                pipeHtml = `<div class="pipe-result-badge" style="color: var(--text-muted);"><div>${node.pipeSizeText}</div></div>`;
+            }
         }
 
         // HTML 組み立て
         card.innerHTML = `
             <div class="node-header">
-                <span class="node-badge ${badgeClass}">${badgeText}</span>
-                <span class="node-title" title="${node.name}">${node.name}</span>
+                <span class="node-type ${badgeClass}">${badgeText}</span>
+                ${node.type !== 'outdoor' ? `<span class="spec-val" style="font-size:0.75rem;">${node.length}m</span>` : ''}
             </div>
-            <div class="node-info">
-                <span>容量:</span>
-                <span><strong>${capText}</strong></span>
+            <div class="node-title" title="${node.name}">${node.name}</div>
+            <div style="font-size: 0.725rem; font-family: var(--font-mono); color: var(--color-secondary); margin-bottom: 8px; padding: 2px 6px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.08); border-radius: 4px; display: inline-block;">
+                形名: ${node.modelNumber || '-'}
             </div>
-            ${node.length > 0 ? `<div class="node-info"><span>配管長:</span><span>${node.length} m</span></div>` : ''}
-            ${node.modelNumber ? `<div class="node-catalog-model">${node.modelNumber}</div>` : ''}
-            ${node.pipeSizeText ? `<div class="pipe-info">${node.pipeSizeText}</div>` : ''}
+            <div class="node-specs">${specHtml}</div>
+            ${pipeHtml}
         `;
 
         card.addEventListener('click', (e) => {
@@ -216,15 +279,15 @@ class RefrigerantSizerUI {
     drawConnections() {
         if (!this.svgCanvas) return;
         
-        // 既存パスのクリア
-        const paths = this.svgCanvas.querySelectorAll('path');
-        paths.forEach(p => p.remove());
+        // 既存パス・ラベルの完全クリア
+        this.svgCanvas.innerHTML = '';
 
         const canvasRect = this.canvas.getBoundingClientRect();
         this.svgCanvas.setAttribute('width', this.canvas.scrollWidth);
         this.svgCanvas.setAttribute('height', this.canvas.scrollHeight);
 
-        this.drawNodeConnectorRecursive(this.systemTree);
+        const currentTree = (this.sizerResult && this.sizerResult.tree) ? this.sizerResult.tree : this.systemTree;
+        this.drawNodeConnectorRecursive(currentTree);
     }
 
     drawNodeConnectorRecursive(node) {
@@ -274,36 +337,99 @@ class RefrigerantSizerUI {
                     path.classList.add('three-pipe');
                 }
 
-                // 親または子がアクティブならハイライト
                 this.svgCanvas.appendChild(path);
 
-                // 配管道中への冷媒サイズ記号（ラベル）自動記入
-                if (child.pipeLiquid || child.pipeGas || child.pipeHighGas) {
-                    let labelText = `L:φ${child.pipeLiquid || '-'} G:φ${child.pipeGas || '-'}`;
-                    if (child.pipeHighGas) {
-                        labelText = `L:φ${child.pipeLiquid} H:φ${child.pipeHighGas} S:φ${child.pipeLowGas}`;
-                    }
+                // 配管サイズ取得 (child.pipeLiquid または child.pipes から)
+                const pLiquid = child.pipeLiquid || (child.pipes && child.pipes.liquid);
+                const pGas = child.pipeGas || (child.pipes && child.pipes.gas);
+                const pHighGas = child.pipeHighGas || (child.pipes && child.pipes.highGas);
+                const pLowGas = child.pipeLowGas || (child.pipes && child.pipes.lowGas);
+
+                if (pLiquid || pGas || pHighGas) {
                     const midX = (startX + endX) / 2;
                     const midY = (startY + endY) / 2;
-                    const labelWidth = (child.pipeHighGas) ? 140 : 104;
+                    const is3Pipe = !!pHighGas;
+
+                    // 区間種別判定
+                    let segmentLabel = '分岐→室内機';
+                    let segmentColor = '#10b981';
+                    if (node.type === 'outdoor') {
+                        segmentLabel = (child.type === 'bc_controller') ? '室外機→親BC' : '室外機→分岐';
+                        segmentColor = '#00a2e8';
+                    } else if (child.type === 'branch') {
+                        segmentLabel = '分岐→分岐';
+                        segmentColor = '#f59e0b';
+                    } else if (child.type === 'bc_controller') {
+                        segmentLabel = '→親BCコントローラー';
+                        segmentColor = '#a855f7';
+                    } else if (child.type === 'sub_bc_controller') {
+                        segmentLabel = '→子BCコントローラー';
+                        segmentColor = '#ec4899';
+                    } else if (node.type === 'bc_controller' || node.type === 'sub_bc_controller') {
+                        segmentLabel = 'BC→室内機';
+                        segmentColor = '#10b981';
+                    }
+
+                    const labelWidth = is3Pipe ? 130 : 118;
+                    const rowH = 16;
+                    const rows = is3Pipe ? 4 : 3;
+                    const boxH = rows * rowH + 6;
+                    const boxY = midY - boxH / 2;
 
                     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    
+
                     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                     rect.setAttribute('class', 'pipe-label-bg');
-                    rect.setAttribute('x', midX - (labelWidth / 2));
-                    rect.setAttribute('y', midY - 11);
+                    rect.setAttribute('x', midX - labelWidth / 2);
+                    rect.setAttribute('y', boxY);
                     rect.setAttribute('width', labelWidth);
-                    rect.setAttribute('height', 22);
-
-                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('class', 'pipe-label-text');
-                    text.setAttribute('x', midX);
-                    text.setAttribute('y', midY);
-                    text.textContent = labelText;
-
+                    rect.setAttribute('height', boxH);
+                    rect.setAttribute('rx', '5');
+                    rect.setAttribute('stroke', segmentColor);
                     g.appendChild(rect);
-                    g.appendChild(text);
+
+                    const tHeader = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    tHeader.setAttribute('class', 'pipe-label-header');
+                    tHeader.setAttribute('x', midX);
+                    tHeader.setAttribute('y', boxY + rowH - 2);
+                    tHeader.setAttribute('fill', segmentColor);
+                    tHeader.textContent = segmentLabel;
+                    g.appendChild(tHeader);
+
+                    const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    tLiq.setAttribute('class', 'pipe-label-text');
+                    tLiq.setAttribute('x', midX);
+                    tLiq.setAttribute('y', boxY + rowH * 2 - 2);
+                    tLiq.setAttribute('fill', '#e0f2fe');
+                    tLiq.textContent = '液管: φ' + (pLiquid || '-');
+                    g.appendChild(tLiq);
+
+                    if (is3Pipe) {
+                        const tHLG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tHLG.setAttribute('class', 'pipe-label-text');
+                        tHLG.setAttribute('x', midX);
+                        tHLG.setAttribute('y', boxY + rowH * 3 - 2);
+                        tHLG.setAttribute('fill', '#fbbf24');
+                        tHLG.textContent = '高圧ガス: φ' + (pHighGas || '-');
+                        g.appendChild(tHLG);
+
+                        const tSG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tSG.setAttribute('class', 'pipe-label-text');
+                        tSG.setAttribute('x', midX);
+                        tSG.setAttribute('y', boxY + rowH * 4 - 2);
+                        tSG.setAttribute('fill', '#00d2ff');
+                        tSG.textContent = '低圧ガス: φ' + (pLowGas || '-');
+                        g.appendChild(tSG);
+                    } else {
+                        const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tGas.setAttribute('class', 'pipe-label-text');
+                        tGas.setAttribute('x', midX);
+                        tGas.setAttribute('y', boxY + rowH * 3 - 2);
+                        tGas.setAttribute('fill', '#00d2ff');
+                        tGas.textContent = 'ガス管: φ' + (pGas || '-');
+                        g.appendChild(tGas);
+                    }
+
                     this.svgCanvas.appendChild(g);
                 }
 
@@ -781,6 +907,51 @@ class RefrigerantSizerUI {
             btnPresets.addEventListener('click', () => this.loadSamplePresetForSeries());
         }
 
+        const btnMasterPipe = document.getElementById('btn-master-pipesize');
+        if (btnMasterPipe) {
+            btnMasterPipe.addEventListener('click', () => this.openMasterPipeSizeModal());
+        }
+
+        const masterCloseBtn = document.getElementById('master-pipesize-modal-close');
+        if (masterCloseBtn) {
+            masterCloseBtn.addEventListener('click', () => {
+                const ov = document.getElementById('master-pipesize-modal-overlay');
+                if (ov) ov.classList.remove('active');
+            });
+        }
+
+        const masterOkBtn = document.getElementById('master-pipesize-modal-ok');
+        if (masterOkBtn) {
+            masterOkBtn.addEventListener('click', () => {
+                const ov = document.getElementById('master-pipesize-modal-overlay');
+                if (ov) ov.classList.remove('active');
+            });
+        }
+
+        // マスター表タブ切り替え
+        const tabSwitch = document.getElementById('tab-master-switch');
+        const tabFree = document.getElementById('tab-master-free');
+        if (tabSwitch && tabFree) {
+            tabSwitch.addEventListener('click', () => {
+                tabSwitch.style.background = 'rgba(16,185,129,0.15)';
+                tabSwitch.style.color = '#10b981';
+                tabSwitch.style.borderColor = '#10b981';
+                tabFree.style.background = 'rgba(255,255,255,0.03)';
+                tabFree.style.color = 'var(--text-secondary)';
+                tabFree.style.borderColor = 'var(--border-color)';
+                this.renderMasterPipeSizeTable('switch');
+            });
+            tabFree.addEventListener('click', () => {
+                tabFree.style.background = 'rgba(16,185,129,0.15)';
+                tabFree.style.color = '#10b981';
+                tabFree.style.borderColor = '#10b981';
+                tabSwitch.style.background = 'rgba(255,255,255,0.03)';
+                tabSwitch.style.color = 'var(--text-secondary)';
+                tabSwitch.style.borderColor = 'var(--border-color)';
+                this.renderMasterPipeSizeTable('free');
+            });
+        }
+
         const btnReset = document.getElementById('btn-reset');
         if (btnReset) {
             btnReset.addEventListener('click', () => {
@@ -1145,27 +1316,6 @@ class RefrigerantSizerUI {
                     </tbody>
                 </table>
             </div>
-            <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
-                <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:6px;">冷媒配管サイズ標準選定目安表 (凡例)</div>
-                <table style="width:100%; font-size:0.7rem; border-collapse:collapse; text-align:left; color:var(--text-secondary);">
-                    <thead>
-                        <tr style="border-bottom:1px solid var(--border-color); color:var(--text-primary);">
-                            <th style="padding:2px 0;">下流容量(kW)</th>
-                            <th style="padding:2px 0;">液管径</th>
-                            <th style="padding:2px 0;">ガス管径</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td style="padding:2px 0;">〜 5.6 (2馬力)</td><td>φ6.35</td><td>φ12.70</td></tr>
-                        <tr><td style="padding:2px 0;">〜 14.0 (5馬力)</td><td>φ9.52</td><td>φ15.88</td></tr>
-                        <tr><td style="padding:2px 0;">〜 22.4 (8馬力)</td><td>φ9.52</td><td>φ19.05</td></tr>
-                        <tr><td style="padding:2px 0;">〜 28.0 (10馬力)</td><td>φ9.52</td><td>φ22.20</td></tr>
-                        <tr><td style="padding:2px 0;">〜 45.0 (16馬力)</td><td>φ12.70</td><td>φ28.58</td></tr>
-                        <tr><td style="padding:2px 0;">〜 71.0 (25馬力)</td><td>φ15.88</td><td>φ31.75</td></tr>
-                        <tr><td style="padding:2px 0;">71.0 超 (30馬力〜)</td><td>φ19.05</td><td>φ38.10</td></tr>
-                    </tbody>
-                </table>
-            </div>
         `;
 
         this.totalsPanel.innerHTML = html;
@@ -1174,12 +1324,6 @@ class RefrigerantSizerUI {
     /** 警告診断パネルの表示 */
     renderWarnings(warnings) {
         if (!this.warningPanel) return;
-
-        const warningBtn = document.querySelector(".tab-btn[onclick*='warnings']");
-        if (warningBtn) {
-            warningBtn.innerHTML = `⚠️ 設計診断 (${warnings.length})`;
-            warningBtn.style.color = warnings.length > 0 ? 'var(--color-danger)' : '';
-        }
 
         if (warnings.length === 0) {
             this.warningPanel.innerHTML = `
@@ -1197,20 +1341,23 @@ class RefrigerantSizerUI {
             const isInfo = w.type === 'info';
             const msg = w.message || w;
             html += `
-                <div class="warning-item ${isInfo ? 'warning-info' : ''} clickable" data-warning-idx="${idx}" style="cursor:pointer;">
-                    <div style="font-size: 0.95rem;">${isInfo ? 'ℹ️' : '🚨'}</div>
-                    <div>${msg} <span style="font-size:0.7rem; color:var(--color-secondary);">(クリックで該当機器強調)</span></div>
+                <div class="alert-card ${isInfo ? 'warning' : ''}" style="cursor:pointer; margin-bottom:6px;" data-warning-idx="${idx}">
+                    <div class="alert-icon">${isInfo ? 'ℹ️' : '🚨'}</div>
+                    <div class="alert-text">
+                        <div class="alert-title">${isInfo ? '情報' : '警告'}</div>
+                        <div class="alert-desc">${msg}</div>
+                        <div style="font-size:0.7rem; color:var(--color-secondary); margin-top:4px;">→ クリックで対処方法を確認</div>
+                    </div>
                 </div>
             `;
         });
 
         this.warningPanel.innerHTML = html;
 
-        const warningItems = this.warningPanel.querySelectorAll('.warning-item.clickable');
+        const warningItems = this.warningPanel.querySelectorAll('[data-warning-idx]');
         warningItems.forEach((item, idx) => {
             item.addEventListener('click', () => {
-                const warningText = warnings[idx] || item.textContent;
-
+                const warningText = warnings[idx] ? (warnings[idx].message || warnings[idx]) : item.textContent;
                 document.querySelectorAll('.node-card').forEach(nc => nc.classList.remove('error-blink'));
                 let targetId = this.activeNodeId || 'root';
                 const targetCard = document.querySelector(`[data-id="${targetId}"] > .node-card`) || document.querySelector('.node-card');
@@ -1219,8 +1366,6 @@ class RefrigerantSizerUI {
                     targetCard.classList.add('error-blink');
                     setTimeout(() => targetCard.classList.remove('error-blink'), 3000);
                 }
-
-                // ④ 対処方法モーダル表示
                 this.openFixSuggestionModal(warningText);
             });
         });
@@ -1261,6 +1406,118 @@ class RefrigerantSizerUI {
         const currentSeries = this.engine.SERIES_DATABASE[this.activeSeriesId];
         const match = currentSeries.indoorTypes.find(i => Math.abs(i.kw - kw) < 0.1);
         return match ? match.type.split(' ')[0] : `P${(kw * 10).toFixed(0)}形`;
+    }
+
+    isThreePipeSystem() {
+        return this.activeSeriesId === 'city_multi_r2';
+    }
+
+    countIndoors(node) {
+        if (!node) return 0;
+        let count = node.type === 'indoor' ? 1 : 0;
+        if (node.children) {
+            for (const child of node.children) {
+                count += this.countIndoors(child);
+            }
+        }
+        return count;
+    }
+
+    // ===== 全部入り冷媒サイズマスター表 =====
+    openMasterPipeSizeModal() {
+        const overlay = document.getElementById('master-pipesize-modal-overlay');
+        if (!overlay) return;
+        overlay.classList.add('active');
+        this.renderMasterPipeSizeTable('switch');
+    }
+
+    renderMasterPipeSizeTable(mode) {
+        const container = document.getElementById('master-pipesize-table-container');
+        if (!container) return;
+
+        if (mode === 'switch') {
+            // シティマルチ Yシリーズ 冷暖切換 (2管式) - 三菱電機技術資料準拠
+            container.innerHTML = `
+                <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px; padding:10px 14px; background:rgba(230,0,18,0.06); border-radius:var(--radius-sm); border:1px solid rgba(230,0,18,0.15);">
+                    <strong>シティマルチ Yシリーズ (冷暖切換・2管式)</strong><br>
+                    室外機〜分岐継手(CMY)間、分岐継手〜分岐継手間は下流容量合計で選定。分岐継手〜室内機は室内機単体容量で選定。
+                </div>
+                <table class="pipe-detail-table">
+                    <thead>
+                        <tr>
+                            <th>下流容量合計 (kW)</th>
+                            <th>相当馬力</th>
+                            <th>液管サイズ (φmm)</th>
+                            <th>ガス管サイズ (φmm)</th>
+                            <th>備考</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>〜 7.1 kW</td><td>〜2.5馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td>室内機単独・少容量分岐</td></tr>
+                        <tr><td>〜 16.0 kW</td><td>〜6馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td></td></tr>
+                        <tr><td>〜 22.4 kW</td><td>〜8馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td></td></tr>
+                        <tr><td>〜 28.0 kW</td><td>〜10馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td>条件によりφ28.58</td></tr>
+                        <tr><td>〜 45.0 kW</td><td>〜16馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td style="color:var(--color-secondary); font-weight:700;">φ28.58</td><td></td></tr>
+                        <tr><td>〜 56.0 kW</td><td>〜20馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td style="color:var(--color-secondary); font-weight:700;">φ28.58</td><td></td></tr>
+                        <tr><td>〜 101.2 kW</td><td>〜36馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:var(--color-secondary); font-weight:700;">φ34.93</td><td>主管サイズUP時：液φ22.2/ガスφ41.28</td></tr>
+                        <tr><td>101.2 kW 超</td><td>40馬力〜</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td style="color:var(--color-secondary); font-weight:700;">φ41.28</td><td></td></tr>
+                    </tbody>
+                </table>
+                <div style="margin-top:1rem; padding:10px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm); border:1px solid var(--border-color); font-size:0.75rem; color:var(--text-secondary);">
+                    ※ 主管サイズUP条件: 最遠配管相当長が90m以上の場合、液管・ガス管共に1サイズアップ<br>
+                    ※ 分岐継手型番例: CMY-Y102SS-G2 (〜28kW)、CMY-Y102LS-G2 (〜56kW)、CMY-Y202S-G2 (〜101.2kW)
+                </div>
+            `;
+        } else {
+            // シティマルチ R2シリーズ 冷暖同時 (3管式) - 三菱電機技術資料準拠
+            container.innerHTML = `
+                <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px; padding:10px 14px; background:rgba(230,0,18,0.06); border-radius:var(--radius-sm); border:1px solid rgba(230,0,18,0.15);">
+                    <strong>シティマルチ R2シリーズ (冷暖同時・3管式)</strong><br>
+                    室外機〜親BCコントローラー(CMB)間は3管式。親BCコントローラー〜室内機間は2管式。
+                </div>
+                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:12px 0 8px;">① 室外機 〜 親BCコントローラー(CMB) (3管式)</h4>
+                <table class="pipe-detail-table">
+                    <thead>
+                        <tr>
+                            <th>室外機容量 (kW)</th>
+                            <th>馬力</th>
+                            <th>液管 (φmm)</th>
+                            <th>高圧ガス管 (φmm)</th>
+                            <th>低圧ガス管 (φmm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>22.4 kW</td><td>8馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:#f59e0b; font-weight:700;">φ15.88</td><td style="color:#a78bfa; font-weight:700;">φ19.05</td></tr>
+                        <tr><td>28.0 kW</td><td>10馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:#f59e0b; font-weight:700;">φ19.05</td><td style="color:#a78bfa; font-weight:700;">φ22.2</td></tr>
+                        <tr><td>33.5 kW</td><td>12馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td style="color:#f59e0b; font-weight:700;">φ19.05</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
+                        <tr><td>40.0 〜 56.0 kW</td><td>14〜20馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td style="color:#f59e0b; font-weight:700;">φ22.2</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
+                        <tr><td>67.0 kW</td><td>24馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ34.93</td></tr>
+                        <tr><td>80.0 〜 101.2 kW</td><td>28〜36馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ41.28</td></tr>
+                    </tbody>
+                </table>
+                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:16px 0 8px;">② 親BCコントローラー(CMB) 〜 室内機 (2管式)</h4>
+                <table class="pipe-detail-table">
+                    <thead>
+                        <tr>
+                            <th>下流容量合計 (kW)</th>
+                            <th>液管サイズ (φmm)</th>
+                            <th>ガス管サイズ (φmm)</th>
+                            <th>備考</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>〜 5.6 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ6.35</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td>BC〜室内機直結</td></tr>
+                        <tr><td>〜 9.0 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td>BC〜室内機直結</td></tr>
+                        <tr><td>〜 16.0 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td>BC〜室内機直結</td></tr>
+                        <tr><td>16.0 kW 超 (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td>BC〜室内機直結</td></tr>
+                    </tbody>
+                </table>
+                <div style="margin-top:1rem; padding:10px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm); border:1px solid var(--border-color); font-size:0.75rem; color:var(--text-secondary);">
+                    ※ 親BCコントローラー型番: CMB-P104V-J (〜4台)、CMB-P108V-J (〜8台)、CMB-P1016V-J (〜16台)<br>
+                    ※ 子BCコントローラー型番: CMB-P104V-KB (〜4台)、CMB-P108V-KB (5〜8台)
+                </div>
+            `;
+        }
     }
 
     // ===== 更新履歴モーダル制御 =====
@@ -1311,10 +1568,7 @@ class RefrigerantSizerUI {
         let hasOk = false;
         rawHistory.forEach(entry => {
             if (entry.type === 'ok') {
-                if (!hasOk) {
-                    history.push(entry);
-                    hasOk = true;
-                }
+                if (!hasOk) { history.push(entry); hasOk = true; }
             } else {
                 history.push(entry);
             }
@@ -1327,11 +1581,9 @@ class RefrigerantSizerUI {
             let badgeText = '仕様変更なし';
 
             if (entry.type === 'initial') {
-                badgeClass = 'history-badge-initial';
-                badgeText = '初期登録';
+                badgeClass = 'history-badge-initial'; badgeText = '初期登録';
             } else if (entry.type === 'changed') {
-                badgeClass = 'history-badge-changed';
-                badgeText = '仕様変更あり';
+                badgeClass = 'history-badge-changed'; badgeText = '仕様変更あり';
             }
 
             html += `
@@ -1357,12 +1609,7 @@ class RefrigerantSizerUI {
                     } else {
                         desc = `<strong>${chg.path}</strong> が変更されました: <span style="text-decoration:line-through; color:var(--text-muted);">${chg.oldVal}</span> ➡️ <strong style="color:var(--color-secondary);">${chg.newVal}</strong>`;
                     }
-                    html += `
-                        <li>
-                            <span class="history-change-icon">${changeIcon}</span>
-                            <span>${desc}</span>
-                        </li>
-                    `;
+                    html += `<li><span class="history-change-icon">${changeIcon}</span><span>${desc}</span></li>`;
                 });
                 html += '</ul>';
             } else if (entry.type !== 'initial') {
@@ -1370,7 +1617,6 @@ class RefrigerantSizerUI {
             } else {
                 html += `<div style="font-size:0.78rem; color:var(--text-muted); margin-top:0.25rem;">初期スナップショットを登録しました。以降の仕様・品番変更を監視します。</div>`;
             }
-
             html += `</div>`;
         });
 

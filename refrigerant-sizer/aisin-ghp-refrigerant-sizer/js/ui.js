@@ -148,6 +148,9 @@ class RefrigerantSizerUI {
             badgeClass = 'type-indoor';
             const styleConfig = this.engine.INDOOR_STYLES[node.indoorStyle || 'cassette_4way'];
             typeLabel = `室内機 [${styleConfig ? styleConfig.name.split(' ')[0] : 'カセット'}]`;
+        } else if (node.type === 'bs_unit') {
+            badgeClass = 'type-bs-unit';
+            typeLabel = '冷暖切換ユニット';
         }
 
         let specHtml = '';
@@ -161,29 +164,57 @@ class RefrigerantSizerUI {
                 <div class="spec-item"><span class="spec-lbl">容量型番:</span><span class="spec-val">${node.capacity.toFixed(1)} kW</span></div>
                 <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
             `;
+        } else if (node.type === 'bs_unit') {
+            const childIndoors = this.engine.countIndoors(node);
+            specHtml = `
+                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${node.downstreamCapacity ? node.downstreamCapacity.toFixed(1) : '0.0'} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">接続台数:</span><span class="spec-val">${childIndoors} 台</span></div>
+                <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
+            `;
         } else {
             specHtml = `
-                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${node.downstreamCapacity.toFixed(1)} kW</span></div>
+                <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${node.downstreamCapacity ? node.downstreamCapacity.toFixed(1) : '0.0'} kW</span></div>
                 <div class="spec-item"><span class="spec-lbl">継手型式:</span><span class="spec-val" style="color: var(--color-warning);">${node.jointModel || '-'}</span></div>
                 <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
             `;
         }
 
+        const is3Pipe = this.sizerResult && this.sizerResult.is3Pipe;
         let pipeHtml = '';
         if (node.type !== 'outdoor') {
-            pipeHtml = `
-                <div class="pipe-result-badge">
-                    <div>液管: φ${node.pipeLiquid}</div>
-                    <div>ガス管: φ${node.pipeGas}</div>
-                </div>
-            `;
+            if (node.pipeHighGas !== undefined && node.pipeLowGas !== undefined) {
+                pipeHtml = `
+                    <div class="pipe-result-badge">
+                        <div>液管: φ${node.pipeLiquid}</div>
+                        <div style="color:var(--color-warning);">高圧ガス: φ${node.pipeHighGas}</div>
+                        <div style="color:var(--color-secondary);">低圧ガス: φ${node.pipeLowGas}</div>
+                    </div>
+                `;
+            } else {
+                pipeHtml = `
+                    <div class="pipe-result-badge">
+                        <div>液管: φ${node.pipeLiquid}</div>
+                        <div>ガス管: φ${node.pipeGas}</div>
+                    </div>
+                `;
+            }
         } else {
-            pipeHtml = `
-                <div class="pipe-result-badge" style="color: var(--text-muted);">
-                    <div>液管: φ${node.pipeLiquid} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
-                    <div>ガス管: φ${node.pipeGas} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
-                </div>
-            `;
+            if (is3Pipe) {
+                pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        <div>液管: φ${node.pipeLiquid} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
+                        <div style="color:var(--color-warning);">高圧ガス: φ${node.pipeHighGas} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
+                        <div style="color:var(--color-secondary);">低圧ガス: φ${node.pipeLowGas} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
+                    </div>
+                `;
+            } else {
+                pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        <div>液管: φ${node.pipeLiquid} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
+                        <div>ガス管: φ${node.pipeGas} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
+                    </div>
+                `;
+            }
         }
 
         card.innerHTML = `
@@ -228,6 +259,8 @@ class RefrigerantSizerUI {
             this.svgCanvas.style.width = `${this.canvas.scrollWidth}px`;
             this.svgCanvas.style.height = `${this.canvas.scrollHeight}px`;
 
+            const currentTree = (this.sizerResult && this.sizerResult.tree) ? this.sizerResult.tree : this.systemTree;
+
             const drawForNode = (nodeEl) => {
                 const card = nodeEl.querySelector(':scope > .node-card');
                 const childrenContainer = nodeEl.querySelector(':scope > .children-container');
@@ -264,30 +297,68 @@ class RefrigerantSizerUI {
 
                     // 配管道中への冷媒サイズ記号（ラベル）自動記入
                     const childId = childEl.getAttribute('data-id');
-                    const nodeObj = this.findNodeById(this.systemTree, childId);
-                    if (nodeObj && (nodeObj.pipeLiquid || nodeObj.pipeGas)) {
-                        const labelText = `L:φ${nodeObj.pipeLiquid || '-'} G:φ${nodeObj.pipeGas || '-'}`;
+                    const nodeObj = this.findNodeById(currentTree, childId);
+                    const pLiquid = nodeObj ? (nodeObj.pipeLiquid || (nodeObj.pipes && nodeObj.pipes.liquid)) : null;
+                    const pGas = nodeObj ? (nodeObj.pipeGas || (nodeObj.pipes && nodeObj.pipes.gas)) : null;
+
+                    if (nodeObj && (pLiquid || pGas)) {
                         const midX = (parentX + childX) / 2;
                         const midY = (parentY + childY) / 2;
-                        const labelWidth = 104;
+
+                        // 区間種別判定
+                        const parentId = nodeEl.getAttribute('data-id');
+                        const parentObj = this.findNodeById(currentTree, parentId);
+                        let segmentLabel = '分岐→室内機';
+                        let segmentColor = '#10b981';
+                        if (parentObj && parentObj.type === 'outdoor') {
+                            segmentLabel = '室外機→分岐';
+                            segmentColor = '#00a2e8';
+                        } else if (nodeObj.type === 'branch') {
+                            segmentLabel = '分岐→分岐';
+                            segmentColor = '#f59e0b';
+                        }
+
+                        const labelWidth = 118;
+                        const rowH = 16;
+                        const boxH = 3 * rowH + 6;
+                        const boxY = midY - boxH / 2;
 
                         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                        
+
                         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                         rect.setAttribute('class', 'pipe-label-bg');
-                        rect.setAttribute('x', midX - (labelWidth / 2));
-                        rect.setAttribute('y', midY - 11);
+                        rect.setAttribute('x', midX - labelWidth / 2);
+                        rect.setAttribute('y', boxY);
                         rect.setAttribute('width', labelWidth);
-                        rect.setAttribute('height', 22);
-
-                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        text.setAttribute('class', 'pipe-label-text');
-                        text.setAttribute('x', midX);
-                        text.setAttribute('y', midY);
-                        text.textContent = labelText;
-
+                        rect.setAttribute('height', boxH);
+                        rect.setAttribute('rx', '5');
+                        rect.setAttribute('stroke', segmentColor);
                         g.appendChild(rect);
-                        g.appendChild(text);
+
+                        const tHeader = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tHeader.setAttribute('class', 'pipe-label-header');
+                        tHeader.setAttribute('x', midX);
+                        tHeader.setAttribute('y', boxY + rowH - 2);
+                        tHeader.setAttribute('fill', segmentColor);
+                        tHeader.textContent = segmentLabel;
+                        g.appendChild(tHeader);
+
+                        const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tLiq.setAttribute('class', 'pipe-label-text');
+                        tLiq.setAttribute('x', midX);
+                        tLiq.setAttribute('y', boxY + rowH * 2 - 2);
+                        tLiq.setAttribute('fill', '#e0f2fe');
+                        tLiq.textContent = '液管: φ' + (pLiquid || '-');
+                        g.appendChild(tLiq);
+
+                        const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tGas.setAttribute('class', 'pipe-label-text');
+                        tGas.setAttribute('x', midX);
+                        tGas.setAttribute('y', boxY + rowH * 3 - 2);
+                        tGas.setAttribute('fill', '#00d2ff');
+                        tGas.textContent = 'ガス管: φ' + (pGas || '-');
+                        g.appendChild(tGas);
+
                         this.svgCanvas.appendChild(g);
                     }
 
@@ -371,7 +442,14 @@ class RefrigerantSizerUI {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>配管長 (上流分岐からの長さ m)</label>
+                    <label>配管長 (上流からの長さ m)</label>
+                    <input type="number" class="form-input" id="edit-length" min="1" max="150" value="${node.length}">
+                </div>
+            `;
+        } else if (node.type === 'bs_unit') {
+            editorHtml += `
+                <div class="form-group">
+                    <label>配管長 (上流主管・分岐からの長さ m)</label>
                     <input type="number" class="form-input" id="edit-length" min="1" max="150" value="${node.length}">
                 </div>
             `;
@@ -385,11 +463,13 @@ class RefrigerantSizerUI {
         }
 
         if (node.type !== 'indoor') {
+            const is3Pipe = currentSeries && currentSeries.pipeSystem === '3pipe';
             editorHtml += `
                 <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                     <label style="font-size:0.775rem; font-weight:500; color:var(--text-secondary); margin-bottom:8px; display:block;">下流に機器を追加</label>
-                    <div class="add-node-bar" style="display: flex; gap: 8px;">
+                    <div class="add-node-bar" style="display: flex; gap: 8px; flex-wrap: wrap;">
                         <button class="btn btn-primary" id="add-branch-btn" style="flex:1; font-size:0.75rem;">＋ 分岐継手</button>
+                        ${(is3Pipe && node.type !== 'bs_unit') ? `<button class="btn" id="add-bs-btn" style="flex:1; font-size:0.75rem; background:rgba(234,179,8,0.15); border:1px solid rgba(234,179,8,0.3); color:#fef08a;">＋ 冷暖切換ユニット</button>` : ''}
                         <button class="btn btn-primary" id="add-indoor-btn" style="flex:1; font-size:0.75rem; background:linear-gradient(135deg, #10b981, #059669); color:white;">＋ 室内機</button>
                     </div>
                 </div>
@@ -421,6 +501,9 @@ class RefrigerantSizerUI {
         const addBranchBtn = document.getElementById('add-branch-btn');
         if (addBranchBtn) addBranchBtn.addEventListener('click', () => this.addChildNode(node, 'branch'));
 
+        const addBsBtn = document.getElementById('add-bs-btn');
+        if (addBsBtn) addBsBtn.addEventListener('click', () => this.addChildNode(node, 'bs_unit'));
+
         const addIndoorBtn = document.getElementById('add-indoor-btn');
         if (addIndoorBtn) addIndoorBtn.addEventListener('click', () => this.addChildNode(node, 'indoor'));
 
@@ -430,12 +513,26 @@ class RefrigerantSizerUI {
 
     addChildNode(parent, type) {
         const id = `${type}_${Date.now()}`;
+        let name = `室内機 ${parent.children.length + 1}`;
+        let len = 5;
+        let cap = 5.6;
+
+        if (type === 'branch') {
+            name = `分岐継手 ${parent.children.length + 1}`;
+            len = 10;
+            cap = 0;
+        } else if (type === 'bs_unit') {
+            name = `冷暖切換ユニット ${parent.children.length + 1}`;
+            len = 10;
+            cap = 0;
+        }
+
         const newChild = {
             id,
-            name: type === 'branch' ? `分岐継手 ${parent.children.length + 1}` : `室内機 ${parent.children.length + 1}`,
+            name,
             type,
-            length: type === 'branch' ? 10 : 5,
-            capacity: type === 'indoor' ? 5.6 : 0,
+            length: len,
+            capacity: cap,
             children: []
         };
         if (type === 'indoor') newChild.indoorStyle = "cassette_4way";
@@ -469,13 +566,19 @@ class RefrigerantSizerUI {
             <div style="display:flex; flex-direction:column; gap:8px;">
         `;
 
-        for (const size of Object.keys(totals.liquidPipes).sort()) {
+        for (const size of Object.keys(totals.liquidPipes || {}).sort()) {
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label">φ${size} (液管)</span><span class="pipe-length-badge">${totals.liquidPipes[size].toFixed(1)} m</span></div>`;
         }
-        for (const size of Object.keys(totals.gasPipes).sort()) {
+        for (const size of Object.keys(totals.highGasPipes || {}).sort()) {
+            totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--color-warning);">φ${size} (高圧ガス管)</span><span class="pipe-length-badge" style="background:rgba(245,158,11,0.15); color:var(--color-warning);">${totals.highGasPipes[size].toFixed(1)} m</span></div>`;
+        }
+        for (const size of Object.keys(totals.lowGasPipes || {}).sort()) {
+            totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--color-secondary);">φ${size} (低圧ガス管)</span><span class="pipe-length-badge" style="background:rgba(56,189,248,0.15); color:var(--color-secondary);">${totals.lowGasPipes[size].toFixed(1)} m</span></div>`;
+        }
+        for (const size of Object.keys(totals.gasPipes || {}).sort()) {
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label">φ${size} (ガス管)</span><span class="pipe-length-badge">${totals.gasPipes[size].toFixed(1)} m</span></div>`;
         }
-        for (const model of Object.keys(totals.joints)) {
+        for (const model of Object.keys(totals.joints || {})) {
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--text-primary); font-family:var(--font-mono);">${model}</span><span class="pipe-length-badge" style="background:rgba(245,158,11,0.15); color:var(--color-warning);">${totals.joints[model]} 個</span></div>`;
         }
         totalsHtml += `
@@ -556,39 +659,7 @@ class RefrigerantSizerUI {
 
         const btnPresets = document.getElementById('btn-load-sample');
         if (btnPresets) {
-            btnPresets.addEventListener('click', () => {
-                this.systemTree = {
-                    id: "root",
-                    name: "GHP室外機 20馬力",
-                    type: "outdoor",
-                    capacity: 56.0,
-                    length: 0,
-                    children: [
-                        {
-                            id: "branch_1",
-                            name: "主分岐 A",
-                            type: "branch",
-                            length: 20,
-                            children: [
-                                { id: "in_1", name: "1F ホール", type: "indoor", indoorStyle: "cassette_4way", capacity: 14.0, length: 8, children: [] },
-                                { id: "in_2", name: "1F 事務室", type: "indoor", indoorStyle: "cassette_4way", capacity: 14.0, length: 10, children: [] }
-                            ]
-                        },
-                        {
-                            id: "branch_2",
-                            name: "主分岐 B",
-                            type: "branch",
-                            length: 25,
-                            children: [
-                                { id: "in_3", name: "2F 会議室", type: "indoor", indoorStyle: "ducted", capacity: 14.0, length: 6, children: [] },
-                                { id: "in_4", name: "2F 応接室", type: "indoor", indoorStyle: "wall_mounted", capacity: 7.1, length: 12, children: [] }
-                            ]
-                        }
-                    ]
-                };
-                this.activeNodeId = "root";
-                this.update();
-            });
+            btnPresets.addEventListener('click', () => this.loadSamplePresetForSeries());
         }
 
         const btnReset = document.getElementById('btn-reset');
@@ -707,5 +778,113 @@ class RefrigerantSizerUI {
             if (parent) return parent;
         }
         return null;
+    }
+
+    loadSamplePresetForSeries() {
+        if (this.activeSeriesId === 'aisin_ghp_heat_recovery') {
+            // 冷暖同時 3管式＋冷暖切換ユニット サンプル
+            this.systemTree = {
+                id: "root",
+                name: "アイシン GHP室外機 (HR仕様 20馬力)",
+                type: "outdoor",
+                capacity: 56.0,
+                length: 0,
+                children: [
+                    {
+                        id: "branch_1",
+                        name: "主分岐継手 A",
+                        type: "branch",
+                        length: 15,
+                        children: [
+                            {
+                                id: "bs_1",
+                                name: "冷暖切換ユニット 1 (北フロア)",
+                                type: "bs_unit",
+                                length: 12,
+                                children: [
+                                    { id: "indoor_1", name: "事務室 1A (カセット)", type: "indoor", indoorStyle: "cassette_4way", capacity: 11.2, length: 8, children: [] },
+                                    { id: "indoor_2", name: "会議室 1B (ダクト)", type: "indoor", indoorStyle: "ducted", capacity: 14.0, length: 10, children: [] }
+                                ]
+                            },
+                            {
+                                id: "bs_2",
+                                name: "冷暖切換ユニット 2 (南フロア)",
+                                type: "bs_unit",
+                                length: 18,
+                                children: [
+                                    { id: "indoor_3", name: "役員室 2A (壁掛)", type: "indoor", indoorStyle: "wall_mounted", capacity: 7.1, length: 10, children: [] },
+                                    { id: "indoor_4", name: "応接室 2B (カセット)", type: "indoor", indoorStyle: "cassette_4way", capacity: 8.0, length: 8, children: [] }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            };
+        } else {
+            // 2管式 エグゼ・標準マルチ・ハイブリッド サンプル (正常な階層ツリー)
+            this.systemTree = {
+                id: "root",
+                name: "アイシン GHP室外機 (20馬力)",
+                type: "outdoor",
+                capacity: 56.0,
+                length: 0,
+                children: [
+                    {
+                        id: "branch_1",
+                        name: "第1分岐継手 A",
+                        type: "branch",
+                        length: 20,
+                        children: [
+                            {
+                                id: "indoor_1",
+                                name: "1F ホール (カセット)",
+                                type: "indoor",
+                                indoorStyle: "cassette_4way",
+                                capacity: 14.0,
+                                length: 8,
+                                children: []
+                            },
+                            {
+                                id: "branch_2",
+                                name: "第2分岐継手 B",
+                                type: "branch",
+                                length: 15,
+                                children: [
+                                    {
+                                        id: "indoor_2",
+                                        name: "2F 事務室 (カセット)",
+                                        type: "indoor",
+                                        indoorStyle: "cassette_4way",
+                                        capacity: 14.0,
+                                        length: 10,
+                                        children: []
+                                    },
+                                    {
+                                        id: "indoor_3",
+                                        name: "2F 会議室 (ダクト)",
+                                        type: "indoor",
+                                        indoorStyle: "ducted",
+                                        capacity: 11.2,
+                                        length: 6,
+                                        children: []
+                                    },
+                                    {
+                                        id: "indoor_4",
+                                        name: "2F 応接室 (壁掛)",
+                                        type: "indoor",
+                                        indoorStyle: "wall_mounted",
+                                        capacity: 5.6,
+                                        length: 12,
+                                        children: []
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            };
+        }
+        this.activeNodeId = "root";
+        this.update();
     }
 }

@@ -133,7 +133,8 @@ header {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    margin-left: 7rem;
+    gap: 2.5rem;
+    margin-left: 11rem;
     position: relative;
 }
 
@@ -166,38 +167,71 @@ header {
 
 /* SVG Line Pipe Label Text */
 .pipe-label-bg {
-    fill: rgba(11, 15, 25, 0.85);
+    fill: rgba(8, 12, 22, 0.92);
     stroke: var(--color-primary);
-    stroke-width: 1px;
-    rx: 4px;
-    ry: 4px;
+    stroke-width: 1.5px;
+}
+.pipe-label-header {
+    fill: #00a2e8;
+    font-size: 10px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: auto;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 .pipe-label-text {
     fill: #00d2ff;
-    font-size: 10px;
+    font-size: 10.5px;
     font-family: var(--font-mono);
     font-weight: 600;
     text-anchor: middle;
-    dominant-baseline: central;
+    dominant-baseline: auto;
 }
 
 main {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 320px 1fr 340px;
+    gap: 1rem;
+    padding: 1rem;
     overflow: hidden;
+    position: relative;
     background: radial-gradient(circle at 30% 30%, #201815 0%, var(--bg-base) 100%);
 }
 
 /* Sidebar */
 .sidebar {
     background: var(--bg-surface-solid);
-    border-left: 1px solid var(--border-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.sidebar-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.sidebar-header h2 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+}
+
+.sidebar-content {
     padding: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-    overflow-y: auto;
 }
 
 .sidebar-panel {
@@ -359,46 +393,60 @@ main {
     text-transform: uppercase;
 }
 
-/* Node type colors */
-.badge-outdoor { background: #3b82f6; color: #fff; }
-.badge-branch { background: #10b981; color: #fff; }
-.badge-indoor { background: #f59e0b; color: #fff; }
-.badge-fs { background: #f57c00; color: #fff; } /* Orange/Amber for FS Unit */
+/* Node type badges */
+.node-type {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.type-outdoor, .badge-outdoor { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.type-branch, .badge-branch { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.type-bs-unit, .badge-fs { background: rgba(245, 124, 0, 0.15); color: #fb923c; }
+.type-indoor, .badge-indoor { background: rgba(16, 185, 129, 0.15); color: #34d399; }
 
-.node-card .node-info {
-    font-size: 0.72rem;
+.node-specs {
+    font-size: 0.75rem;
     color: var(--text-secondary);
-    margin: 2px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.spec-item {
     display: flex;
     justify-content: space-between;
 }
 
-.node-card .node-catalog-model {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--color-secondary);
-    font-weight: 600;
-    margin-top: 4px;
-    border-top: 1px dashed rgba(255,255,255,0.06);
-    padding-top: 4px;
+.spec-lbl {
+    color: var(--text-muted);
 }
 
-.node-card .pipe-info {
+.spec-val {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.pipe-result-badge {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.725rem;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.08);
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-top: 4px;
-    text-align: center;
-    border: 1px solid rgba(56, 189, 248, 0.15);
+    color: var(--color-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .tree-children {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    gap: 2.5rem;
     position: relative;
 }
 
@@ -572,6 +620,7 @@ main {
     transition: opacity var(--transition-normal);
 }
 
+.modal-overlay.active,
 .modal-overlay.show {
     opacity: 1;
     pointer-events: auto;

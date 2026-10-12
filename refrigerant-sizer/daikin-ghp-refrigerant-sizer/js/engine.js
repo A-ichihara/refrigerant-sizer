@@ -107,6 +107,7 @@ class RefrigerantSizerEngine {
 
     calculateSystem(tree, seriesId, enableManualSizeUp = false, gasType = "city_gas_13a") {
         const series = this.SERIES_DATABASE[seriesId] || this.SERIES_DATABASE["daikin_ghp_super_combi"];
+        const is3Pipe = series.pipeSystem === '3pipe';
         const warnings = [];
 
         this.computeDownstreamCapacities(tree);
@@ -117,7 +118,10 @@ class RefrigerantSizerEngine {
             warnings.push("最遠相当長が90mを超過（またはサイズUP手動適用）のため、主管サイズアップを適用しています。");
         }
 
-        this.sizeNodePipes(tree, forceSizeUp);
+        // 3管式BS下流フラグ設定
+        this.setBSDownstreamFlags(tree, false);
+
+        this.sizeNodePipes(tree, forceSizeUp, is3Pipe);
         this.assignModelNumbers(tree, series);
 
         const totals = {
@@ -129,10 +133,12 @@ class RefrigerantSizerEngine {
             firstBranchToIndoorMax: this.computeFirstBranchMaxDistance(tree),
             liquidPipes: {},
             gasPipes: {},
+            highGasPipes: {},
+            lowGasPipes: {},
             joints: {}
         };
 
-        this.aggregateBOM(tree, totals);
+        this.aggregateBOM(tree, totals, is3Pipe);
 
         if (totals.connectionRatio > 130) {
             warnings.push(`接続容量率が 130% (${totals.connectionRatio.toFixed(1)}%) を超過しています。`);
@@ -144,7 +150,21 @@ class RefrigerantSizerEngine {
             warnings.push(`総配管実長 (${totals.totalPipingLength.toFixed(1)}m) が制限 (${series.maxPipingTotal}m) を超過しています。`);
         }
 
-        return { tree, totals, warnings };
+        return { tree, totals, warnings, is3Pipe };
+    }
+
+    setBSDownstreamFlags(node, inBSDownstream = false) {
+        if (node.type === 'bs_unit') {
+            node.inBSDownstream = false;
+            if (node.children) {
+                node.children.forEach(c => this.setBSDownstreamFlags(c, true));
+            }
+        } else {
+            node.inBSDownstream = inBSDownstream;
+            if (node.children) {
+                node.children.forEach(c => this.setBSDownstreamFlags(c, inBSDownstream));
+            }
+        }
     }
 
     computeDownstreamCapacities(node) {
@@ -162,37 +182,88 @@ class RefrigerantSizerEngine {
         return sum;
     }
 
-    sizeNodePipes(node, forceSizeUp) {
+    sizeNodePipes(node, forceSizeUp, is3Pipe = false) {
         const cap = node.downstreamCapacity || node.capacity || 0;
-        let liquid = "9.52";
-        let gas = "15.88";
 
-        if (cap <= 5.6) { liquid = "6.35"; gas = "12.7"; }
-        else if (cap <= 14.0) { liquid = "9.52"; gas = "15.88"; }
-        else if (cap <= 22.4) { liquid = "9.52"; gas = "19.05"; }
-        else if (cap <= 28.0) { liquid = "9.52"; gas = "22.2"; }
-        else if (cap <= 45.0) { liquid = "12.7"; gas = "28.58"; }
-        else if (cap <= 71.0) { liquid = "15.88"; gas = "31.75"; }
-        else { liquid = "19.05"; gas = "38.1"; }
+        if (is3Pipe && !node.inBSDownstream && node.type !== 'indoor') {
+            // 3管式 (室外機〜BSユニット間): 液管、高低圧ガス管、吸入ガス管
+            let liquid = "9.52";
+            let hlg = "15.88";
+            let sg = "19.05";
 
-        if (node.type === 'outdoor' && forceSizeUp) {
-            if (liquid === "9.52") liquid = "12.7";
-            else if (liquid === "12.7") liquid = "15.88";
-            else if (liquid === "15.88") liquid = "19.05";
+            if (node.type === 'outdoor') {
+                if (cap <= 45.0) { liquid = "12.7"; hlg = "19.05"; sg = "28.58"; }
+                else if (cap <= 56.0) { liquid = "15.88"; hlg = "22.2"; sg = "28.58"; }
+                else if (cap <= 71.0) { liquid = "19.05"; hlg = "25.4"; sg = "31.75"; }
+                else { liquid = "19.05"; hlg = "28.58"; sg = "38.1"; }
 
-            if (gas === "15.88") gas = "19.05";
-            else if (gas === "19.05") gas = "22.2";
-            else if (gas === "22.2") gas = "28.58";
-            else if (gas === "28.58") gas = "31.75";
-            else if (gas === "31.75") gas = "38.1";
-            node.isSizedUp = true;
+                if (forceSizeUp) {
+                    if (liquid === "12.7") liquid = "15.88";
+                    else if (liquid === "15.88") liquid = "19.05";
+
+                    if (hlg === "19.05") hlg = "22.2";
+                    else if (hlg === "22.2") hlg = "25.4";
+
+                    if (sg === "28.58") sg = "31.75";
+                    else if (sg === "31.75") sg = "38.1";
+                    node.isSizedUp = true;
+                }
+            } else {
+                // 分岐管など
+                if (cap <= 16.0) { liquid = "9.52"; hlg = "15.88"; sg = "19.05"; }
+                else if (cap <= 22.4) { liquid = "9.52"; hlg = "19.05"; sg = "22.2"; }
+                else if (cap <= 28.0) { liquid = "9.52"; hlg = "19.05"; sg = "22.2"; }
+                else if (cap <= 45.0) { liquid = "12.7"; hlg = "22.2"; sg = "28.58"; }
+                else if (cap <= 71.0) { liquid = "15.88"; hlg = "25.4"; sg = "28.58"; }
+                else { liquid = "19.05"; hlg = "28.58"; sg = "31.75"; }
+            }
+
+            node.pipeLiquid = liquid;
+            node.pipeHighLowGas = hlg;
+            node.pipeSuctionGas = sg;
+            node.pipeGas = undefined;
+            node.pipes = { type: '3pipe', liquid, highLowGas: hlg, suctionGas: sg };
+        } else {
+            // 2管式 (標準またはBSユニット下流)
+            let liquid = "9.52";
+            let gas = "15.88";
+
+            if (node.inBSDownstream && node.type === 'indoor') {
+                if (cap <= 5.6) { liquid = "6.35"; gas = "12.7"; }
+                else if (cap <= 16.0) { liquid = "9.52"; gas = "15.88"; }
+                else { liquid = "9.52"; gas = "22.2"; }
+            } else {
+                if (cap <= 5.6) { liquid = "6.35"; gas = "12.7"; }
+                else if (cap <= 14.0) { liquid = "9.52"; gas = "15.88"; }
+                else if (cap <= 22.4) { liquid = "9.52"; gas = "19.05"; }
+                else if (cap <= 28.0) { liquid = "9.52"; gas = "22.2"; }
+                else if (cap <= 45.0) { liquid = "12.7"; gas = "28.58"; }
+                else if (cap <= 71.0) { liquid = "15.88"; gas = "31.75"; }
+                else { liquid = "19.05"; gas = "38.1"; }
+            }
+
+            if (node.type === 'outdoor' && forceSizeUp) {
+                if (liquid === "9.52") liquid = "12.7";
+                else if (liquid === "12.7") liquid = "15.88";
+                else if (liquid === "15.88") liquid = "19.05";
+
+                if (gas === "15.88") gas = "19.05";
+                else if (gas === "19.05") gas = "22.2";
+                else if (gas === "22.2") gas = "28.58";
+                else if (gas === "28.58") gas = "31.75";
+                else if (gas === "31.75") gas = "38.1";
+                node.isSizedUp = true;
+            }
+
+            node.pipeLiquid = liquid;
+            node.pipeGas = gas;
+            node.pipeHighLowGas = undefined;
+            node.pipeSuctionGas = undefined;
+            node.pipes = { type: '2pipe', liquid, gas };
         }
 
-        node.pipeLiquid = liquid;
-        node.pipeGas = gas;
-
         if (node.children) {
-            for (const child of node.children) this.sizeNodePipes(child, false);
+            for (const child of node.children) this.sizeNodePipes(child, false, is3Pipe);
         }
     }
 
@@ -205,10 +276,20 @@ class RefrigerantSizerEngine {
             node.modelNumber = `FXDQ${typeNum}PVE`;
         } else if (node.type === 'branch') {
             const cap = node.downstreamCapacity || 0;
-            if (cap <= 22.4) node.jointModel = "KHRQ22M75T";
-            else if (cap <= 45.0) node.jointModel = "KHRQ22M75T8";
-            else node.jointModel = "KHRQ22M75T9";
+            const is3Pipe = series.pipeSystem === '3pipe';
+            if (is3Pipe) {
+                if (cap <= 28.0) node.jointModel = "KHRQ22M75TA";
+                else if (cap <= 45.0) node.jointModel = "KHRQ22M75T8A";
+                else node.jointModel = "KHRQ22M75T9A";
+            } else {
+                if (cap <= 22.4) node.jointModel = "KHRQ22M75T";
+                else if (cap <= 45.0) node.jointModel = "KHRQ22M75T8";
+                else node.jointModel = "KHRQ22M75T9";
+            }
             node.modelNumber = node.jointModel;
+        } else if (node.type === 'bs_unit') {
+            const cap = node.downstreamCapacity || 0;
+            node.modelNumber = cap <= 8.0 ? "BSBP80A" : "BSBP160A";
         }
 
         if (node.children) {
@@ -261,15 +342,22 @@ class RefrigerantSizerEngine {
         return this.findLongestPath(node);
     }
 
-    aggregateBOM(node, totals) {
+    aggregateBOM(node, totals, is3Pipe = false) {
         if (node.type !== 'outdoor') {
-            if (node.pipeLiquid) totals.liquidPipes[node.pipeLiquid] = (totals.liquidPipes[node.pipeLiquid] || 0) + node.length;
-            if (node.pipeGas) totals.gasPipes[node.pipeGas] = (totals.gasPipes[node.pipeGas] || 0) + node.length;
+            const len = node.length || 0;
+            if (node.pipeLiquid) totals.liquidPipes[node.pipeLiquid] = (totals.liquidPipes[node.pipeLiquid] || 0) + len;
+            if (node.pipeGas) totals.gasPipes[node.pipeGas] = (totals.gasPipes[node.pipeGas] || 0) + len;
+            if (node.pipeHighLowGas) totals.highGasPipes[node.pipeHighLowGas] = (totals.highGasPipes[node.pipeHighLowGas] || 0) + len;
+            if (node.pipeSuctionGas) totals.lowGasPipes[node.pipeSuctionGas] = (totals.lowGasPipes[node.pipeSuctionGas] || 0) + len;
         }
         if (node.jointModel) totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
+        if (node.type === 'bs_unit') {
+            const model = node.modelNumber || "BSBP160A";
+            totals.joints[model] = (totals.joints[model] || 0) + 1;
+        }
 
         if (node.children) {
-            for (const child of node.children) this.aggregateBOM(child, totals);
+            for (const child of node.children) this.aggregateBOM(child, totals, is3Pipe);
         }
     }
 }

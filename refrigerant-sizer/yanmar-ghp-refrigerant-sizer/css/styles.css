@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
    Design System & Styling: Yanmar GHP Refrigerant Sizer
    ========================================================================== */
 
@@ -120,7 +120,7 @@ main {
     flex: 1;
     display: grid;
     grid-template-columns: 320px 1fr 340px;
-    gap: 1.5rem;
+    gap: 2.5rem;
     padding: 1.5rem;
     height: calc(100vh - 70px);
     overflow: hidden;
@@ -238,7 +238,7 @@ main {
     display: flex; flex-direction: column; gap: 2px;
 }
 
-.children-container { display: flex; flex-direction: column; justify-content: center; gap: 1.5rem; margin-left: 7rem; position: relative; }
+.children-container { display: flex; flex-direction: column; justify-content: center; gap: 2.5rem; margin-left: 11rem; position: relative; }
 .connection-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
 
 .pipe-summary-item {
@@ -309,18 +309,26 @@ footer { text-align: center; padding: 1rem; font-size: 0.75rem; color: var(--tex
 
 /* SVG Line Pipe Label Text */
 .pipe-label-bg {
-    fill: rgba(11, 15, 25, 0.85);
+    fill: rgba(8, 12, 22, 0.92);
     stroke: var(--color-primary);
-    stroke-width: 1px;
-    rx: 4px;
-    ry: 4px;
+    stroke-width: 1.5px;
+}
+.pipe-label-header {
+    fill: #00a2e8;
+    font-size: 10px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: auto;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 .pipe-label-text {
     fill: #00d2ff;
-    font-size: 10px;
+    font-size: 10.5px;
     font-family: var(--font-mono);
     font-weight: 600;
     text-anchor: middle;
-    dominant-baseline: central;
+    dominant-baseline: auto;
 }
 

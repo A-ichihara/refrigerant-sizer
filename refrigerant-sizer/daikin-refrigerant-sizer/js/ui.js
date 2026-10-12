@@ -299,6 +299,8 @@ class RefrigerantSizerUI {
             this.svgCanvas.style.width = `${this.canvas.scrollWidth}px`;
             this.svgCanvas.style.height = `${this.canvas.scrollHeight}px`;
 
+            const currentTree = (this.sizerResult && this.sizerResult.tree) ? this.sizerResult.tree : this.systemTree;
+
             const drawForNode = (nodeEl) => {
                 const card = nodeEl.querySelector(':scope > .node-card');
                 const childrenContainer = nodeEl.querySelector(':scope > .children-container');
@@ -336,33 +338,98 @@ class RefrigerantSizerUI {
 
                     // 配管道中への冷媒サイズ記号（ラベル）自動記入
                     const childId = childEl.getAttribute('data-id');
-                    const nodeObj = this.findNodeById(this.systemTree, childId);
-                    if (nodeObj && (nodeObj.pipeLiquid || nodeObj.pipeGas || nodeObj.pipeSuctionGas)) {
-                        let labelText = `L:φ${nodeObj.pipeLiquid || '-'} G:φ${nodeObj.pipeGas || '-'}`;
-                        if (nodeObj.pipeHighLowGas !== undefined && nodeObj.pipeSuctionGas !== undefined) {
-                            labelText = `L:φ${nodeObj.pipeLiquid} H:φ${nodeObj.pipeHighLowGas} S:φ${nodeObj.pipeSuctionGas}`;
-                        }
+                    const nodeObj = this.findNodeById(currentTree, childId);
+                    const pLiquid = nodeObj ? (nodeObj.pipeLiquid || (nodeObj.pipes && nodeObj.pipes.liquid)) : null;
+                    const pGas = nodeObj ? (nodeObj.pipeGas || (nodeObj.pipes && nodeObj.pipes.gas)) : null;
+                    const pHighGas = nodeObj ? (nodeObj.pipeHighLowGas || (nodeObj.pipes && (nodeObj.pipes.highGas || nodeObj.pipes.highLowGas))) : null;
+                    const pLowGas = nodeObj ? (nodeObj.pipeSuctionGas || (nodeObj.pipes && (nodeObj.pipes.lowGas || nodeObj.pipes.suctionGas))) : null;
+
+                    if (nodeObj && (pLiquid || pGas || pHighGas || pLowGas)) {
                         const midX = (parentX + childX) / 2;
                         const midY = (parentY + childY) / 2;
-                        const labelWidth = (nodeObj.pipeHighLowGas !== undefined) ? 140 : 104;
+                        const is3Pipe = (pHighGas !== undefined && pHighGas !== null) && (pLowGas !== undefined && pLowGas !== null);
+
+                        // 区間種別判定
+                        const parentId = nodeEl.getAttribute('data-id');
+                        const parentObj = this.findNodeById(currentTree, parentId);
+                        let segmentLabel = '分岐→室内機';
+                        let segmentColor = '#10b981';
+                        if (parentObj && parentObj.type === 'outdoor') {
+                            segmentLabel = '室外機→分岐';
+                            segmentColor = '#00a2e8';
+                        } else if (nodeObj.type === 'branch') {
+                            segmentLabel = '分岐→分岐';
+                            segmentColor = '#f59e0b';
+                        } else if (nodeObj.type === 'bs_unit') {
+                            segmentLabel = '→BSユニット';
+                            segmentColor = '#a855f7';
+                        } else if (parentObj && parentObj.type === 'bs_unit') {
+                            segmentLabel = 'BS→室内機';
+                            segmentColor = '#10b981';
+                        }
+
+                        const labelWidth = is3Pipe ? 130 : 118;
+                        const rowH = 16;
+                        const rows = is3Pipe ? 4 : 3;
+                        const boxH = rows * rowH + 6;
+                        const boxY = midY - boxH / 2;
 
                         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                        
+
                         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                         rect.setAttribute('class', 'pipe-label-bg');
-                        rect.setAttribute('x', midX - (labelWidth / 2));
-                        rect.setAttribute('y', midY - 11);
+                        rect.setAttribute('x', midX - labelWidth / 2);
+                        rect.setAttribute('y', boxY);
                         rect.setAttribute('width', labelWidth);
-                        rect.setAttribute('height', 22);
-
-                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        text.setAttribute('class', 'pipe-label-text');
-                        text.setAttribute('x', midX);
-                        text.setAttribute('y', midY);
-                        text.textContent = labelText;
-
+                        rect.setAttribute('height', boxH);
+                        rect.setAttribute('rx', '5');
+                        rect.setAttribute('stroke', segmentColor);
                         g.appendChild(rect);
-                        g.appendChild(text);
+
+                        // ヘッダー行（区間種別）
+                        const tHeader = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tHeader.setAttribute('class', 'pipe-label-header');
+                        tHeader.setAttribute('x', midX);
+                        tHeader.setAttribute('y', boxY + rowH - 2);
+                        tHeader.setAttribute('fill', segmentColor);
+                        tHeader.textContent = segmentLabel;
+                        g.appendChild(tHeader);
+
+                        // 液管行
+                        const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tLiq.setAttribute('class', 'pipe-label-text');
+                        tLiq.setAttribute('x', midX);
+                        tLiq.setAttribute('y', boxY + rowH * 2 - 2);
+                        tLiq.setAttribute('fill', '#e0f2fe');
+                        tLiq.textContent = `液管: φ${pLiquid || '-'}`;
+                        g.appendChild(tLiq);
+
+                        if (is3Pipe) {
+                            const tHLG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                            tHLG.setAttribute('class', 'pipe-label-text');
+                            tHLG.setAttribute('x', midX);
+                            tHLG.setAttribute('y', boxY + rowH * 3 - 2);
+                            tHLG.setAttribute('fill', '#fbbf24');
+                            tHLG.textContent = `高低圧: φ${pHighGas || '-'}`;
+                            g.appendChild(tHLG);
+
+                            const tSG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                            tSG.setAttribute('class', 'pipe-label-text');
+                            tSG.setAttribute('x', midX);
+                            tSG.setAttribute('y', boxY + rowH * 4 - 2);
+                            tSG.setAttribute('fill', '#00d2ff');
+                            tSG.textContent = `吸入ガス: φ${pLowGas || '-'}`;
+                            g.appendChild(tSG);
+                        } else {
+                            const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                            tGas.setAttribute('class', 'pipe-label-text');
+                            tGas.setAttribute('x', midX);
+                            tGas.setAttribute('y', boxY + rowH * 3 - 2);
+                            tGas.setAttribute('fill', '#00d2ff');
+                            tGas.textContent = `ガス管: φ${pGas || '-'}`;
+                            g.appendChild(tGas);
+                        }
+
                         this.svgCanvas.appendChild(g);
                     }
 
@@ -999,8 +1066,132 @@ class RefrigerantSizerUI {
         container.innerHTML = html;
     }
 
+    /** ⑥ 全部入り冷媒サイズマスター表モーダルの制御 */
+    openMasterPipeSizeModal(initialTab = 'cooling_heating_switch') {
+        const overlay = document.getElementById('master-pipesize-modal-overlay');
+        const btnOk = document.getElementById('master-pipesize-modal-ok');
+        const btnClose = document.getElementById('master-pipesize-modal-close');
+        const tabSwitch = document.getElementById('tab-master-switch');
+        const tabFree = document.getElementById('tab-master-free');
+
+        if (!overlay) return;
+
+        let currentTab = initialTab;
+
+        const updateTabUI = () => {
+            if (tabSwitch && tabFree) {
+                if (currentTab === 'cooling_heating_switch') {
+                    tabSwitch.style.background = 'rgba(16, 185, 129, 0.18)';
+                    tabSwitch.style.borderColor = '#10b981';
+                    tabSwitch.style.color = '#10b981';
+                    tabFree.style.background = 'rgba(255, 255, 255, 0.03)';
+                    tabFree.style.borderColor = 'var(--border-color)';
+                    tabFree.style.color = 'var(--text-secondary)';
+                } else {
+                    tabFree.style.background = 'rgba(16, 185, 129, 0.18)';
+                    tabFree.style.borderColor = '#10b981';
+                    tabFree.style.color = '#10b981';
+                    tabSwitch.style.background = 'rgba(255, 255, 255, 0.03)';
+                    tabSwitch.style.borderColor = 'var(--border-color)';
+                    tabSwitch.style.color = 'var(--text-secondary)';
+                }
+            }
+            this.renderMasterPipeSizeTable(currentTab);
+        };
+
+        if (tabSwitch) {
+            tabSwitch.onclick = () => {
+                currentTab = 'cooling_heating_switch';
+                updateTabUI();
+            };
+        }
+        if (tabFree) {
+            tabFree.onclick = () => {
+                currentTab = 'cooling_heating_free';
+                updateTabUI();
+            };
+        }
+
+        updateTabUI();
+        overlay.classList.add('active');
+        overlay.classList.add('show');
+
+        const closeModal = () => {
+            overlay.classList.remove('active');
+            overlay.classList.remove('show');
+        };
+        if (btnOk) btnOk.onclick = closeModal;
+        if (btnClose) btnClose.onclick = closeModal;
+    }
+
+    /** 全部入り冷媒サイズマスター表のレンダリング */
+    renderMasterPipeSizeTable(tabKey) {
+        const container = document.getElementById('master-pipesize-table-container');
+        if (!container || !this.engine.MASTER_PIPE_TABLES) return;
+
+        const tableData = this.engine.MASTER_PIPE_TABLES[tabKey];
+        if (!tableData) {
+            container.innerHTML = '<div style="color:var(--text-muted); padding:1rem; text-align:center;">該当するマスターテーブルが存在しません。</div>';
+            return;
+        }
+
+        const is3Pipe = tableData.systemType === '3pipe';
+
+        let html = `
+            <div style="background:rgba(0,162,232,0.06); padding:12px 16px; border-radius:var(--radius-sm); border:1px solid rgba(0,162,232,0.2); margin-bottom:1rem;">
+                <div style="font-weight:700; color:var(--text-primary); font-size:0.95rem; margin-bottom:6px;">${tableData.title}</div>
+                <div style="font-size:0.775rem; color:var(--text-secondary); line-height:1.6;">
+                    ${tableData.rules.map(r => `<div>${r}</div>`).join('')}
+                </div>
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table class="pipe-detail-table" style="width:100%; font-size:0.8rem; border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:rgba(255,255,255,0.04);">
+                            ${tableData.headers.map(h => `<th style="padding:8px 10px; border:1px solid var(--border-color); text-align:center; font-weight:700; color:var(--text-primary);">${h}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        tableData.rows.forEach(row => {
+            html += `<tr style="border-bottom:1px solid var(--border-color);">`;
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-weight:700; background:rgba(0,162,232,0.04); font-family:var(--font-mono);">${row.code}</td>`;
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-family:var(--font-mono); font-weight:700; color:var(--color-primary);">φ${row.liquid}</td>`;
+            if (is3Pipe) {
+                html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-family:var(--font-mono); font-weight:700; color:var(--color-warning);">φ${row.highLowGas}</td>`;
+                html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-family:var(--font-mono); font-weight:700; color:var(--color-secondary);">φ${row.suctionGas}</td>`;
+            } else {
+                html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center; font-family:var(--font-mono); font-weight:700; color:var(--color-secondary);">φ${row.gas}</td>`;
+                html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center;">${row.indoorKw || '—'}</td>`;
+            }
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center;">${row.branchKw || '—'}</td>`;
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); text-align:center;">${row.outdoorKw || '—'}</td>`;
+            html += `<td style="padding:6px 10px; border:1px solid var(--border-color); font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">${row.notes || '—'}</td>`;
+            html += `</tr>`;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
     bindEvents() {
         window.addEventListener('resize', () => this.drawConnections());
+
+        const btnMasterPipe = document.getElementById('btn-master-pipesize');
+        if (btnMasterPipe) {
+            btnMasterPipe.addEventListener('click', () => {
+                const currentSeries = this.engine.SERIES_DATABASE[this.activeSeriesId];
+                const initTab = (currentSeries && currentSeries.pipeSystem === '3pipe') ? 'cooling_heating_free' : 'cooling_heating_switch';
+                this.openMasterPipeSizeModal(initTab);
+            });
+        }
 
         const btnShowPipe = document.getElementById('btn-show-pipesize');
         if (btnShowPipe) {
@@ -1285,7 +1476,7 @@ class RefrigerantSizerUI {
                 ]
             };
         } else if (this.activeSeriesId === 'vrv_r') {
-            // VRV 7 RX 冷暖フリー 3管式＋BSユニットサンプル
+            // VRV 7 RX 冷暖同時 3管式＋BSユニット標準サンプル (主分岐継手およびBSユニット2系統)
             this.systemTree = {
                 id: "root",
                 name: "室外機 (VRV 7 RX 10馬力)",
@@ -1294,28 +1485,62 @@ class RefrigerantSizerUI {
                 length: 0,
                 children: [
                     {
-                        id: "bs_1",
-                        name: "BSユニット A",
-                        type: "bs_unit",
-                        length: 20,
+                        id: "branch_1",
+                        name: "主分岐継手 (リフレネット)",
+                        type: "branch",
+                        length: 15,
                         children: [
                             {
-                                id: "indoor_1",
-                                name: "応接室 (室内機)",
-                                type: "indoor",
-                                indoorStyle: "cassette_4way",
-                                capacity: 5.6, // 56形
-                                length: 8,
-                                children: []
+                                id: "bs_1",
+                                name: "BSユニット 1 (事務エリア)",
+                                type: "bs_unit",
+                                length: 12,
+                                children: [
+                                    {
+                                        id: "indoor_1",
+                                        name: "応接室 (室内機)",
+                                        type: "indoor",
+                                        indoorStyle: "cassette_4way",
+                                        capacity: 5.6, // 56形
+                                        length: 8,
+                                        children: []
+                                    },
+                                    {
+                                        id: "indoor_2",
+                                        name: "会議室 (室内機)",
+                                        type: "indoor",
+                                        indoorStyle: "cassette_4way",
+                                        capacity: 7.1, // 71形
+                                        length: 10,
+                                        children: []
+                                    }
+                                ]
                             },
                             {
-                                id: "indoor_2",
-                                name: "会議室 (室内機)",
-                                type: "indoor",
-                                indoorStyle: "cassette_4way",
-                                capacity: 5.6, // 56形
-                                length: 10,
-                                children: []
+                                id: "bs_2",
+                                name: "BSユニット 2 (役員エリア)",
+                                type: "bs_unit",
+                                length: 15,
+                                children: [
+                                    {
+                                        id: "indoor_3",
+                                        name: "役員室 (室内機)",
+                                        type: "indoor",
+                                        indoorStyle: "wall_mounted",
+                                        capacity: 5.6, // 56形
+                                        length: 8,
+                                        children: []
+                                    },
+                                    {
+                                        id: "indoor_4",
+                                        name: "執務室 (室内機)",
+                                        type: "indoor",
+                                        indoorStyle: "cassette_4way",
+                                        capacity: 8.0, // 80形
+                                        length: 10,
+                                        children: []
+                                    }
+                                ]
                             }
                         ]
                     }
