@@ -106,3 +106,21 @@ test('no first branch returns none, not a guessed pipe', () => {
   assert.equal(result.status, 'none');
   assert.deepEqual(result.candidates, []);
 });
+
+test('unsupported parent-child combinations remain unclassified instead of being guessed', () => {
+  const tree = node('out', 'outdoor', 0, [
+    node('unknown', 'unknown_intermediate', 3, [
+      node('branch', 'branch', 8, [node('in', 'indoor', 4)])
+    ]),
+    node('invalid-bs-parent', 'bs_unit', 2, [
+      node('branch-under-bs', 'branch', 5, [node('in2', 'indoor', 4)])
+    ]),
+    node('invalid-branch-parent', 'outdoor', 0, [
+      node('bs-under-outdoor', 'bs_unit', 2, [node('in3', 'indoor', 4)])
+    ])
+  ]);
+  const segments = extractSegments(tree);
+  assert.equal(segments.find(s => s.id === 'unknown->branch').role, 'unclassified');
+  assert.equal(segments.find(s => s.id === 'invalid-bs-parent->branch-under-bs').role, 'unclassified');
+  assert.equal(segments.find(s => s.id === 'invalid-branch-parent->bs-under-outdoor').role, 'unclassified');
+});
