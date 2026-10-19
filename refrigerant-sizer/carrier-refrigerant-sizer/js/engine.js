@@ -438,10 +438,7 @@ class RefrigerantSizerEngine {
                     this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
                 }
 
-                    if (node.type === 'branch') {
-                        node.jointModel = this.selectJointModel(childKw);
-                        totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
-                    }
+                    // 分岐継手は子ノードごとに重複集計せず、分岐ノード単位で集計する。
 
                     if (child.type === 'fs_unit') {
                         warnings.push({
@@ -451,6 +448,12 @@ class RefrigerantSizerEngine {
                     }
 
             });
+        }
+
+        // 分岐継手は、分岐ノードの下流合計容量から型番を決め、分岐1箇所につき1個集計する。
+        if (node.type === 'branch') {
+            node.jointModel = this.selectJointModel(this.getDownstreamCapacity(node));
+            totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
         }
 
         if ((node.type === 'fs_unit') && node.modelNumber) {
