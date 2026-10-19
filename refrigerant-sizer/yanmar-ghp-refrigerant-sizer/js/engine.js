@@ -95,6 +95,9 @@ class RefrigerantSizerEngine {
         const series = this.SERIES_DATABASE[seriesId] || this.SERIES_DATABASE["yanmar_ghp_highpower"];
         const is3Pipe = series.pipeSystem === '3pipe';
         const warnings = [];
+        // メーカー・型式・冷媒・シリーズ別施工条件の正式照合が未完了。
+        // 計算が正常終了しても設計上の確定値とはしない。
+        warnings.push("【型式・施工基準未照合】このヤンマーGHPアプリの登録型式・冷媒・配管径テーブルは、対象メーカー公式資料との一致確認が完了していません。表示される管径・分岐部材・BOM・許容長の判定を確定設計値として使用せず、対象機種の正式な施工資料で照合してください。");
 
         this.computeDownstreamCapacities(tree);
         const longestPath = this.findLongestPath(tree);
