@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6. If specs changed in this check, show warning indicator on history button
     if (checkResult.executed && checkResult.entry && checkResult.entry.type === 'changed') {
-        const btnHistory = document.getElementById('btn-update-history');
+        const btnHistory = document.getElementById('btn-history') || document.getElementById('btn-update-history');
         if (btnHistory) {
             btnHistory.style.position = 'relative';
             const dot = document.createElement('span');
