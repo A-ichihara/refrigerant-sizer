@@ -65,8 +65,18 @@
                 background: #e2e8f0 !important;
                 color: #0f172a !important;
             }
-            .warning-panel {
-                display: none !important;
+            /* 未照合・設計上の警告を印刷物にも残す */
+            #warning-panel, #warning-panel .alert-card {
+                display: block !important;
+                visibility: visible !important;
+                color: #7f1d1d !important;
+                background: #fff7ed !important;
+                border: 1px solid #9a3412 !important;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            #warning-panel .alert-desc {
+                color: #7f1d1d !important;
             }
             .pipe-label-bg {
                 fill: #ffffff !important;
