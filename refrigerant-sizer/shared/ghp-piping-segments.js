@@ -60,5 +60,17 @@
         return segments;
     }
 
-    return { extractSegments };
+    /**
+     * 主管「候補」を構造上の位置から抽出する。公式の適用区間を確定するものではない。
+     * 連結キットがある場合はその下流〜第一分岐を候補とし、
+     * 連結キットの上流は候補に含めない。
+     * 分岐のない直結系統はメーカー仕様未確認のため空配列を返す。
+     */
+    function findMainPipeCandidates(tree) {
+        const segments = extractSegments(tree);
+        const roleSet = new Set(['outdoor_to_first_branch', 'connection_kit_to_first_branch']);
+        return segments.filter(segment => roleSet.has(segment.role));
+    }
+
+    return { extractSegments, findMainPipeCandidates };
 });
