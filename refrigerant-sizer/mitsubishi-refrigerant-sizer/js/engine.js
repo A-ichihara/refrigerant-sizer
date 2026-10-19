@@ -453,11 +453,7 @@ class RefrigerantSizerEngine {
                     totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                     totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
 
-                    // 分岐管継手の選定 (childが分岐またはさらに子供を持つ場合で、かつ親が分岐の時)
-                    if (node.type === 'branch') {
-                        node.jointModel = this.selectJointModel(childKw);
-                        totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
-                    }
+                    // 分岐管継手の選定・集計は、子ノードごとではなく分岐ノード単位で行う。
 
                     // YシリーズにBCコントローラーが追加されている場合は警告
                     if (child.type === 'bc_controller' || child.type === 'sub_bc_controller') {
@@ -472,10 +468,12 @@ class RefrigerantSizerEngine {
             });
         }
 
-        // 分岐ジョイントの追加集計
-        if (node.type === 'branch' && node.jointModel && seriesId !== 'city_multi_r2') {
-            // 重複集計回避のため、ここでは何もしない（分岐処理のループ側で一度だけカウントする）
-        } else if ((node.type === 'bc_controller' || node.type === 'sub_bc_controller') && node.modelNumber) {
+        // 分岐ジョイントは、分岐ノードの下流合計容量から型番を決めて1個だけ集計する。
+        if (node.type === 'branch' && seriesId !== 'city_multi_r2') {
+            node.jointModel = this.selectJointModel(this.getDownstreamCapacity(node));
+            totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
+        }
+        if ((node.type === 'bc_controller' || node.type === 'sub_bc_controller') && node.modelNumber) {
             totals.joints[node.modelNumber] = (totals.joints[node.modelNumber] || 0) + 1;
         }
     }
