@@ -72,5 +72,18 @@
         return segments.filter(segment => roleSet.has(segment.role));
     }
 
-    return { extractSegments, findMainPipeCandidates };
+    /**
+     * 候補が複数ある系統は確定させず ambiguous とする。
+     * この結果は設計選定の許可ではなく、構造の曖昧さを表すだけ。
+     */
+    function analyzeMainPipeCandidates(tree) {
+        const candidates = findMainPipeCandidates(tree);
+        return {
+            status: candidates.length === 0 ? 'none' : candidates.length === 1 ? 'candidate' : 'ambiguous',
+            candidates,
+            verified: false
+        };
+    }
+
+    return { extractSegments, findMainPipeCandidates, analyzeMainPipeCandidates };
 });
