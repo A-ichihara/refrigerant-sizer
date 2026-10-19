@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const RefrigerantSizerEngine = require('../refrigerant-sizer/panasonic-refrigerant-sizer/js/engine.js');
+const RefrigerantSizerEngine = require('../js/engine.js');
 
 test('UXE3 uses three-pipe upstream of solenoid kit and two-pipe throughout downstream branch subtree', () => {
   const engine = new RefrigerantSizerEngine();
