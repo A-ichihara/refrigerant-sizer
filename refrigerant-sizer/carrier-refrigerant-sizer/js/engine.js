@@ -450,8 +450,6 @@ class RefrigerantSizerEngine {
                         });
                     }
 
-                    this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
-                }
             });
         }
 
