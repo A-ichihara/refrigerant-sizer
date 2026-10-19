@@ -10,16 +10,15 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
-    function classify(parent, child, beforeFirstBranch) {
-        if (parent.type === 'bs_unit') return 'bs_to_indoor';
-        if (child.type === 'bs_unit') return 'branch_to_bs';
+    function classify(parent, child) {
         if (parent.type === 'outdoor' && child.type === 'indoor') return 'direct_outdoor_to_indoor';
         if (parent.type === 'outdoor' && child.type === 'branch') return 'outdoor_to_first_branch';
         if (parent.type === 'outdoor' && child.type === 'connection_kit') return 'outdoor_to_connection_kit';
         if (parent.type === 'connection_kit' && child.type === 'branch') return 'connection_kit_to_first_branch';
-        if (parent.type === 'branch' && child.type === 'indoor') return 'branch_to_indoor';
         if (parent.type === 'branch' && child.type === 'branch') return 'branch_to_branch';
-        if (beforeFirstBranch && child.type === 'branch') return 'outdoor_to_first_branch';
+        if (parent.type === 'branch' && child.type === 'indoor') return 'branch_to_indoor';
+        if (parent.type === 'branch' && child.type === 'bs_unit') return 'branch_to_bs';
+        if (parent.type === 'bs_unit' && child.type === 'indoor') return 'bs_to_indoor';
         return 'unclassified';
     }
 
@@ -28,7 +27,7 @@
         const segments = [];
         const visited = new Set();
         const ids = new Set();
-        function walk(node, beforeFirstBranch) {
+        function walk(node) {
             if (!node || typeof node !== 'object' || !node.id) throw new TypeError('every node needs an id');
             if (visited.has(node)) throw new Error('cycle or reused node detected');
             if (ids.has(String(node.id))) throw new Error('duplicate node id: ' + node.id);
@@ -40,7 +39,7 @@
                 if (typeof length !== 'number' || !Number.isFinite(length) || length < 0) {
                     throw new RangeError('invalid pipe length for ' + child.id);
                 }
-                const role = classify(node, child, beforeFirstBranch);
+                const role = classify(node, child);
                 segments.push({
                     id: String(node.id) + '->' + String(child.id),
                     fromNodeId: String(node.id),
@@ -53,10 +52,10 @@
                     sizeUpRule: null,
                     sourceDocument: null
                 });
-                walk(child, beforeFirstBranch && child.type !== 'branch');
+                walk(child);
             }
         }
-        walk(tree, true);
+        walk(tree);
         return segments;
     }
 
