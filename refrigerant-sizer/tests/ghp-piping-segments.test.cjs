@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { extractSegments, findMainPipeCandidates } = require('../shared/ghp-piping-segments.js');
+const { extractSegments, findMainPipeCandidates, analyzeMainPipeCandidates } = require('../shared/ghp-piping-segments.js');
 
 const node = (id, type, length = 0, children = []) => ({ id, type, length, children });
 
@@ -80,4 +80,29 @@ test('connection-kit upstream is excluded from structural main-pipe candidates',
 test('direct outdoor-to-indoor pipe is not automatically treated as verified main pipe', () => {
   const tree = node('out', 'outdoor', 0, [node('in', 'indoor', 11)]);
   assert.deepEqual(findMainPipeCandidates(tree), []);
+});
+
+test('two parallel first branches remain ambiguous and never verified', () => {
+  const tree = node('o', 'outdoor', 0, [
+    node('b1', 'branch', 12, [node('i1', 'indoor', 4)]),
+    node('b2', 'branch', 14, [node('i2', 'indoor', 5)])
+  ]);
+  const result = analyzeMainPipeCandidates(tree);
+  assert.equal(result.status, 'ambiguous');
+  assert.deepEqual(result.candidates.map(s => s.id), ['o->b1', 'o->b2']);
+  assert.equal(result.verified, false);
+});
+
+test('single candidate is not manufacturer-verified', () => {
+  const result = analyzeMainPipeCandidates(node('o', 'outdoor', 0, [
+    node('b', 'branch', 10, [node('i', 'indoor', 4)])
+  ]));
+  assert.equal(result.status, 'candidate');
+  assert.equal(result.verified, false);
+});
+
+test('no first branch returns none, not a guessed pipe', () => {
+  const result = analyzeMainPipeCandidates(node('o', 'outdoor', 0, [node('i', 'indoor', 11)]));
+  assert.equal(result.status, 'none');
+  assert.deepEqual(result.candidates, []);
 });
