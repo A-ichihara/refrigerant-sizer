@@ -1237,44 +1237,49 @@ class RefrigerantSizerUI {
     renderWarnings(warnings) {
         if (!this.warningPanel) return;
 
-        const warningBtn = document.querySelector(".tab-btn[onclick*='warnings']");
-        if (warningBtn) {
-            warningBtn.innerHTML = `⚠️ 設計診断 (${warnings.length})`;
-            warningBtn.style.color = warnings.length > 0 ? 'var(--color-danger)' : '';
-        }
-
-        if (warnings.length === 0) {
+        const safeWarnings = Array.isArray(warnings) ? warnings : [];
+        if (safeWarnings.length === 0) {
             this.warningPanel.innerHTML = `
-                <div style="text-align:center; padding:2rem 0; color:var(--color-success);">
-                    <div style="font-size:2rem; margin-bottom:8px;">✅</div>
-                    <div style="font-size:0.8rem; font-weight:600;">設計チェッククリア</div>
-                    <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">配管接続・容量比率共に正常です。</div>
+                <div class="alert-card success">
+                    <span class="alert-icon">✓</span>
+                    <div class="alert-text">
+                        <div class="alert-title">設計ステータス: 正常</div>
+                        <div class="alert-desc">選択されたシリーズの接続要領・配管基準を満たしています。</div>
+                    </div>
                 </div>
             `;
             return;
         }
 
-        let html = '';
-        warnings.forEach((w, idx) => {
-            const isInfo = w.type === 'info';
-            const msg = w.message || w;
-            html += `
-                <div class="warning-item ${isInfo ? 'warning-info' : ''} clickable" data-warning-idx="${idx}" style="cursor:pointer;">
-                    <div style="font-size: 0.95rem;">${isInfo ? 'ℹ️' : '🚨'}</div>
-                    <div>${msg} <span style="font-size:0.7rem; color:var(--color-secondary);">(クリックで該当機器強調)</span></div>
+        this.warningPanel.innerHTML = safeWarnings.map((warning, idx) => {
+            const message = warning && typeof warning === 'object'
+                ? (warning.message || JSON.stringify(warning))
+                : String(warning);
+            const isInfo = Boolean(warning && typeof warning === 'object' && warning.type === 'info');
+            const isCritical = Boolean(warning && typeof warning === 'object' && warning.type === 'error')
+                || /警告|超過|エラー|不足|制限を超/.test(message);
+            const alertClass = isCritical ? 'alert-card clickable' : 'alert-card warning clickable';
+            const icon = isCritical ? '🚨' : (isInfo ? 'ℹ️' : '⚠️');
+            const title = isCritical ? '設計エラー (クリックで対処方法を表示)' : '設計注意 (クリックで対処方法を表示)';
+
+            return `
+                <div class="${alertClass}" data-warning-idx="${idx}" style="margin-bottom:8px;">
+                    <span class="alert-icon">${icon}</span>
+                    <div class="alert-text">
+                        <div class="alert-title">${title}</div>
+                        <div class="alert-desc">${message} <span style="font-size:0.7rem; color:var(--color-secondary);">(クリックで該当機器を強調)</span></div>
+                    </div>
                 </div>
             `;
-        });
+        }).join('');
 
-        this.warningPanel.innerHTML = html;
-
-        const warningItems = this.warningPanel.querySelectorAll('.warning-item.clickable');
+        const warningItems = this.warningPanel.querySelectorAll('.alert-card.clickable');
         warningItems.forEach((item, idx) => {
             item.addEventListener('click', () => {
-                const warningText = warnings[idx] || item.textContent;
+                const warningText = safeWarnings[idx] || item.textContent;
 
                 document.querySelectorAll('.node-card').forEach(nc => nc.classList.remove('error-blink'));
-                let targetId = this.activeNodeId || 'root';
+                const targetId = this.activeNodeId || 'root';
                 const targetCard = document.querySelector(`[data-id="${targetId}"] > .node-card`) || document.querySelector('.node-card');
                 if (targetCard) {
                     targetCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
@@ -1282,7 +1287,6 @@ class RefrigerantSizerUI {
                     setTimeout(() => targetCard.classList.remove('error-blink'), 3000);
                 }
 
-                // ④ 対処方法モーダル表示
                 this.openFixSuggestionModal(warningText);
             });
         });
