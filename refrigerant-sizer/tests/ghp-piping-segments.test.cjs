@@ -124,3 +124,53 @@ test('unsupported parent-child combinations remain unclassified instead of being
   assert.equal(segments.find(s => s.id === 'invalid-bs-parent->branch-under-bs').role, 'unclassified');
   assert.equal(segments.find(s => s.id === 'invalid-branch-parent->bs-under-outdoor').role, 'unclassified');
 });
+
+
+test('current 2-pipe UI sample shape maps node lengths to parent-child segments', () => {
+  // Mirrors the structure and length placement used by the four current UI editors.
+  const tree = node('root', 'outdoor', 0, [
+    node('branch_1', 'branch', 20, [
+      node('indoor_1', 'indoor', 8),
+      node('branch_2', 'branch', 15, [
+        node('indoor_2', 'indoor', 10),
+        node('indoor_3', 'indoor', 6)
+      ])
+    ])
+  ]);
+  const segments = extractSegments(tree);
+  assert.deepEqual(segments.map(s => [s.id, s.role, s.actualLengthM]), [
+    ['root->branch_1', 'outdoor_to_first_branch', 20],
+    ['branch_1->indoor_1', 'branch_to_indoor', 8],
+    ['branch_1->branch_2', 'branch_to_branch', 15],
+    ['branch_2->indoor_2', 'branch_to_indoor', 10],
+    ['branch_2->indoor_3', 'branch_to_indoor', 6]
+  ]);
+  assert.equal(segments.reduce((sum, s) => sum + s.actualLengthM, 0), 59);
+  assert.equal(analyzeMainPipeCandidates(tree).candidates[0].actualLengthM, 20);
+});
+
+test('current 3-pipe UI sample shape maps BS-unit inlet and downstream segments distinctly', () => {
+  // Mirrors the HR/heat-recovery preset: first branch -> BS unit -> indoor units.
+  const tree = node('root', 'outdoor', 0, [
+    node('branch_1', 'branch', 15, [
+      node('bs_1', 'bs_unit', 12, [
+        node('indoor_1', 'indoor', 8),
+        node('indoor_2', 'indoor', 10)
+      ]),
+      node('bs_2', 'bs_unit', 18, [
+        node('indoor_3', 'indoor', 10),
+        node('indoor_4', 'indoor', 8)
+      ])
+    ])
+  ]);
+  const segments = extractSegments(tree);
+  assert.deepEqual(segments.map(s => s.role), [
+    'outdoor_to_first_branch',
+    'branch_to_bs', 'bs_to_indoor', 'bs_to_indoor',
+    'branch_to_bs', 'bs_to_indoor', 'bs_to_indoor'
+  ]);
+  assert.equal(segments.reduce((sum, s) => sum + s.actualLengthM, 0), 81);
+  assert.equal(analyzeMainPipeCandidates(tree).status, 'candidate');
+  // Structural role labels do not imply a manufacturer-approved size-up rule.
+  assert.ok(segments.every(s => s.sizeUpRule === null && s.sourceDocument === null));
+});
