@@ -1149,10 +1149,22 @@ class RefrigerantSizerUI {
 
         let hasPipes = false;
 
-        Object.keys(totals.highGasPipes).forEach(sz => {
-            html += `<tr><td>吸入ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.lowGasPipes[sz] || 0} m</td></tr>`;
-            html += `<tr><td>吐出ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.highGasPipes[sz] || 0} m</td></tr>`;
-            hasPipes = true;
+        // 吸入ガス管と吐出ガス管はサイズが異なる場合があるため、
+        // それぞれのサイズキーを統合して個別に集計表示する。
+        const threePipeSizes = [...new Set([
+            ...Object.keys(totals.lowGasPipes),
+            ...Object.keys(totals.highGasPipes)
+        ])].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+        threePipeSizes.forEach(sz => {
+            if (totals.lowGasPipes[sz]) {
+                html += `<tr><td>吸入ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.lowGasPipes[sz]} m</td></tr>`;
+                hasPipes = true;
+            }
+            if (totals.highGasPipes[sz]) {
+                html += `<tr><td>吐出ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.highGasPipes[sz]} m</td></tr>`;
+                hasPipes = true;
+            }
         });
 
         Object.keys(totals.liquidPipes).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(sz => {
