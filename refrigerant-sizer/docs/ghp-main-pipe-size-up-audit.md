@@ -120,3 +120,13 @@ GitHub `main` の4社 `js/engine.js` と `index.html` を取得し、JavaScript�
 **実行方法の限定**: Node.jsの `node --test` によるテストファイルの実行ではなく、取得した最新エンジンをJavaScriptで実行した同等の個別チェック。印刷のブラウザ描画やPDF出力は未検証。
 
 **設計上の限定**: 90m境界は現行ロジックの特性確認であり、メーカー公式の相当長条件を検証したものではない。管径・分岐継手・BOMの公式適合性は未検証。既知の問題（サイズアップが室外機ノードだけに適用され、子ノードの配管長集計に反映されない可能性）は未解決。
+
+
+## Node.js回帰テストの自動実行設定（2026-10-20）
+
+`.github/workflows/ghp-regression.yml` を追加し、Node.js 20で以下の2ファイルを `node --test` 実行するよう設定した。
+
+- `refrigerant-sizer/tests/ghp-safety-regression.test.cjs`
+- `refrigerant-sizer/tests/ghp-piping-segments.test.cjs`
+
+mainへの関連ファイルのpush、pull request、手動実行がトリガー。現時点ではこの実行環境からGitHub Actionsの実行ログを取得できず、実際のCI結果は未確認。ローカルの `git clone` も実行環境のDNS制約で失敗したため、**自動テストを実行済みとは扱わない**。
