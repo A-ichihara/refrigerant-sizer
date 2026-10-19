@@ -388,10 +388,7 @@ class RefrigerantSizerEngine {
                     totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                     totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
 
-                    if (node.type === 'branch') {
-                        node.jointModel = this.selectJointModel(childKw);
-                        totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
-                    }
+                    // 分岐継手は子ノードごとに重複集計せず、分岐ノード単位で集計する。
 
                     if (child.type === 'solenoid_kit') {
                         warnings.push({
@@ -403,6 +400,12 @@ class RefrigerantSizerEngine {
                     this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
                 }
             });
+        }
+
+        // UX3等の2管式では、分岐ノードの下流合計容量で型番を決め、分岐1箇所につき1個集計する。
+        if (node.type === 'branch' && seriesId !== 'fsv_uxe3') {
+            node.jointModel = this.selectJointModel(this.getDownstreamCapacity(node));
+            totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
         }
 
         if ((node.type === 'solenoid_kit') && node.modelNumber) {
