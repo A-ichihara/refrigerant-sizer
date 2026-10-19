@@ -1500,6 +1500,21 @@ class RefrigerantSizerUI {
         const container = document.getElementById('master-pipesize-table-container');
         if (!container) return;
 
+        // Keep the visible tab state in sync with the table, including when the modal first opens.
+        const isThreePipeTab = mode === 'free';
+        const tabSwitch = document.getElementById('tab-master-switch');
+        const tabFree = document.getElementById('tab-master-free');
+        if (tabSwitch && tabFree) {
+            tabSwitch.classList.toggle('btn-primary', !isThreePipeTab);
+            tabFree.classList.toggle('btn-primary', isThreePipeTab);
+            tabSwitch.style.background = isThreePipeTab ? 'rgba(255,255,255,0.03)' : 'rgba(16,185,129,0.15)';
+            tabSwitch.style.color = isThreePipeTab ? 'var(--text-secondary)' : '#10b981';
+            tabSwitch.style.borderColor = isThreePipeTab ? 'var(--border-color)' : '#10b981';
+            tabFree.style.background = isThreePipeTab ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)';
+            tabFree.style.color = isThreePipeTab ? '#10b981' : 'var(--text-secondary)';
+            tabFree.style.borderColor = isThreePipeTab ? '#10b981' : 'var(--border-color)';
+        }
+
         const twoPipeRows = [
             ['〜 5.6 kW', 5.6], ['5.6 超〜9.0 kW', 9.0], ['9.0 超〜16.0 kW', 16.0],
             ['16.0 超〜22.4 kW', 22.4], ['22.4 超〜33.5 kW', 33.5],
