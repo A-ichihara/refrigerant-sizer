@@ -827,6 +827,31 @@ class RefrigerantSizerUI {
     bindEvents() {
         window.addEventListener('resize', () => this.drawConnections());
 
+        const btnMasterPipe = document.getElementById('btn-master-pipesize');
+        if (btnMasterPipe) {
+            btnMasterPipe.addEventListener('click', () => this.openMasterPipeSizeModal());
+        }
+        ['master-pipesize-modal-close', 'master-pipesize-modal-ok'].forEach(id => {
+            const button = document.getElementById(id);
+            if (button) button.addEventListener('click', () => {
+                document.getElementById('master-pipesize-modal-overlay')?.classList.remove('active');
+            });
+        });
+        const tabMasterSwitch = document.getElementById('tab-master-switch');
+        const tabMasterFree = document.getElementById('tab-master-free');
+        if (tabMasterSwitch && tabMasterFree) {
+            tabMasterSwitch.addEventListener('click', () => {
+                tabMasterSwitch.classList.add('btn-primary');
+                tabMasterFree.classList.remove('btn-primary');
+                this.renderMasterPipeSizeTable('switch');
+            });
+            tabMasterFree.addEventListener('click', () => {
+                tabMasterFree.classList.add('btn-primary');
+                tabMasterSwitch.classList.remove('btn-primary');
+                this.renderMasterPipeSizeTable('free');
+            });
+        }
+
         const btnShowPipe = document.getElementById('btn-show-pipesize');
         if (btnShowPipe) {
             btnShowPipe.addEventListener('click', () => this.openPipeSizeModal());
@@ -1464,6 +1489,59 @@ class RefrigerantSizerUI {
 
         container.innerHTML = html;
     }
+    openMasterPipeSizeModal() {
+        const overlay = document.getElementById('master-pipesize-modal-overlay');
+        if (!overlay) return;
+        overlay.classList.add('active');
+        this.renderMasterPipeSizeTable(this.activeSeriesId === 'fsv_uxe3' ? 'free' : 'switch');
+    }
+
+    renderMasterPipeSizeTable(mode) {
+        const container = document.getElementById('master-pipesize-table-container');
+        if (!container) return;
+
+        const twoPipeRows = [
+            ['〜 5.6 kW', 5.6], ['5.6 超〜9.0 kW', 9.0], ['9.0 超〜16.0 kW', 16.0],
+            ['16.0 超〜22.4 kW', 22.4], ['22.4 超〜33.5 kW', 33.5],
+            ['33.5 超〜50.0 kW', 50.0], ['50.0 超〜68.0 kW', 68.0], ['68.0 kW 超', 68.1]
+        ];
+        const threePipeRows = [
+            ['〜 22.4 kW', 22.4], ['22.4 超〜28.0 kW', 28.0],
+            ['28.0 超〜45.0 kW', 45.0], ['45.0 超〜56.0 kW', 56.0], ['56.0 kW 超', 56.1]
+        ];
+        const isThreePipe = mode === 'free';
+        const rows = isThreePipe ? threePipeRows : twoPipeRows;
+        const format = value => Number(value).toFixed(2).replace(/\.00$/, '').replace(/0$/, '');
+        const body = rows.map(([label, kw]) => {
+            const p = isThreePipe
+                ? this.engine.selectThreePipeSize(kw, false)
+                : this.engine.selectTwoPipeSize(kw, false);
+            return isThreePipe
+                ? `<tr><td>${label}</td><td>φ${format(p.liquid)}</td><td>φ${format(p.dischargeGas)}</td><td>φ${format(p.suctionGas)}</td></tr>`
+                : `<tr><td>${label}</td><td>φ${format(p.liquid)}</td><td>φ${format(p.gas)}</td></tr>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="alert-card" style="margin-bottom:12px;">
+                <strong>${isThreePipe ? 'UXE3（冷暖同時・3管式）' : 'UX3（冷暖切換・2管式）'}</strong><br>
+                この表は、現在の計算エンジンに登録されている容量区分と標準選定サイズを表示しています。
+                メーカーの正式設計表そのものではありません。実設計では該当機種の最新技術資料との照合が必要です。
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="pipe-detail-table">
+                    <thead><tr>${isThreePipe
+                        ? '<th>室外機容量</th><th>液管</th><th>吐出ガス管（高圧）</th><th>吸入ガス管（低圧）</th>'
+                        : '<th>下流容量区分</th><th>液管</th><th>ガス管</th>'}</tr></thead>
+                    <tbody>${body}</tbody>
+                </table>
+            </div>
+            <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:10px;">
+                ※ 手動サイズアップ設定はこの一覧には適用していません。主管の自動サイズアップ条件も別途確認が必要です。
+            </p>
+        `;
+    }
+
+
 }
 
 if (typeof module !== 'undefined' && module.exports) {
