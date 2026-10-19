@@ -343,7 +343,7 @@ class RefrigerantSizerEngine {
 
                 if (seriesId === 'fsv_uxe3') {
                     // UXE3(冷暖同時) 3管・2管ハイブリッド判定
-                    if (node.type === 'outdoor' || node.type === 'branch') {
+                    if (node.type === 'outdoor' || (node.type === 'branch' && !inSolenoidDownstream)) {
                         if (child.type === 'solenoid_kit') {
                             // 室外機〜電磁弁キット間は3管式
                             const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
