@@ -73,3 +73,24 @@ test('GHP 4社: 印刷用CSSに警告パネルの表示設定がある', () => {
     assert.ok(!html.includes('.warning-panel {\n                display: none !important;'), manufacturer);
   }
 });
+
+
+/**
+ * 既知不具合の再現テスト（現状を固定するための characterization）。
+ * 「正しい配管選定」を示すものではない。公式条件の照合と修正後に期待値を変更する。
+ */
+for (const [manufacturer, seriesId] of Object.entries(manufacturers)) {
+  test(manufacturer + ': 既知不具合・室外機サイズUPが子配管BOMに反映されない', () => {
+    const engine = engineFor(manufacturer);
+    const baseline = engine.calculateSystem(makeTree(80), seriesId, false);
+    const sizeUp = engine.calculateSystem(makeTree(81), seriesId, false);
+    assert.equal(sizeUp.tree.isSizedUp, true, '室外機ノードにはサイズUPフラグが立つ');
+    assert.notEqual(sizeUp.tree.pipeLiquid, baseline.tree.pipeLiquid, '室外機の液管径は変わる');
+    assert.notEqual(sizeUp.tree.pipeGas, baseline.tree.pipeGas, '室外機のガス管径は変わる');
+    assert.equal(sizeUp.tree.children[0].isSizedUp, undefined, '長さを持つ子ノードはサイズUPされない');
+    assert.deepEqual(Object.keys(sizeUp.totals.liquidPipes), Object.keys(baseline.totals.liquidPipes), 'BOMの液管径は変わらない');
+    assert.deepEqual(Object.keys(sizeUp.totals.gasPipes), Object.keys(baseline.totals.gasPipes), 'BOMのガス管径は変わらない');
+    assert.equal(sizeUp.tree.children[0].pipeLiquid, baseline.tree.children[0].pipeLiquid);
+    assert.equal(sizeUp.tree.children[0].pipeGas, baseline.tree.children[0].pipeGas);
+  });
+}
