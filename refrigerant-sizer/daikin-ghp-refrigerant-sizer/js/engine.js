@@ -115,7 +115,7 @@ class RefrigerantSizerEngine {
         const forceSizeUp = enableManualSizeUp || (longestPath > 90);
 
         if (forceSizeUp) {
-            warnings.push("最遠相当長が90mを超過（またはサイズUP手動適用）のため、主管サイズアップを適用しています。");
+            warnings.push("配管サイズアップ条件に該当する可能性があります。ただし、現行処理はメーカー・シリーズ別の適用条件と主配管区間が未検証で、サイズアップ結果が配管径・BOMへ正しく反映されない可能性があります。必ず対象機種の最新公式資料で確認してください。");
         }
 
         // 3管式BS下流フラグ設定
