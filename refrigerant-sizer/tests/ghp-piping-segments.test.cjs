@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { extractSegments } = require('../shared/ghp-piping-segments.js');
+const { extractSegments, findMainPipeCandidates } = require('../shared/ghp-piping-segments.js');
 
 const node = (id, type, length = 0, children = []) => ({ id, type, length, children });
 
@@ -57,4 +57,27 @@ test('missing length remains zero and is not confused with equivalent length', (
   const [segment] = extractSegments(tree);
   assert.equal(segment.actualLengthM, 0);
   assert.equal(segment.equivalentLengthM, null);
+});
+
+test('main-pipe candidate is the outdoor-to-first-branch segment only', () => {
+  const tree = node('out', 'outdoor', 0, [
+    node('first', 'branch', 25, [
+      node('second', 'branch', 15, [node('in', 'indoor', 5)])
+    ])
+  ]);
+  assert.deepEqual(findMainPipeCandidates(tree).map(s => s.id), ['out->first']);
+});
+
+test('connection-kit upstream is excluded from structural main-pipe candidates', () => {
+  const tree = node('out', 'outdoor', 0, [
+    node('kit', 'connection_kit', 6, [
+      node('first', 'branch', 10, [node('in', 'indoor', 4)])
+    ])
+  ]);
+  assert.deepEqual(findMainPipeCandidates(tree).map(s => s.id), ['kit->first']);
+});
+
+test('direct outdoor-to-indoor pipe is not automatically treated as verified main pipe', () => {
+  const tree = node('out', 'outdoor', 0, [node('in', 'indoor', 11)]);
+  assert.deepEqual(findMainPipeCandidates(tree), []);
 });
