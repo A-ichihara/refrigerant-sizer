@@ -518,7 +518,7 @@ class RefrigerantSizerUI {
             editorHtml += `<button class="btn btn-outline" id="btn-add-branch">➕ 分岐ジョイントを追加</button>`;
             
             // MF3 シリーズの場合のみ電磁弁キット追加可能
-            if (this.activeSeriesId === 'fsv_mf3' && node.type !== 'solenoid_kit') {
+            if ((this.activeSeriesId === 'fsv_uxe3' || this.activeSeriesId === 'fsv_mf3') && node.type !== 'solenoid_kit') {
                 editorHtml += `<button class="btn btn-outline" id="btn-add-solenoid" style="border-color:var(--color-primary-glow);">🟣 電磁弁キットを追加</button>`;
             }
             editorHtml += `<button class="btn btn-outline" id="btn-add-indoor">➕ 室内ユニットを追加</button>`;
