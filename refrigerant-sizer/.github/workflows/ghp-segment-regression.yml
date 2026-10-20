@@ -1,0 +1,27 @@
+name: GHP segment regression
+
+on:
+  push:
+    paths:
+      - 'refrigerant-sizer/shared/ghp-piping-segments.js'
+      - 'refrigerant-sizer/tests/ghp-piping-segments.test.cjs'
+      - 'refrigerant-sizer/.github/workflows/ghp-segment-regression.yml'
+  pull_request:
+    paths:
+      - 'refrigerant-sizer/shared/ghp-piping-segments.js'
+      - 'refrigerant-sizer/tests/ghp-piping-segments.test.cjs'
+      - 'refrigerant-sizer/.github/workflows/ghp-segment-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ghp-segments:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test refrigerant-sizer/tests/ghp-piping-segments.test.cjs
