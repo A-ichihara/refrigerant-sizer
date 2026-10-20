@@ -163,6 +163,8 @@ test('UXE3 manual size-up is safely ignored by engine with explicit warning', ()
   ] });
   const standard = engine.calculateSystem(makeTree(), 'fsv_uxe3', false);
   const requested = engine.calculateSystem(makeTree(), 'fsv_uxe3', true);
+  assert.ok(standard.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
+  assert.ok(requested.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
   assert.deepEqual(requested.totals, standard.totals);
   assert.deepEqual(requested.tree.children[0].pipes, standard.tree.children[0].pipes);
   assert.deepEqual(requested.tree.children[0].children[0].pipes, standard.tree.children[0].children[0].pipes);
