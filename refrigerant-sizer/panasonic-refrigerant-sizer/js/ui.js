@@ -1555,7 +1555,7 @@ class RefrigerantSizerUI {
 
         container.innerHTML = `
             <div class="alert-card" style="margin-bottom:12px;">
-                <strong>${isThreePipe ? 'UXE3（冷暖同時・3管式）' : 'UX3（冷暖切換・2管式）'}</strong><br>
+                <strong>${isThreePipe ? 'UXE3（冷暖フリー・3管式）' : 'UX3（冷暖切換・2管式）'}</strong><br>
                 この表は、現在の計算エンジンに登録されている容量区分と標準選定サイズを表示しています。
                 メーカーの正式設計表そのものではありません。実設計では該当機種の最新技術資料との照合が必要です。
             </div>
