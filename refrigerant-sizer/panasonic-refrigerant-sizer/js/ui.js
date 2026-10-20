@@ -35,7 +35,7 @@ class RefrigerantSizerUI {
 
         this.activeSeriesId = loadedSeriesId;
         this.activeNodeId = loadedNodeId;
-        this.enableManualSizeUp = loadedManualSizeUp;
+        this.enableManualSizeUp = loadedSeriesId === 'fsv_uxe3' ? false : loadedManualSizeUp;
         
         if (loadedTree) {
             this.engine.migrateLegacyOutdoorCapacity(loadedTree, this.activeSeriesId);
@@ -97,12 +97,21 @@ class RefrigerantSizerUI {
         }
         const forceSUpBtn = document.getElementById('btn-force-sizeup');
         if (forceSUpBtn) {
+            forceSUpBtn.disabled = this.activeSeriesId === 'fsv_uxe3';
+            forceSUpBtn.title = this.activeSeriesId === 'fsv_uxe3' ? 'UXE3の手動増径は公式条件未確認のため停止中' : '';
             forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
         }
         this.update();
     }
 
     update() {
+        if (this.activeSeriesId === 'fsv_uxe3') this.enableManualSizeUp = false;
+        const sizeUpButton = document.getElementById('btn-force-sizeup');
+        if (sizeUpButton) {
+            sizeUpButton.disabled = this.activeSeriesId === 'fsv_uxe3';
+            sizeUpButton.title = sizeUpButton.disabled ? 'UXE3の手動増径は公式条件未確認のため停止中' : '';
+            sizeUpButton.classList.toggle('btn-primary', this.enableManualSizeUp);
+        }
         this.validateAndRepairTreeForSeries(this.systemTree);
 
         const results = this.engine.calculateSystem(this.systemTree, this.activeSeriesId, this.enableManualSizeUp);
@@ -214,7 +223,7 @@ class RefrigerantSizerUI {
         } else {
             const is3Pipe = this.activeSeriesId === 'fsv_uxe3';
             if (is3Pipe) {
-                const sizes = this.engine.selectThreePipeSize(node.capacity, this.enableManualSizeUp);
+                const sizes = this.engine.selectThreePipeSize(node.capacity, this.activeSeriesId === 'fsv_uxe3' ? false : this.enableManualSizeUp);
                 pipeHtml = `
                     <div class="pipe-result-badge" style="color: var(--text-muted);">
                         <div>液管: φ${sizes.liquid} (主管)</div>
@@ -223,7 +232,7 @@ class RefrigerantSizerUI {
                     </div>
                 `;
             } else {
-                const sizes = this.engine.selectTwoPipeSize(node.capacity, this.enableManualSizeUp);
+                const sizes = this.engine.selectTwoPipeSize(node.capacity, this.activeSeriesId === 'fsv_uxe3' ? false : this.enableManualSizeUp);
                 pipeHtml = `
                     <div class="pipe-result-badge" style="color: var(--text-muted);">
                         <div>液管: φ${sizes.liquid} (主管)</div>
@@ -692,10 +701,10 @@ class RefrigerantSizerUI {
             }
         } else if (warningText.includes("最遠") || warningText.includes("相当長") || warningText.includes("実長")) {
             suggestion = "💡 【対処方法】: 主管サイズアップ（1サイズ太径化）を強制適用し、長配管による圧力損失を補正します。";
-            fixAction = () => { this.enableManualSizeUp = true; this.update(); };
+            fixAction = this.activeSeriesId === 'fsv_uxe3' ? null : () => { this.enableManualSizeUp = true; this.update(); };
         } else {
             suggestion = "💡 【対処方法】: 主配管のサイズアップを有効化し系統全体のバランスを改善します。";
-            fixAction = () => { this.enableManualSizeUp = true; this.update(); };
+            fixAction = this.activeSeriesId === 'fsv_uxe3' ? null : () => { this.enableManualSizeUp = true; this.update(); };
         }
 
         sugDiv.textContent = suggestion;
@@ -734,11 +743,12 @@ class RefrigerantSizerUI {
         if (!overlay) return;
 
         if (toggle) {
+            toggle.disabled = this.activeSeriesId === 'fsv_uxe3';
             toggle.checked = this.enableManualSizeUp;
             if (label) label.textContent = this.enableManualSizeUp ? "サイズUP適用中" : "標準サイズ";
             
             toggle.onchange = (e) => {
-                this.enableManualSizeUp = e.target.checked;
+                this.enableManualSizeUp = this.activeSeriesId === 'fsv_uxe3' ? false : e.target.checked;
                 if (label) label.textContent = this.enableManualSizeUp ? "サイズUP適用中" : "標準サイズ";
                 const forceSUpBtn = document.getElementById('btn-force-sizeup');
                 if (forceSUpBtn) forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
@@ -868,6 +878,7 @@ class RefrigerantSizerUI {
         const forceSUpBtn = document.getElementById('btn-force-sizeup');
         if (forceSUpBtn) {
             forceSUpBtn.addEventListener('click', () => {
+                if (this.activeSeriesId === 'fsv_uxe3') return;
                 this.enableManualSizeUp = !this.enableManualSizeUp;
                 forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
                 this.update();
