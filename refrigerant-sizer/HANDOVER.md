@@ -18,7 +18,7 @@
 - Panasonic EHP UXE3長配管条件: [調査メモ](./panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
 - Carrier回帰確認: [テスト記録](./docs/carrier-engine-regression.md)
 
-現行GitHub Actionsで実行するテストは、GHP安全性、Carrierエンジン、GHP配管区間、Panasonic UXE3の電磁弁キット下流配管の4ファイル。Panasonic UXE3の既存回帰テストを `.github/workflows/ghp-regression.yml` に追加した（コミット `c9874409fe4ba6cc632fb4dbe92fdc56a2c4ed58`）。実際のworkflow実行成功は別途確認が必要。
+現行GitHub Actionsで実行するテストは、GHP安全性、Carrierエンジン、GHP配管区間、Panasonic UXE3の電磁弁キット下流配管の4ファイル。Panasonic UXE3の既存回帰テストを `.github/workflows/ghp-regression.yml` に追加済み。2026-10-20時点で、4テストを含むworkflow run `39367754651` と、監査メモ更新後のrun `39370841295` の両方が成功している。ただし、CI成功はメーカー公式資料との全配管径照合や実ブラウザ確認を意味しない。
 
 ---
 
@@ -558,7 +558,7 @@ node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-do
 - パナソニック UI: `b5a50eb3deae2966d9f99800dce82e209b6e854b`
 - UI無効化のソース回帰テスト: `0116af68dddc8e294c8dee062f852f8191a17158`
 
-CI status APIではステータスチェックが空で、取得できたワークフロー実行一覧も空だった。これはテスト成功を意味しない。引き続き、実行結果は未確認として扱う。
+当時はCI status APIでステータスチェックが空で、ワークフロー実行一覧も取得できていなかった。その後、GitHub Actionsの実行一覧をREST APIで確認でき、4テストの成功を確認した。最新確認は下記「GitHub Actions回帰テスト成功」を参照。
 
 
 
@@ -594,3 +594,12 @@ GitHub Actions run `39367754651`（コミット `aa0d0993c64269b1894e9e8828d25e7
 実行結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39367754651
 
 今回のCI成功は、これらの自動テストが通過したことを示す。公式カタログとの配管径照合、実ブラウザでのUI確認、または未実装の長配管自動増径が検証済みであることを意味しない。
+
+
+## 2026-10-20 追記：監査メモ更新後のCI確認
+
+GHPサイズアップ監査メモの現行状態への整合修正を含むコミット `58f302cb52f158bdbae03f9a646f6a484d8127be` について、GitHub Actions run `39370841295` が `success` で完了した。
+
+実行結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39370841295
+
+この確認により、当該コミットの4つの回帰テストワークフローが成功したことを確認した。ローカル実行・実ブラウザでの操作確認・公式資料に基づく全機種の配管径監査は別途であり、未確認項目を完了扱いにしない。
