@@ -152,3 +152,19 @@ test('legacy UXE3 18HP capacity migrates without changing downstream data or oth
   assert.equal(engine.migrateLegacyOutdoorCapacity(otherCapacity, 'fsv_uxe3'), false);
   assert.equal(otherCapacity.capacity, 56.0);
 });
+
+
+test('UXE3 manual size-up is safely ignored by engine with explicit warning', () => {
+  const engine = new RefrigerantSizerEngine();
+  const makeTree = () => ({ type: 'outdoor', name: 'Outdoor', capacity: 28, children: [
+    { type: 'solenoid_kit', name: 'Kit', length: 10, children: [
+      { type: 'indoor', name: 'Room', capacity: 5.6, length: 8, children: [] }
+    ] }
+  ] });
+  const standard = engine.calculateSystem(makeTree(), 'fsv_uxe3', false);
+  const requested = engine.calculateSystem(makeTree(), 'fsv_uxe3', true);
+  assert.deepEqual(requested.totals, standard.totals);
+  assert.deepEqual(requested.tree.children[0].pipes, standard.tree.children[0].pipes);
+  assert.deepEqual(requested.tree.children[0].children[0].pipes, standard.tree.children[0].children[0].pipes);
+  assert.ok(requested.warnings.some(w => w.message.includes('UXE3手動サイズアップ未適用')));
+});
