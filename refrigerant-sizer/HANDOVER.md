@@ -10,11 +10,11 @@
 
 この引き継ぎ書には過去の実装方針・未完了タスクが残っている。配管径の技術判断については、旧記載よりも現行の監査メモと作業手順書を優先すること。特に、旧版の「全メーカー共通で相当長90m以上なら主管を1サイズアップ」という記述は撤回済みであり、使用してはならない。
 
-- 作業手順: [修正・検証 作業手順書](./refrigerant-sizer/docs/repair-work-procedure.md)
-- GHPサイズアップ監査: [GHP主管サイズアップ監査メモ](./refrigerant-sizer/docs/ghp-main-pipe-size-up-audit.md)
-- GHP型式照合: [GHPシリーズ・型式照合台帳](./refrigerant-sizer/docs/ghp-series-model-verification.md)
-- Panasonic EHP UXE3長配管条件: [調査メモ](./refrigerant-sizer/panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
-- Carrier回帰確認: [テスト記録](./refrigerant-sizer/docs/carrier-engine-regression.md)
+- 作業手順: [修正・検証 作業手順書](./docs/repair-work-procedure.md)
+- GHPサイズアップ監査: [GHP主管サイズアップ監査メモ](./docs/ghp-main-pipe-size-up-audit.md)
+- GHP型式照合: [GHPシリーズ・型式照合台帳](./docs/ghp-series-model-verification.md)
+- Panasonic EHP UXE3長配管条件: [調査メモ](./panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
+- Carrier回帰確認: [テスト記録](./docs/carrier-engine-regression.md)
 
 現行GitHub Actionsで実行しているテストは、GHP安全性、Carrierエンジン、GHP配管区間の3ファイル。Panasonic EHPの既存テストはリポジトリに存在するが、現行workflowには含まれていない。
 
@@ -341,9 +341,9 @@ if (tabSwitch && tabFree) {
 
 実装判断は必ず次の現行監査資料に従うこと。
 
-- [修正・検証 作業手順書](./refrigerant-sizer/docs/repair-work-procedure.md)
-- [GHP主管サイズアップ監査メモ](./refrigerant-sizer/docs/ghp-main-pipe-size-up-audit.md)
-- [GHPシリーズ・型式照合台帳](./refrigerant-sizer/docs/ghp-series-model-verification.md)
+- [修正・検証 作業手順書](./docs/repair-work-procedure.md)
+- [GHP主管サイズアップ監査メモ](./docs/ghp-main-pipe-size-up-audit.md)
+- [GHPシリーズ・型式照合台帳](./docs/ghp-series-model-verification.md)
 
 公式資料で対象型式と施工条件が一致するまで、サイズアップ結果を確定設計値として使用しない。
 
