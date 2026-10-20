@@ -245,3 +245,11 @@ test('UXE3 page labels consistently use Panasonic cold/heat-free terminology', (
   assert.doesNotMatch(html, /冷暖同時 UXE3/);
   assert.doesNotMatch(html, /電磁弁キット（冷暖同時）/);
 });
+
+test('UXE3 pipe-size reference table uses cold/heat-free terminology', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const uiSource = fs.readFileSync(path.join(__dirname, '../js/ui.js'), 'utf8');
+  assert.match(uiSource, /UXE3（冷暖フリー・3管式）/);
+  assert.doesNotMatch(uiSource, /UXE3（冷暖同時・3管式）/);
+});
