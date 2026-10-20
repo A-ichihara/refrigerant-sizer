@@ -505,3 +505,46 @@ git push origin main
 5. **低**: ダイキンGHP・ヤンマーGHP の全部入りサイズ表追加
 6. **低**: サンプルデータ読み込みの最終確認・修正
 
+---
+
+## 13. 2026-10-20 引継ぎ追記（この節を旧記載より優先）
+
+### GHP 4メーカーのサイズアップ機能は一時停止中
+
+以下4エンジンでは、公式条件・対象配管区間・BOM反映の整合性が未検証のため、自動・手動サイズアップを計算結果に適用しない安全措置を入れた。90mという共通閾値を正式な設計条件として扱ってはいけない。
+
+- アイシン GHP engine: `f6722c88a416e581bfac33ef40712845e16faa77`
+- ダイキン GHP engine: `a05c7af37ba387aab54041dad3f67ac53d2b863e`
+- ヤンマー GHP engine: `1f92c6587ddee16aae287d68883ffd4b08e5eb59`
+- パナソニック GHP engine: `25c778f8227d7282b939fdd1d5bac288325419e1`
+- 安全回帰テスト: `475f1c0a190dc26e03a07ee6d916742b4fea7c21`
+- 監査資料: `refrigerant-sizer/docs/ghp-main-pipe-size-up-audit.md`
+
+各GHP画面の操作名・ツールチップ・モーダル説明も「停止中」に更新済み。画面文言の変更は、ブラウザ動作確認済みという意味ではない。
+
+- アイシン UI: `00e16fc730f24c3986d120afae4259825194572b`
+- ダイキン UI: `9a623a938bffc81d58a50d81839cd50334140f6d`
+- ヤンマー UI: `5d1dc742052092aa178c1512a2e83415926e985b`
+- パナソニック UI: `cb063189baebb9f02cc63f0ac293bbc7ce14b5a2`
+- 監査資料へのUI変更記録: `ca60c268cc70e8a8b0e7a27a4d51626912baea17`
+
+### テスト・CIの確認状況
+
+テストコードとGitHub Actionsは存在するが、現時点で最新コミットに対するActionsの成功結果は確認できていない。ローカル実行も未実施。したがって「テスト合格」「CI成功」と報告しないこと。利用可能な実行環境を確保してから、少なくとも以下を実行する。
+
+```bash
+node --test refrigerant-sizer/tests/ghp-safety-regression.test.cjs
+node --test refrigerant-sizer/tests/carrier-engine-regression.test.cjs
+node --test refrigerant-sizer/tests/ghp-piping-segments.test.cjs
+node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs
+```
+
+### 次の作業順
+
+1. GHP画面・エンジン・回帰テストの整合性を再確認し、実行できるテストは実行して結果を記録する。
+2. GHP各社の型式・シリーズ・冷媒・2管式/3管式を公式資料と照合する。未確定の条件をコードへ推測で流用しない。
+3. Panasonic EHP（`refrigerant-sizer/panasonic-refrigerant-sizer/`）のUXE3長配管増径は、`docs/uxe3-auto-size-up.md` のとおり主管LM・相当長L1・50m境界をモデル化できるまで自動適用しない。2014年UXE資料とアプリ内型式の適用一致も未確定。
+4. 公式条件、区間分割、配管径表示、材料集計（BOM）を一体で実装し、境界値の回帰テストを追加してから機能を再有効化する。
+
+費用の発生しない調査・編集・テスト整備は、ユーザーから追加承認を求めず継続してよい。有料資料・サービスの利用や費用発生前には必ず確認する。
+
