@@ -164,3 +164,18 @@ node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-do
 - [GHP配管区間モデル設計案](./ghp-piping-segment-model-design.md)
 - [Carrierエンジン回帰テスト記録](./carrier-engine-regression.md)
 - [Panasonic EHP UXE3長配管サイズアップ調査](../panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
+
+## 12. 2026-10-20 現行CI実行記録の更新
+
+GitHub Actions の実行履歴を再確認。以下の実行は完了し、結論は `success`。
+
+- 実行: [GHP regression tests #29](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39351557109)
+- 対象コミット: `6b3ebc5ecaff9d2769c63a93c74945a96ba4bb92`
+- 対象ワークフロー: `.github/workflows/ghp-regression.yml`
+- 実行されたテストファイル（ワークフロー設定上）:
+  - `refrigerant-sizer/tests/ghp-safety-regression.test.cjs`
+  - `refrigerant-sizer/tests/carrier-engine-regression.test.cjs`
+  - `refrigerant-sizer/tests/ghp-piping-segments.test.cjs`
+
+これは上記の回帰テストがCI上で成功した記録であり、メーカー公式資料への全型式照合、配管径テーブルの正当性、すべての配管系統の設計適合性を保証するものではない。Panasonic EHPの `uxe3-solenoid-downstream.test.cjs` は引き続きこのワークフローの対象外。
+
