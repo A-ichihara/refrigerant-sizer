@@ -98,3 +98,38 @@ test('UXE3 upstream branch stays three-pipe, counts BOM and does not trigger dir
   assert.ok(result.warnings.every(w => !w.message.includes('電磁弁キットが必要')));
   assert.equal(result.totals.joints['CZ-P56HRV3'], 2);
 });
+
+
+test('UXE3 multi-level upstream branches keep three-pipe BOM and downstream branches keep two-pipe BOM', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = { type: 'outdoor', name: 'Outdoor', capacity: 28, length: 0, children: [
+    { type: 'branch', name: 'First upstream', length: 4, children: [
+      { type: 'branch', name: 'Second upstream', length: 6, children: [
+        { type: 'solenoid_kit', name: 'Kit A', length: 8, children: [
+          { type: 'branch', name: 'Downstream branch', length: 2, children: [
+            { type: 'indoor', name: 'Indoor A', capacity: 5.6, length: 3, children: [] },
+            { type: 'indoor', name: 'Indoor B', capacity: 5.6, length: 4, children: [] }
+          ] }
+        ] }
+      ] },
+      { type: 'solenoid_kit', name: 'Kit B', length: 5, children: [
+        { type: 'indoor', name: 'Indoor C', capacity: 5.6, length: 7, children: [] }
+      ] }
+    ] }
+  ] };
+  const result = engine.calculateSystem(tree, 'fsv_uxe3', false);
+  const first = tree.children[0];
+  const second = first.children[0];
+  const kitA = second.children[0];
+  const kitB = first.children[1];
+  assert.deepEqual([first.pipes.type, second.pipes.type, kitA.pipes.type, kitB.pipes.type], ['3pipe','3pipe','3pipe','3pipe']);
+  assert.equal(kitA.children[0].pipes.type, '2pipe');
+  assert.deepEqual(kitA.children[0].children.map(x => x.pipes.type), ['2pipe','2pipe']);
+  assert.equal(kitB.children[0].pipes.type, '2pipe');
+  assert.equal(result.totals.totalLength, 39);
+  assert.equal(Object.values(result.totals.highGasPipes).reduce((a,b) => a+b, 0), 23);
+  assert.equal(Object.values(result.totals.lowGasPipes).reduce((a,b) => a+b, 0), 23);
+  assert.equal(Object.values(result.totals.gasPipes).reduce((a,b) => a+b, 0), 16);
+  assert.equal(Object.values(result.totals.liquidPipes).reduce((a,b) => a+b, 0), 39);
+  assert.ok(result.warnings.every(w => !w.message.includes('電磁弁キットが必要')));
+});
