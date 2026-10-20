@@ -109,10 +109,13 @@ class RefrigerantSizerEngine {
 
         // 2. Size pipes for each node
         const longestPath = this.findLongestPath(tree);
-        const forceSizeUp = enableManualSizeUp || (longestPath > 90);
+        // 安全措置: 現行モデルは最長入力実長を基にサイズアップを判定し、室外機ノードだけを変更する。
+        // 相当長・メーカー別の対象区間・BOM反映が未検証のため、確定した増径処理は一時停止する。
+        // 手動指定も同じ未検証処理へ入るため適用せず、注意表示に留める。
+        const forceSizeUp = false;
 
-        if (forceSizeUp) {
-            warnings.push("配管サイズアップ条件に該当する可能性があります。ただし、現行処理はメーカー・シリーズ別の適用条件と主配管区間が未検証で、サイズアップ結果が配管径・BOMへ正しく反映されない可能性があります。必ず対象機種の最新公式資料で確認してください。");
+        if (enableManualSizeUp || longestPath > 90) {
+            warnings.push("【サイズアップ未適用】90m超過または手動指定を検出しましたが、現行の増径処理はメーカー別の相当長条件・対象区間・BOM反映が未検証のため適用していません。対象機種の最新公式資料に基づき、主管区間とBOMを確認してください。");
         }
 
         // 3管式切換ユニット下流フラグ設定
