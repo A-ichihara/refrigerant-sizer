@@ -253,3 +253,11 @@ test('UXE3 pipe-size reference table uses cold/heat-free terminology', () => {
   assert.match(uiSource, /UXE3（冷暖フリー・3管式）/);
   assert.doesNotMatch(uiSource, /UXE3（冷暖同時・3管式）/);
 });
+
+test('UXE3 pipe reference table keeps its non-official-data disclaimer', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const uiSource = fs.readFileSync(path.join(__dirname, '../js/ui.js'), 'utf8');
+  assert.match(uiSource, /メーカーの正式設計表そのものではありません/);
+  assert.match(uiSource, /実設計では該当機種の最新技術資料との照合が必要です/);
+});
