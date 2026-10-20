@@ -94,8 +94,9 @@ test('GHP 4社: 未検証のサイズアップ操作は画面上で無効化さ�
 for (const [manufacturer, seriesId] of Object.entries(manufacturers)) {
   test(manufacturer + ': 2管式で未検証の自動増径を適用しない', () => {
     const engine = engineFor(manufacturer);
-    const baseline = engine.calculateSystem(makeTree(80), seriesId, false);
-    const over = engine.calculateSystem(makeTree(81), seriesId, false);
+    // 同一の配管長で比較し、入力実長の差をサイズアップ差と誤認しない。
+    const baseline = engine.calculateSystem(makeTree(81), seriesId, false);
+    const over = engine.calculateSystem(makeTree(81), seriesId, true);
     assert.ok(over.warnings.some(w => w.includes('【サイズアップ未適用】')));
     assert.equal(over.tree.isSizedUp, undefined);
     assert.equal(over.tree.pipeLiquid, baseline.tree.pipeLiquid);
@@ -131,9 +132,10 @@ function makeThreePipeTree(branchLength) {
 for (const [manufacturer, seriesId] of Object.entries(threePipeManufacturers)) {
   test(manufacturer + ': 3管式で未検証の自動増径を適用しない', () => {
     const engine = engineFor(manufacturer);
-    const baseline = engine.calculateSystem(makeThreePipeTree(79), seriesId, false);
-    const over = engine.calculateSystem(makeThreePipeTree(80), seriesId, false);
-    assert.equal(baseline.totals.longestPath, 90);
+    // 同一の配管長で比較し、長さ差とサイズアップ差を分離する。
+    const baseline = engine.calculateSystem(makeThreePipeTree(80), seriesId, false);
+    const over = engine.calculateSystem(makeThreePipeTree(80), seriesId, true);
+    assert.equal(baseline.totals.longestPath, 91);
     assert.equal(over.totals.longestPath, 91);
     assert.ok(over.warnings.some(w => w.includes('【サイズアップ未適用】')));
     assert.equal(over.tree.isSizedUp, undefined);
