@@ -171,6 +171,61 @@ test('UXE3 manual size-up is safely ignored by engine with explicit warning', ()
   assert.ok(requested.warnings.some(w => w.message.includes('UXE3手動サイズアップ未適用')));
 });
 
+test('UXE3 unverified-base-diameter warning remains active for every registered outdoor capacity', () => {
+  const engine = new RefrigerantSizerEngine();
+  const capacities = engine.SERIES_DATABASE.fsv_uxe3.outdoorCapacities;
+
+  for (const outdoor of capacities) {
+    const makeTree = () => ({
+      type: 'outdoor',
+      name: outdoor.model,
+      capacity: outdoor.kw,
+      length: 0,
+      children: [{
+        type: 'solenoid_kit',
+        name: 'Solenoid kit',
+        length: 5,
+        children: [{
+          type: 'indoor',
+          name: 'Indoor',
+          capacity: 5.6,
+          length: 8,
+          children: []
+        }]
+      }]
+    });
+
+    const standardTree = makeTree();
+    const requestedTree = makeTree();
+    const standard = engine.calculateSystem(standardTree, 'fsv_uxe3', false);
+    const requested = engine.calculateSystem(requestedTree, 'fsv_uxe3', true);
+
+    assert.ok(
+      standard.warnings.some(w => w.message.includes('UXE3基準配管径未検証')),
+      `base-diameter warning missing for ${outdoor.model} (${outdoor.kw} kW)`
+    );
+    assert.ok(
+      requested.warnings.some(w => w.message.includes('UXE3基準配管径未検証')),
+      `base-diameter warning missing with manual size-up requested for ${outdoor.model}`
+    );
+    assert.ok(
+      requested.warnings.some(w => w.message.includes('UXE3手動サイズアップ未適用')),
+      `manual size-up stop warning missing for ${outdoor.model}`
+    );
+    assert.deepEqual(requested.totals, standard.totals, `manual size-up changed totals for ${outdoor.model}`);
+    assert.deepEqual(
+      requestedTree.children[0].pipes,
+      standardTree.children[0].pipes,
+      `manual size-up changed solenoid-kit upstream pipes for ${outdoor.model}`
+    );
+    assert.deepEqual(
+      requestedTree.children[0].children[0].pipes,
+      standardTree.children[0].children[0].pipes,
+      `manual size-up changed indoor branch pipes for ${outdoor.model}`
+    );
+  }
+});
+
 test('UXE3 manual size-up button visibly communicates its stopped state', () => {
   const fs = require('node:fs');
   const path = require('node:path');
