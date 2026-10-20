@@ -13,6 +13,8 @@
 - 作業手順: [修正・検証 作業手順書](./docs/repair-work-procedure.md)
 - GHPサイズアップ監査: [GHP主管サイズアップ監査メモ](./docs/ghp-main-pipe-size-up-audit.md)
 - GHP型式照合: [GHPシリーズ・型式照合台帳](./docs/ghp-series-model-verification.md)
+  - [ダイキンGHP 登録型式・冷媒の照合メモ](./docs/daikin-ghp-model-verification.md)
+  - [ヤンマー／パナソニックGHP 登録型式・冷媒の照合メモ](./docs/ghp-yanmar-panasonic-model-verification.md)
 - Panasonic EHP UXE3長配管条件: [調査メモ](./panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
 - Carrier回帰確認: [テスト記録](./docs/carrier-engine-regression.md)
 
