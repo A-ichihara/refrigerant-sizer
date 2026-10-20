@@ -261,3 +261,14 @@ Panasonic公式製品情報ではUXE3は「冷暖フリービル用マルチUXE3
 さらに `calculateSystem(rootNode,seriesId,isManualSizeUp)` は手動増径フラグを `processNodeSizing` 経由で全区間へ渡し、上流3管と電磁弁キット下流2管の双方に一律一段増径を適用する。これは主管LMだけを対象とする長配管条件等の区間別増径を表現できず、メーカー適合性が未確認。UIのサイズUP操作は存在するため、現時点でその出力を設計確定値として扱わないこと。今後は対象シリーズ・型式・LA/LB/LMの区間境界・相当長・実長・対象管種・BOMへの反映を一次資料で照合した上で、区間別判定とテストを実装する。
 
 公式資料候補：パナソニック配管設計ツール案内 https://hvac.panasonic.com/search/tool/soft-piping.html ／UXE3室外機型式仕様書 https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=CU-P335UXE3&itemID=t000100045060&volumeName=00001 。仕様書の室外機接続口径と系統主管径は同一概念として扱わない。
+
+
+## 2026-10-20 追記：UXE3公式一次資料で配管制限を再確認
+
+Panasonic P-SPECの公式配管資料（型式CU-P400UXE3の「冷媒配管（2）」資料）から、UXE3の主管サイズLA表、分岐後主管LB/LC等の表、および配管制限注記を確認した。公式資料：
+- https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=CU-P400UXE3&itemID=t000100040395&volumeName=00001
+- https://hvac.panasonic.com/search/tool/soft-piping.html
+
+資料に記載された主な制限・条件：最大配管長L1は実長150m（相当長175m）、主管LMは80m以下、分岐ℓ1～ℓ40は各30m以下、液管総延長は300m以下。L1が90m（相当長）を超える場合は主管LMの吸込・吐出・液管を1ランク増径。これ以外でもLMが50mを超える場合、最初の50m区間について吸込・吐出管を1ランク増径し、50m超過分はLA表のサイズを適用する注記がある。Panasonic P-SPEC更新履歴には、2024-11-14にUXE3のメイン配管長80m超過をエラーリストに表示しない不具合を修正した記録がある。
+
+ただし検索で得られた公式表は、テキスト化時にセル結合が崩れているため、各馬力のLA径をコードへ転記する前に原本図表の配置を目視確認する必要がある。また、主管LMと分岐後主管LB/LC等の区間を現行ツリーへ割り当てる規則、継手相当長、増径対象の区間分割・レデューサー・BOM表現は未確定。これらを確認するまで標準管径と自動増径を設計確定値として扱わない。
