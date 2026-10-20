@@ -705,3 +705,18 @@ Panasonic公式製品情報ではUXE3は「冷暖フリービル用マルチUXE3
 - 回帰テスト変更CI: [run 39379606197](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39379606197) — success
 
 これは表示上の用語整合性修正であり、UXE3の型式・容量マスターの不整合や主管サイズアップ条件が解決したことを意味しない。引き続き、公式配管表とアプリ区間モデルの照合は未完了。
+
+
+## 2026-10-20 追加監査：UXE3 18/20馬力の組合せ室外機品番を修正
+
+Panasonic公式の型式別仕様書で、UXE3の18馬力と20馬力が単体機ではなく組合せ室外ユニットであることを再確認した。
+
+- 18馬力：総合品番 **PA-P504UXE3**、構成 CU-P280UXE3 + CU-P224UXE3、冷房能力 **50.4 kW**。公式仕様書: https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P504UXE3&itemID=t000100153626&volumeName=00001
+- 20馬力：総合品番 **PA-P560UXE3**、構成 CU-P280UXE3 + CU-P280UXE3、冷房能力 **56.0 kW**。公式仕様書: https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P560UXE3&itemID=t000100154276&volumeName=00001
+
+上記に基づき、SERIES_DATABASE.fsv_uxe3.outdoorCapacities の18馬力を 50.0 / U-P500UXE3 から 50.4 / PA-P504UXE3 へ修正し、20馬力のモデル番号を U-P560UXE3 から PA-P560UXE3 へ修正した。20馬力の容量56.0kWは公式仕様書と一致するため維持した。
+
+- エンジン修正コミット：cd1938b2c33d50accc0957fa491c6bb631f3b535
+- 公式品番と容量の回帰テスト追加コミット：43829895759a9dbaad30d64b1a0e47a759b65238
+
+これは型式マスターの明白な品番・容量不一致を修正したものであり、UXE3の主管サイズ表・長配管増径条件を確定したものではない。主管径と自動増径の保留は継続する。U-P224UXE3 など8～16馬力の表示名についても、単体機の公式品番表記との整合は別途監査対象とする。
