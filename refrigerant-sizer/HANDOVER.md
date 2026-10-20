@@ -28,6 +28,13 @@
 - 調査メモ更新コミット 67ff67ab1efbeeeaf5ff3e74049c9eb8aea07039 のGitHub Actions run [39377385210](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39377385210) は成功。これはドキュメント変更のCI成功であり、UXE3管径表やサイズアップロジックの正しさを検証したものではない。
 - GHP 4社の未検証サイズアップ適用は引き続き停止中。主管区間・相当長・型式適用範囲・BOM反映を検証するまでは再有効化しない。
 
+
+### 2026-10-20 追加調査：アイシン・ハイブリッド公式資料のページ単位照合
+
+- アイシン公式2026年4月版「ハイブリッド空調システム（R410A）」PDFの本文を確認。P.4にGHP450形＋EHP224形の連絡キット～第一分岐の配管判定表、P.5に標準組合せ型式 ASGP450F2ZD + AEGP224F2（塩害仕様は ASGP450F2ZDE + AEGP224F2E）を確認した。資料：https://www.aisin.com/jp/product/energy/ghp/pdf/301_all.pdf
+- アプリの `aisin_ghp_hybrid` は `AHGP450P` / `AHGP560P` / `AHGP710P`、R32登録であり、この公式R410Aハイブリッド資料の型式・冷媒・GHP/EHP構成とは一致しない。別世代の型式が存在しないとは断定しないが、現状は正式選定に使わない。詳細は [GHPシリーズ・型式照合台帳](./docs/ghp-series-model-verification.md)。
+- 該当調査は文書のみ更新。エンジン、型式テーブル、サイズアップ動作は変更していない。GHP 4社の未検証サイズアップは停止を維持する。
+
 ---
 
 ## 1. プロジェクト概要
