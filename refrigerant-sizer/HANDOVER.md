@@ -784,4 +784,4 @@ UXE3のメーカー公式基準管径・長配管増径は引き続き未確定�
 - 回帰テスト追加：dadbaf24b3abb1b9d0a8287d3bdb864a1883c081
 - 調査メモ：panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md に追記（コミット fb6e5f367d71213753a3a6c19810382bd53a7913）
 - この警告は選定ロジックの修正ではなく、未検証状態の誤認防止策。UXE3基準径と自動増径の公式適合性は未確定・未適用。
-- CIは各変更コミットで自動実行される。最新結果を確認後、この記録を更新する。
+- GitHub Actions run `39431669743`（コミット `6c1bc012d58c895826429eaceb7dd71cbd54c159`）は `success`。GHP安全性、GHPサイズアップUI、Carrier、GHP配管区間、Panasonic UXE3の5テストステップすべて成功。結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39431669743
