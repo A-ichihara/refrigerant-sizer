@@ -196,3 +196,21 @@ GitHub Actions実行一覧を再取得し、引継ぎ文書更新コミット `d
 - 結果：`success`
 
 この実行では現行のGHP回帰ワークフローが成功している。UXE3の公式主管表の原本画像確認、対象型式の完全照合、長配管自動増径の実装・検証、実ブラウザでの手動操作確認は別作業であり、完了とは扱わない。
+
+
+## 2026-10-20 追記：UXE3シリーズ名称と警告文を公式表記に統一
+
+Panasonic公式製品情報ではUXE3は「冷暖フリービル用マルチUXE3室外機」と表記され、冷房排熱を暖房に利用する3管式として説明されている。公式製品情報例：
+- https://www2.panasonic.biz/jp/ai/products/search/detail?b_cd=501&bh_cd=5&c=search&item_cd=CU-P450UXE3&item_no=CU-P450UXE3
+- https://www2.panasonic.biz/jp/ai/products/search/detail?b_cd=501&bh_cd=5&c=search&item_cd=CU-P224UXE3&item_no=CU-P224UXE3
+
+そのため、Panasonic EHPのUXE3選択肢・エンジン内のシリーズ名と直結時警告に残っていた「冷暖同時(MF3)」表記を、UXE3固有の「冷暖フリー」表記へ修正した。アルゴリズム、管径、サイズアップの停止措置は変更していない。
+
+- エンジン変更: `476593962150c2a5a9c6873e37f4a87aca92f2a1`
+- UI選択肢変更: `ccb6f4e5b812b2b947daacdd885ad7235fac1bec`
+- 直結警告の回帰テスト追加: `07f5787904987cecf94ff30852f8eb8b090953e6`
+- エンジン変更CI: [run 39379587509](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39379587509) — success
+- UI変更CI: [run 39379601664](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39379601664) — success
+- 回帰テスト変更CI: [run 39379606197](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39379606197) — success
+
+これは表示上の用語整合性修正であり、UXE3の型式・容量マスターの不整合や主管サイズアップ条件が解決したことを意味しない。引き続き、公式配管表とアプリ区間モデルの照合は未完了。
