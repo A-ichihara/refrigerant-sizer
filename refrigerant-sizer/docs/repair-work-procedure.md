@@ -167,15 +167,19 @@ node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-do
 
 ## 12. 2026-10-20 現行CI実行記録の更新
 
-GitHub Actions の実行履歴を再確認。以下の実行は完了し、結論は `success`。
+現行ワークフロー `.github/workflows/ghp-regression.yml` は、以下の5テストを実行する。
 
-- 実行: [GHP regression tests #29](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39351557109)
-- 対象コミット: `6b3ebc5ecaff9d2769c63a93c74945a96ba4bb92`
-- 対象ワークフロー: `.github/workflows/ghp-regression.yml`
-- 実行されたテストファイル（ワークフロー設定上）:
-  - `refrigerant-sizer/tests/ghp-safety-regression.test.cjs`
-  - `refrigerant-sizer/tests/carrier-engine-regression.test.cjs`
-  - `refrigerant-sizer/tests/ghp-piping-segments.test.cjs`
+- `refrigerant-sizer/tests/ghp-safety-regression.test.cjs`
+- `refrigerant-sizer/tests/ghp-sizeup-ui-safety.test.cjs`
+- `refrigerant-sizer/tests/carrier-engine-regression.test.cjs`
+- `refrigerant-sizer/tests/ghp-piping-segments.test.cjs`
+- `refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs`
 
-これは上記の回帰テストがCI上で成功した記録であり、メーカー公式資料への全型式照合、配管径テーブルの正当性、すべての配管系統の設計適合性を保証するものではない。Panasonic EHPの `uxe3-solenoid-downstream.test.cjs` は引き続きこのワークフローの対象外。
+5テストすべての成功を確認した実行：
+- [GitHub Actions run 39373327226](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39373327226)
+- 対象コミット：`6f9248b3af4e98e0df27e8c4bd210f5034ad22f3`
+- 結果：`success`
 
+途中のrun `39373280045` は新規UIテストの正規表現エスケープ誤りで失敗したが、テストコードを修正し、後続runで全5テストの成功を確認した。失敗runと修正後の成功runは区別して記録する。
+
+このCI成功は自動テストが通過したことを示すものであり、公式資料への全型式照合、原本図表の直接確認、実ブラウザでの操作確認、または未実装の長配管自動増径が検証済みであることを意味しない。Panasonic UXE3の基準主管径と長配管増径条件は、公式原本との照合が未完了のため未確定として扱う。
