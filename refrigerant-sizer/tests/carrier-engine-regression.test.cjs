@@ -12,7 +12,7 @@ const vm = require('node:vm');
 function makeEngine() {
   const file = path.join(__dirname, '..', 'carrier-refrigerant-sizer', 'js', 'engine.js');
   const source = fs.readFileSync(file, 'utf8');
-  const context = vm.createContext({});
+  const context = vm.createContext({ module: { exports: {} } });
   vm.runInContext(source + '\n;globalThis.__Engine = RefrigerantSizerEngine;', context, { filename: file });
   return new context.__Engine();
 }
