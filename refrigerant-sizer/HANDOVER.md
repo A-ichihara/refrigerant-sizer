@@ -560,3 +560,13 @@ node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-do
 
 CI status APIではステータスチェックが空で、取得できたワークフロー実行一覧も空だった。これはテスト成功を意味しない。引き続き、実行結果は未確認として扱う。
 
+
+
+## 2026-10-20 追記：Panasonic UXE3 主管サイズ監査
+
+- Panasonic公式UXEシリーズ資料を再照合し、`selectThreePipeSize()` の12～16馬力帯のサイズ選定に差異を確認。
+- 8～16馬力の基準サイズを公式主管表の容量帯に合わせて修正。18～20馬力は組合せ機器の型式・容量の扱いが未確定のため今回の修正対象外。
+- 回帰テスト `refrigerant-sizer/tests/panasonic-uxe3-main-pipe.test.cjs` を追加し、`.github/workflows/ghp-regression.yml` に実行ステップを追加。
+- 関連コミット：`ca42d671ee251d810e009a19feb3e8586276c74a`（エンジン）、`4623d4ceb96e546845499c27656a466f3edf6469`（テスト）、`6b0c17dbe0260e949e9031ae247734f9ad57ab1b`（CI）、`cfe3e26aa63ec490282202a88d79b860e2267181`（調査記録）。
+- 注意：GitHub Actionsの実行結果およびローカルNode.jsでのテスト実行は未確認。テストが追加されたことと、テスト成功は区別する。
+- UXE3長配管自動増径は引き続き未実装。主管LMの特定、相当長、50m境界での配管区間分割と材料数量反映が必要。
