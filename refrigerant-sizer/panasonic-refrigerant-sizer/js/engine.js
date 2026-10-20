@@ -322,7 +322,16 @@ class RefrigerantSizerEngine {
             }
         }
 
-        this.processNodeSizing(rootNode, seriesId, isManualSizeUp, false, rootNode.capacity, totals, warnings);
+        // UXE3の一律手動増径は対象区間・管種の公式照合が未完了のため安全停止する。
+        // UIを経由しない直接呼び出しでも適用されないようエンジン側で制御する。
+        const effectiveManualSizeUp = seriesId === 'fsv_uxe3' ? false : isManualSizeUp;
+        if (seriesId === 'fsv_uxe3' && isManualSizeUp) {
+            warnings.push({
+                type: 'danger',
+                message: '【UXE3手動サイズアップ未適用】メーカー指定の増径対象区間・管種が未検証のため、一律増径は適用していません。メーカー公式配管設計資料で確認してください。'
+            });
+        }
+        this.processNodeSizing(rootNode, seriesId, effectiveManualSizeUp, false, rootNode.capacity, totals, warnings);
 
         return {
             tree: rootNode,
