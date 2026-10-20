@@ -18,7 +18,7 @@
 - Panasonic EHP UXE3長配管条件: [調査メモ](./panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
 - Carrier回帰確認: [テスト記録](./docs/carrier-engine-regression.md)
 
-現行GitHub Actionsで実行しているテストは、GHP安全性、Carrierエンジン、GHP配管区間の3ファイル。Panasonic EHPの既存テストはリポジトリに存在するが、現行workflowには含まれていない。
+現行GitHub Actionsで実行するテストは、GHP安全性、Carrierエンジン、GHP配管区間、Panasonic UXE3の電磁弁キット下流配管の4ファイル。Panasonic UXE3の既存回帰テストを `.github/workflows/ghp-regression.yml` に追加した（コミット `c9874409fe4ba6cc632fb4dbe92fdc56a2c4ed58`）。実際のworkflow実行成功は別途確認が必要。
 
 ---
 
@@ -564,13 +564,11 @@ CI status APIではステータスチェックが空で、取得できたワー�
 
 ## 2026-10-20 追記：Panasonic UXE3 主管サイズ監査
 
-- Panasonic公式UXEシリーズ資料を再照合し、`selectThreePipeSize()` の12～16馬力帯のサイズ選定に差異を確認。
-- 8～16馬力の基準サイズを公式主管表の容量帯に合わせて修正。18～20馬力は組合せ機器の型式・容量の扱いが未確定のため今回の修正対象外。
-- 回帰テスト `refrigerant-sizer/tests/panasonic-uxe3-main-pipe.test.cjs` を追加し、`.github/workflows/ghp-regression.yml` に実行ステップを追加。
-- 関連コミット：`ca42d671ee251d810e009a19feb3e8586276c74a`（エンジン）、`4623d4ceb96e546845499c27656a466f3edf6469`（テスト）、`6b0c17dbe0260e949e9031ae247734f9ad57ab1b`（CI）、`cfe3e26aa63ec490282202a88d79b860e2267181`（調査記録）。
-- 注意：GitHub Actionsの実行結果およびローカルNode.jsでのテスト実行は未確認。テストが追加されたことと、テスト成功は区別する。
-- UXE3長配管自動増径は引き続き未実装。主管LMの特定、相当長、50m境界での配管区間分割と材料数量反映が必要。
-
+- 公式資料と現行コードの不一致候補は検出したが、該当するUXE主管サイズ表を原本図表として確定できていない。
+- そのため、12～16馬力の基準サイズ変更は撤回済み。現行コードは変更前へ戻しているが、従来コードが正しいと確認できたわけではない。
+- 未検証の期待値テストは削除し、CIワークフローからも除去済み。
+- 詳細と必要な再確認項目は [UXE3自動増径・主管表監査メモ](./panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md) を参照。
+- UXE3長配管自動増径は未実装。主管LM、相当長L1、50m境界の区間分割と材料集計の設計が必要。
 
 ## 2026-10-20 追記：UXE3主管サイズ表の未検証変更を撤回
 
