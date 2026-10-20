@@ -179,3 +179,14 @@ test('UXE3 manual size-up button visibly communicates its stopped state', () => 
   assert.match(uiSource, /label\.textContent = this\.activeSeriesId === 'fsv_uxe3' \? '⚡ 主管サイズUP（停止中）' : '⚡ 主管サイズUP'/);
   assert.match(uiSource, /label\.textContent = sizeUpButton\.disabled \? '⚡ 主管サイズUP（停止中）' : '⚡ 主管サイズUP'/);
 });
+
+
+test('UXE3 page labels consistently use Panasonic cold/heat-free terminology', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  assert.match(html, /冷暖フリービル用マルチ UXE3シリーズ/);
+  assert.match(html, /冷暖フリー UXE3 \(3管式・電磁弁キット\)/);
+  assert.doesNotMatch(html, /冷暖同時 UXE3/);
+  assert.doesNotMatch(html, /電磁弁キット（冷暖同時）/);
+});
