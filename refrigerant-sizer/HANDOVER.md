@@ -772,6 +772,6 @@ UXE3選択中は手動サイズアップボタンが無効になる既存の安�
 - UI変更コミット：aa19a4ecf0e8d6ab7c252db8cda83fdd6436805a
 - 回帰テスト追加コミット：3e87a96d962a220dc270d85408d353348976aadb
 - テストは uxe3-solenoid-downstream.test.cjs 内でUI初期化・更新処理の停止状態とラベル文言を検査する。DOMを用いた実ブラウザ試験ではない。
-- GitHub Actions はテスト変更コミットに対して実行開始済み。完了後に結果を追記する。
+- GitHub Actions run `39431524802`（コミット `6cc857c1b89143a507a139fa772fa1c8db4f0310`）は `success`。GHP安全性、GHPサイズアップUI、Carrier、GHP配管区間、Panasonic UXE3の5テストステップすべて成功。結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39431524802
 
 UXE3のメーカー公式基準管径・長配管増径は引き続き未確定・未適用であり、この変更は表示の明確化のみ。設計計算値を保証するものではない。
