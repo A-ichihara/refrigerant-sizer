@@ -629,3 +629,13 @@ https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39373327226
 - 作業手順書のCI一覧を現行5テストに更新。コミット `fd39c88b3c6e8faf2468cc765d921c075a42ef68` のGitHub Actions run `39375318352` は成功し、5テストすべて通過した。
 
 CI結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39375318352
+
+
+
+## 2026-10-20 追記：暫定90m警告の文言テストと最新CI
+
+- GHP 4社の2管式回帰テストで、90m超の警告が「暫定トリガー」であること、および実長をメーカー公式の相当長判定と混同しないことを検査するアサーションを追加した。
+- 作業手順書のCI一覧を現行の5テスト構成に修正し、古い「3テスト」「UXE3テストがCI未実行」という記述を現状に合わせた。
+- 最新CI run `39375840773` は `success`。対象コミット `663756ea8efcf67b0b9a664883346441a5c59d80`。5つのテストステップがすべて成功した。
+- 実行結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39375840773
+- この結果は回帰テストの成功を示すものであり、メーカー公式の全型式照合、ブラウザでの手動操作、GHP自動増径の有効化を意味しない。GHPサイズアップボタンと計算処理の安全停止は継続する。
