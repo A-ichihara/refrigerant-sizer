@@ -19,13 +19,13 @@ test('GHP main-pipe size-up controls remain disabled until the sizing logic is v
     const html = fs.readFileSync(htmlPath, 'utf8');
     const ui = fs.readFileSync(uiPath, 'utf8');
 
-    const button = html.match(/<button\\b[^>]*id="btn-force-sizeup"[^>]*>/s);
+    const button = html.match(/<button\b[^>]*id="btn-force-sizeup"[^>]*>/s);
     assert.ok(button, `${app}: size-up button must exist`);
-    assert.match(button[0], /\\bdisabled\\b/, `${app}: size-up button must be disabled in HTML`);
+    assert.match(button[0], /\bdisabled\b/, `${app}: size-up button must be disabled in HTML`);
     assert.match(button[0], /aria-disabled="true"/, `${app}: size-up button must expose disabled state`);
     assert.match(button[0], /停止中/, `${app}: button label must disclose the pause`);
 
-    assert.match(ui, /forceSUpBtn\\.disabled\\s*=\\s*true/, `${app}: UI initialization must enforce disabled state`);
-    assert.match(ui, /forceSUpBtn\\.setAttribute\\('aria-disabled',\\s*'true'\\)/, `${app}: UI initialization must enforce aria-disabled`);
+    assert.match(ui, /forceSUpBtn\.disabled\s*=\s*true/, `${app}: UI initialization must enforce disabled state`);
+    assert.match(ui, /forceSUpBtn\.setAttribute\('aria-disabled',\s*'true'\)/, `${app}: UI initialization must enforce aria-disabled`);
   }
 });
