@@ -70,3 +70,31 @@ test('UXE3 18HP/20HP combination model identifiers', () => {
     'CU-P224UXE3', 'CU-P280UXE3', 'CU-P335UXE3', 'CU-P400UXE3', 'CU-P450UXE3'
   ]);
 });
+
+
+test('UXE3 upstream branch stays three-pipe, counts BOM and does not trigger direct-connection warning', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    type: 'outdoor', name: 'Outdoor', capacity: 28, length: 0,
+    children: [{ type: 'branch', name: 'Upstream branch', length: 7, children: [
+      { type: 'solenoid_kit', name: 'Kit A', length: 11, children: [
+        { type: 'indoor', name: 'Indoor A', capacity: 5.6, length: 3, children: [] }
+      ] },
+      { type: 'solenoid_kit', name: 'Kit B', length: 13, children: [
+        { type: 'indoor', name: 'Indoor B', capacity: 5.6, length: 5, children: [] }
+      ] }
+    ] }]
+  };
+  const result = engine.calculateSystem(tree, 'fsv_uxe3', false);
+  const branch = tree.children[0];
+  assert.equal(branch.pipes.type, '3pipe');
+  assert.deepEqual(branch.children.map(n => n.pipes.type), ['3pipe', '3pipe']);
+  assert.deepEqual(branch.children.map(n => n.children[0].pipes.type), ['2pipe', '2pipe']);
+  assert.equal(result.totals.totalLength, 39);
+  assert.equal(Object.values(result.totals.highGasPipes).reduce((a,b) => a+b, 0), 31);
+  assert.equal(Object.values(result.totals.lowGasPipes).reduce((a,b) => a+b, 0), 31);
+  assert.equal(Object.values(result.totals.gasPipes).reduce((a,b) => a+b, 0), 8);
+  assert.equal(Object.values(result.totals.liquidPipes).reduce((a,b) => a+b, 0), 39);
+  assert.ok(result.warnings.every(w => !w.message.includes('電磁弁キットが必要')));
+  assert.equal(result.totals.joints['CZ-P56HRV3'], 2);
+});
