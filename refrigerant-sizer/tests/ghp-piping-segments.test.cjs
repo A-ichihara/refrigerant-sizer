@@ -200,3 +200,27 @@ test('valid zero-length root and missing children remain compatible', () => {
   assert.equal(extractSegments(tree)[0].actualLengthM, 10);
   assert.equal(analyzeMainPipeCandidates(tree).status, 'none');
 });
+
+test('zero-length segments remain distinct and do not imply a size-up', () => {
+  const tree = node('out', 'outdoor', 0, [
+    node('branch', 'branch', 0, [node('indoor', 'indoor', 0)])
+  ]);
+  const segments = extractSegments(tree);
+  assert.equal(segments.length, 2);
+  assert.deepEqual(segments.map(s => s.actualLengthM), [0, 0]);
+  assert.ok(segments.every(s => s.pipeSize === null && s.sizeUpRule === null));
+  assert.equal(analyzeMainPipeCandidates(tree).verified, false);
+});
+
+test('parallel branches preserve independent physical lengths without double counting', () => {
+  const tree = node('out', 'outdoor', 0, [
+    node('branch', 'branch', 20, [
+      node('i1', 'indoor', 8),
+      node('i2', 'indoor', 12)
+    ])
+  ]);
+  const segments = extractSegments(tree);
+  assert.equal(segments.reduce((sum, s) => sum + s.actualLengthM, 0), 40);
+  assert.deepEqual(segments.map(s => s.id), ['out->branch', 'branch->i1', 'branch->i2']);
+  assert.equal(findMainPipeCandidates(tree)[0].actualLengthM, 20);
+});
