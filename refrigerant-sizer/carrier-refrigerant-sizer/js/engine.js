@@ -440,7 +440,7 @@ class RefrigerantSizerEngine {
 
                     // 分岐継手は子ノードごとに重複集計せず、分岐ノード単位で集計する。
 
-                    if (child.type === 'fs_unit') {
+                    if (child.type === 'fs_unit' && seriesId !== 'super_multi_u_r') {
                         warnings.push({
                             type: 'danger',
                             message: `冷暖切換またはminiシリーズにFSユニットは追加できません。接続を削除してください。`
