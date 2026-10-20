@@ -214,3 +214,15 @@ Panasonic公式製品情報ではUXE3は「冷暖フリービル用マルチUXE3
 - 回帰テスト変更CI: [run 39379606197](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39379606197) — success
 
 これは表示上の用語整合性修正であり、UXE3の型式・容量マスターの不整合や主管サイズアップ条件が解決したことを意味しない。引き続き、公式配管表とアプリ区間モデルの照合は未完了。
+
+
+## 2026-10-20 追記：UXE3 18/20馬力の組合せ室外機品番修正
+
+公式仕様書で18馬力の総合品番がPA-P504UXE3（冷房能力50.4kW、構成CU-P280UXE3 + CU-P224UXE3）、20馬力がPA-P560UXE3（56.0kW、構成CU-P280UXE3×2）であることを確認した。旧データの18馬力 U-P500UXE3 / 50.0kW と20馬力 U-P560UXE3 は総合品番の表記と一致しないため、UXE3マスターを修正した。
+
+- 公式18馬力仕様書：https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P504UXE3&itemID=t000100153626&volumeName=00001
+- 公式20馬力仕様書：https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P560UXE3&itemID=t000100154276&volumeName=00001
+- エンジン修正：cd1938b2c33d50accc0957fa491c6bb631f3b535
+- 回帰テスト追加：43829895759a9dbaad30d64b1a0e47a759b65238
+
+この修正は型式・容量マスターに限定される。UXE3の基準主管径、主管区間LMの特定、長配管時の自動増径、BOMの区間分割は未解決であり、自動増径を有効化していない。8～16馬力の表示品番体系も別途確認する。
