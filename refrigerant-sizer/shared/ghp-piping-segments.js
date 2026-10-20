@@ -23,7 +23,10 @@
     }
 
     function extractSegments(tree) {
-        if (!tree || typeof tree !== 'object' || !tree.id) throw new TypeError('tree root with id is required');
+        if (!tree || typeof tree !== 'object' || !tree.id || tree.type !== 'outdoor') throw new TypeError('outdoor tree root with id is required');
+        if (tree.length != null && (typeof tree.length !== 'number' || !Number.isFinite(tree.length) || tree.length !== 0)) {
+            throw new RangeError('outdoor root length must be zero');
+        }
         const segments = [];
         const visited = new Set();
         const ids = new Set();
@@ -33,6 +36,7 @@
             if (ids.has(String(node.id))) throw new Error('duplicate node id: ' + node.id);
             visited.add(node);
             ids.add(String(node.id));
+            if (node.children != null && !Array.isArray(node.children)) throw new TypeError('node children must be an array');
             for (const child of node.children || []) {
                 if (!child || typeof child !== 'object' || !child.id) throw new TypeError('every child needs an id');
                 const length = child.length == null ? 0 : child.length;
