@@ -37,3 +37,22 @@ https://hvac.panasonic.com/jp/manual/pac/pdf/2014free.pdf
 ## 関連する回帰テスト
 
 `tests/uxe3-solenoid-downstream.test.cjs` は、電磁弁キット上流の3管式、下流分岐と室内機接続の2管式、および各配管長の合計を検証する。長配管時の自動増径条件を検証するテストではない。
+
+## 2026-10-20 追加：資料の現行性・シリーズ適用範囲
+
+Panasonicの現行「空調設備設計資料／設備設計ガイド」では、ビル用システムマルチのR32版・R410A版について2026年7月発行資料が掲載され、R410Aの過去版として2025年9月発行資料も案内されている。
+
+公式資料一覧：
+https://panasonic.co.jp/hvac-cc/biz/manual/
+
+また、現行のUXPR5YRシリーズの公式配管設計資料でも、L1の最大配管長が90m相当長を超える場合や、主管LMが50mを超える場合に関するサイズ制限が確認できる。ただし、これはUXPR5YR等の別シリーズ向け資料であり、UXE3へ数値・条件・配管区間をそのまま流用する根拠にはならない。
+
+- UXPR5YR公式資料例：https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P450UXPR5YR&itemID=t000100173085&volumeName=00001
+- UXPR5YR公式資料例（900形）：https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P900UXPR5YR&itemID=t000100173085&volumeName=00001
+
+### 実装判断の更新
+
+現時点で確認できる2014年版UXEシリーズ資料の長配管条件は記録済みだが、**現行アプリの `fsv_uxe3` に登録された機種・冷媒と、当該資料の対象型式・適用版との一致は未確定**。したがって、UXE3自動増径の実装は引き続き保留する。
+
+実装前に、対象型式と適用資料の対応を確定し、同じ条件が当該型式に有効であることを確認する。現行のUXPR5YRや別世代の資料は、設計モデルの参考にはできるが、UXE3の増径ルールを確定する直接根拠にはしない。
+
