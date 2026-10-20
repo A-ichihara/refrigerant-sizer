@@ -159,6 +159,8 @@ node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-do
 
 - [GHP主管サイズアップ監査メモ](./ghp-main-pipe-size-up-audit.md)
 - [GHPシリーズ・型式照合メモ](./ghp-series-model-verification.md)
+- [ダイキンGHP 登録型式・冷媒の照合メモ](./daikin-ghp-model-verification.md)
+- [ヤンマー／パナソニックGHP 登録型式・冷媒の照合メモ](./ghp-yanmar-panasonic-model-verification.md)
 - [GHP配管区間モデル設計案](./ghp-piping-segment-model-design.md)
 - [Carrierエンジン回帰テスト記録](./carrier-engine-regression.md)
 - [Panasonic EHP UXE3長配管サイズアップ調査](../panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
