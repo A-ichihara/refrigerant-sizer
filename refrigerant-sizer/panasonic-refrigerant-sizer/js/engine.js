@@ -345,8 +345,8 @@ class RefrigerantSizerEngine {
                 if (seriesId === 'fsv_uxe3') {
                     // UXE3（冷暖フリー）3管・2管ハイブリッド判定
                     if (node.type === 'outdoor' || (node.type === 'branch' && !inSolenoidDownstream)) {
-                        if (child.type === 'solenoid_kit') {
-                            // 室外機〜電磁弁キット間は3管式
+                        if (child.type === 'solenoid_kit' || child.type === 'branch') {
+                            // 電磁弁キット上流の分岐区間も3管式として集計する
                             const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
                             child.pipeSizeText = `液管: φ${sizes.liquid} / 吐出ガス: φ${sizes.dischargeGas} / 吸入ガス: φ${sizes.suctionGas}`;
                             child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.dischargeGas, lowGas: sizes.suctionGas };
@@ -355,7 +355,7 @@ class RefrigerantSizerEngine {
                             totals.highGasPipes[sizes.dischargeGas] = (totals.highGasPipes[sizes.dischargeGas] || 0) + len;
                             totals.lowGasPipes[sizes.suctionGas] = (totals.lowGasPipes[sizes.suctionGas] || 0) + len;
 
-                            this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings);
+                            this.processNodeSizing(child, seriesId, isManualSizeUp, child.type === 'solenoid_kit', outdoorCap, totals, warnings);
                         } else {
                             // 直接接続
                             const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
