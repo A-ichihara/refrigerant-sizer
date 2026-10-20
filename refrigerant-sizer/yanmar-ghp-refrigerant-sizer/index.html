@@ -131,8 +131,8 @@
             <button class="btn" id="btn-load-sample" title="標準的な系統サンプルを読み込みます">
                 <span>📂 サンプル読込</span>
             </button>
-            <button class="btn" id="btn-force-sizeup" title="暫定の手動サイズUP指定です。適用区間・管径・BOMへの反映は未検証のため、正式な設計選定に使用しないでください">
-                <span>⚡ 主管サイズUP</span>
+            <button class="btn" id="btn-force-sizeup" title="安全対策のため一時停止中です。現在は配管径に反映されません。公式条件・対象区間・BOM連携の検証完了後に再実装します">
+                <span>⚠️ 主管サイズUP（停止中）</span>
             </button>
             <button class="btn" id="btn-reset" title="系統図を初期状態にリセットします">
                 <span>🔄 リセット</span>
@@ -233,7 +233,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,162,232,0.08); padding:10px 16px; border-radius:var(--radius-md); border:1px solid rgba(0,162,232,0.2); margin-bottom:12px;">
                     <div>
                         <div style="font-size:0.875rem; font-weight:700; color:var(--text-primary);">主配管 (主管) サイズアップ設定</div>
-                        <div style="font-size:0.75rem; color:var(--text-secondary);">暫定ロジックの手動サイズUP設定です。90m判定は実長に基づく仮実装で、相当長・対象区間・BOM反映は未検証です</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">安全対策のためサイズアップは一時停止中です。切替操作をしても配管径・BOMには反映されません。メーカー公式条件と対象区間の検証完了後に再実装します。</div>
                     </div>
                     <div class="toggle-switch-container">
                         <span style="font-size:0.775rem; font-weight:600;" id="sizeup-toggle-label">標準サイズ</span>
