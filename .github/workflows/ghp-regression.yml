@@ -27,6 +27,8 @@ jobs:
           node-version: 20
       - name: Run GHP safety regression tests
         run: node --test refrigerant-sizer/tests/ghp-safety-regression.test.cjs
+      - name: Run GHP size-up UI safety regression tests
+        run: node --test refrigerant-sizer/tests/ghp-sizeup-ui-safety.test.cjs
       - name: Run Carrier engine regression tests
         run: node --test refrigerant-sizer/tests/carrier-engine-regression.test.cjs
       - name: Run GHP piping segment tests
