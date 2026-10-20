@@ -136,3 +136,21 @@ Panasonic公式の「空調設備設計資料／設備設計ガイド」一覧�
 - したがって、今回の再確認でもUXE3基準主管径・長配管増径条件を確定する新たな根拠は得られていない。エンジンとサイズ選定テーブルは変更していない。
 
 この結果は「公式資料が存在しない」という結論ではない。旧資料の保存先、型式別技術資料検索、またはメーカー窓口から原本を特定する必要がある。
+
+
+## 2026-10-20 追記：検索可能な公式UXE資料テキストを再発見
+
+今回の検索では、Panasonic公式ドメイン上に「HB冷暖フリー_UXEシリーズ.indb」と題する旧資料の検索結果が再び取得でき、長配管条件の本文テキストを確認できた。
+
+- 公式資料検索結果：https://hvac.panasonic.com/jp/manual/pac/pdf/2014free.pdf
+- 検索結果に表示された条件文：「最大配管長（L1）が90m（相当長）を超える場合は、主管（LM）の配管サイズを液管、吐出管、吸込管ともに1ランクサイズアップしてください。ただし、ガス管サイズはφ38.1まで」
+- 同じ抜粋には、能力低下改善を目的とする吐出管・吸込管の増径は表1に該当する場合に限ること、対象は主管LMの所定区間であること、冷媒追加量は液管サイズで決める旨も記載されている。
+- 公式UXE3製品情報の例：CU-P224UXE3（8HP、2011年発売、冷暖フリー3管式） https://www2.panasonic.biz/scvb/a2A/opnItemDetail?b_cd=501&catalog_view_flg=1&close_flg=1&contents_view_flg=1&hinban_kbn=1&item_cd=CU-P224UXE3&item_no=CU-P224UXE3&itmcmp_add_flg=0&itmcmp_link_flg=0&s_hinban_key=CU-P224UXE3&simple_search_flg=&use_obligation=esctlg&vcata_flg=1
+- 18HPの組合せ例として、公式製品情報には XPA-P504UXE3（50.4kW、18HP）と構成品番 CU-P224UXE3 + CU-P280UXE3 が掲載されている：https://www2.panasonic.biz/scvb/a2A/opnItemDetail?b_cd=501&catalog_view_flg=1&contents_view_flg=1&hinban_kbn=2&item_cd=XPA-P504UXE3&item_no=XPA-P504UXE3&s_end_flg=&s_hinban_key=&use_obligation=scva&vcata_flg=1
+
+### この発見で確定できること／できないこと
+
+- UXEシリーズの資料検索テキストには、L1の相当長が90mを超える場合にLMの液管・吐出管・吸入管を1ランク上げる条件が明記されている。これは以前の「資料本文が全く確認できていない」という記録を更新する。
+- ただし、旧PDF URLを直接開くと現在はPanasonic公式トップへリダイレクトされ、原本PDFの該当ページ画像・表1・脚注をこの調査環境で目視できていない。よって、検索抜粋だけで配管表全体や適用構成を確定した扱いにはしない。
+- 現行コードの `fsv_uxe3` で登録する18～20HPの型式名は、公式製品情報に見られる組合せ品番（例：XPA-P504UXE3 / PA-P560UXE3）と表記体系が異なる可能性がある。容量値だけで組合せ機の主管径を確定せず、各組合せ構成の公式仕様書と配管設計表を照合する。
+- したがって、今回もエンジン、選定表、サイズアップ機能は変更していない。次の技術変更は、原本の主管表・表1・適用型式と、アプリのセグメント/BOM表現を合わせて確認した後に行う。
