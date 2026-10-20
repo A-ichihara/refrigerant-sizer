@@ -133,3 +133,22 @@ test('UXE3 multi-level upstream branches keep three-pipe BOM and downstream bran
   assert.equal(Object.values(result.totals.liquidPipes).reduce((a,b) => a+b, 0), 39);
   assert.ok(result.warnings.every(w => !w.message.includes('電磁弁キットが必要')));
 });
+
+
+test('legacy UXE3 18HP capacity migrates without changing downstream data or other series', () => {
+  const engine = new RefrigerantSizerEngine();
+  const child = { type: 'indoor', name: 'Existing room', capacity: 5.6, length: 17, children: [] };
+  const tree = { type: 'outdoor', capacity: 50.0, children: [child] };
+  assert.equal(engine.migrateLegacyOutdoorCapacity(tree, 'fsv_uxe3'), true);
+  assert.equal(tree.capacity, 50.4);
+  assert.equal(tree.children[0], child);
+  assert.equal(child.length, 17);
+  assert.equal(engine.generateModelNumber(tree, 'fsv_uxe3'), 'PA-P504UXE3');
+  assert.equal(engine.migrateLegacyOutdoorCapacity(tree, 'fsv_uxe3'), false);
+  const otherSeries = { type: 'outdoor', capacity: 50.0 };
+  assert.equal(engine.migrateLegacyOutdoorCapacity(otherSeries, 'fsv_ux3'), false);
+  assert.equal(otherSeries.capacity, 50.0);
+  const otherCapacity = { type: 'outdoor', capacity: 56.0 };
+  assert.equal(engine.migrateLegacyOutdoorCapacity(otherCapacity, 'fsv_uxe3'), false);
+  assert.equal(otherCapacity.capacity, 56.0);
+});
