@@ -140,7 +140,10 @@ for (const [manufacturer, seriesId] of Object.entries(threePipeManufacturers)) {
     const over = engine.calculateSystem(makeThreePipeTree(80), seriesId, true);
     assert.equal(baseline.totals.longestPath, 91);
     assert.equal(over.totals.longestPath, 91);
-    assert.ok(over.warnings.some(w => w.includes('【サイズアップ未適用】')));
+    const sizeUpWarning = over.warnings.find(w => w.includes('【サイズアップ未適用】'));
+    assert.ok(sizeUpWarning, '3-pipe case must show the size-up warning');
+    assert.ok(sizeUpWarning.includes('90mは注意表示のための暫定トリガー'), '3-pipe warning must disclose the provisional trigger');
+    assert.ok(sizeUpWarning.includes('メーカー公式の相当長判定ではありません'), '3-pipe warning must not mislabel actual length as equivalent length');
     assert.equal(over.tree.isSizedUp, undefined);
     assert.equal(over.tree.pipeLiquid, baseline.tree.pipeLiquid);
     assert.equal(over.tree.children[0].pipeLiquid, baseline.tree.children[0].pipeLiquid);
