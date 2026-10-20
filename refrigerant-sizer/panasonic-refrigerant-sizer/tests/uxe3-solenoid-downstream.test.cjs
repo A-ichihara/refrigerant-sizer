@@ -66,4 +66,7 @@ test('UXE3 18HP/20HP combination model identifiers', () => {
   ]);
   assert.equal(engine.generateModelNumber({ type: 'outdoor', capacity: 50.4 }, 'fsv_uxe3'), 'PA-P504UXE3');
   assert.equal(engine.generateModelNumber({ type: 'outdoor', capacity: 56.0 }, 'fsv_uxe3'), 'PA-P560UXE3');
+  assert.deepEqual(db.filter(x => Number(x.hp) <= 16).map(x => x.model), [
+    'CU-P224UXE3', 'CU-P280UXE3', 'CU-P335UXE3', 'CU-P400UXE3', 'CU-P450UXE3'
+  ]);
 });
