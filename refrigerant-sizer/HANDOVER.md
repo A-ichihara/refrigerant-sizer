@@ -608,4 +608,13 @@ GHPサイズアップ監査メモの現行状態への整合修正を含むコ�
 
 ## 2026-10-20 追記：GHPサイズアップUIの停止状態を回帰テスト化
 
-4社すべてのGHP画面で、サイズアップボタンがHTML上で無効化されていること、UI初期化時にも無効状態が強制されることを確認する静的回帰テスト `refrigerant-sizer/tests/ghp-sizeup-ui-safety.test.cjs` を追加し、`.github/workflows/ghp-regression.yml` に組み込んだ。テストはHTML属性とUI初期化コードを検査するものであり、実ブラウザの操作試験を代替するものではない。CI実行結果はActions run `39373327226` を確認し、完了後に記録する。
+4社すべてのGHP画面で、サイズアップボタンがHTML上で無効化されていること、UI初期化時にも無効状態が強制されることを確認する静的回帰テスト `refrigerant-sizer/tests/ghp-sizeup-ui-safety.test.cjs` を追加し、`.github/workflows/ghp-regression.yml` に組み込んだ。テストはHTML属性とUI初期化コードを検査するものであり、実ブラウザの操作試験を代替するものではない。GitHub Actions run `39373327226`（コミット `6f9248b3af4e98e0df27e8c4bd210f5034ad22f3`）で、既存4テストと新規UI安全性テストの計5テストすべてが成功した。実行結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39373327226
+
+
+## 2026-10-20 追記：5テスト構成のCI成功
+
+GitHub Actions run `39373327226` は `success` で完了。GHP安全性、GHPサイズアップUI安全性、Carrierエンジン、GHP配管区間、Panasonic UXE3電磁弁キット下流配管の5テストすべて成功を確認した。
+
+https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39373327226
+
+なお、途中のrun `39373280045` は新規UIテストの正規表現エスケープ誤りで失敗したが、テストコードを修正し、後続run `39373327226` で全テストの成功を確認した。失敗結果を隠さず記録し、修正後の結果と区別する。
