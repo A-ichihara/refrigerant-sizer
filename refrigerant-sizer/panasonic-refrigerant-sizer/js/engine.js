@@ -87,8 +87,9 @@ class RefrigerantSizerEngine {
                     { hp: "12", kw: 33.5, model: "U-P335UXE3" },
                     { hp: "14", kw: 40.0, model: "U-P400UXE3" },
                     { hp: "16", kw: 45.0, model: "U-P450UXE3" },
-                    { hp: "18", kw: 50.0, model: "U-P500UXE3" },
-                    { hp: "20", kw: 56.0, model: "U-P560UXE3" }
+                    // 18/20HP are combination outdoor units; use the official combined model numbers.
+                    { hp: "18", kw: 50.4, model: "PA-P504UXE3" },
+                    { hp: "20", kw: 56.0, model: "PA-P560UXE3" }
                 ],
                 indoorTypes: [
                     { type: "22形 (0.8馬力)", kw: 2.2 },
