@@ -6,6 +6,20 @@
 
 ---
 
+## 重要な現行状況（2026-10-20追記）
+
+この引き継ぎ書には過去の実装方針・未完了タスクが残っている。配管径の技術判断については、旧記載よりも現行の監査メモと作業手順書を優先すること。特に、旧版の「全メーカー共通で相当長90m以上なら主管を1サイズアップ」という記述は撤回済みであり、使用してはならない。
+
+- 作業手順: [修正・検証 作業手順書](./refrigerant-sizer/docs/repair-work-procedure.md)
+- GHPサイズアップ監査: [GHP主管サイズアップ監査メモ](./refrigerant-sizer/docs/ghp-main-pipe-size-up-audit.md)
+- GHP型式照合: [GHPシリーズ・型式照合台帳](./refrigerant-sizer/docs/ghp-series-model-verification.md)
+- Panasonic EHP UXE3長配管条件: [調査メモ](./refrigerant-sizer/panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
+- Carrier回帰確認: [テスト記録](./refrigerant-sizer/docs/carrier-engine-regression.md)
+
+現行GitHub Actionsで実行しているテストは、GHP安全性、Carrierエンジン、GHP配管区間の3ファイル。Panasonic EHPの既存テストはリポジトリに存在するが、現行workflowには含まれていない。
+
+---
+
 ## 1. プロジェクト概要
 
 空調メーカー各社（ダイキン・三菱電機・パナソニック・キャリア・日立・東芝・ヤンマーGHP・ダイキンGHP）の冷媒配管サイズを自動選定するWebアプリケーション群。
@@ -319,9 +333,19 @@ if (tabSwitch && tabFree) {
 | ≦16.0 kW | φ9.52 | φ19.05 |
 | >16.0 kW | φ12.7 | φ19.05 or φ22.2 |
 
-### 6.5 主管サイズアップの条件
+### 6.5 主管サイズアップの条件（旧記載を訂正）
 
-**全メーカー共通:** 最遠配管相当長 ≧ 90m の場合、主管（室外機〜第1分岐まで）を1サイズアップ
+~~全メーカー共通: 最遠配管相当長 ≧ 90m の場合、主管を1サイズアップ~~
+
+**この「全メーカー共通90m」ルールは誤りとして扱い、設計条件に使用しないこと。** メーカー・シリーズ・冷媒・世代によって、閾値（90m/100m、「以上」/「超える」）、対象管（液管・ガス管等）、対象区間、容量比率条件が異なる。現在のエンジンはサイズアップ処理に未解決の不整合があり、室外機ノードだけが変わって実配管区間やBOMに反映されないケースを確認済み。
+
+実装判断は必ず次の現行監査資料に従うこと。
+
+- [修正・検証 作業手順書](./refrigerant-sizer/docs/repair-work-procedure.md)
+- [GHP主管サイズアップ監査メモ](./refrigerant-sizer/docs/ghp-main-pipe-size-up-audit.md)
+- [GHPシリーズ・型式照合台帳](./refrigerant-sizer/docs/ghp-series-model-verification.md)
+
+公式資料で対象型式と施工条件が一致するまで、サイズアップ結果を確定設計値として使用しない。
 
 ---
 
