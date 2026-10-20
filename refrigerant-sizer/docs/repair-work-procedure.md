@@ -252,3 +252,12 @@ Panasonic公式製品情報ではUXE3は「冷暖フリービル用マルチUXE3
 - 前回の引継ぎ書更新CI：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39398815221 （成功）
 
 これらのテストは管種・配管長集計の回帰防止を目的とする。主管LA/LMの公式径と自動増径を検証するものではない。
+
+
+## 2026-10-20 UXE3主管径・増径機能の差分監査（未修正・要一次資料照合）
+
+`panasonic-refrigerant-sizer/js/engine.js` の `selectThreePipeSize` は室外機定格容量のみで室外機から電磁弁キット上流の全区間に同一管径を適用している。現在の12～16HP一括判定（液12.7／吐出19.05／吸入28.58）や18～20HP一括判定（液15.88／吐出22.2／吸入28.58）は、過去のUXE系資料のLA主管表として確認された候補値とは異なる。とくに12HP・14HP・16HPを同一管径とする根拠は未確認。過去の資料が現行UXE3へそのまま適用できるとも未確認であるため、推測で変更しない。
+
+さらに `calculateSystem(rootNode,seriesId,isManualSizeUp)` は手動増径フラグを `processNodeSizing` 経由で全区間へ渡し、上流3管と電磁弁キット下流2管の双方に一律一段増径を適用する。これは主管LMだけを対象とする長配管条件等の区間別増径を表現できず、メーカー適合性が未確認。UIのサイズUP操作は存在するため、現時点でその出力を設計確定値として扱わないこと。今後は対象シリーズ・型式・LA/LB/LMの区間境界・相当長・実長・対象管種・BOMへの反映を一次資料で照合した上で、区間別判定とテストを実装する。
+
+公式資料候補：パナソニック配管設計ツール案内 https://hvac.panasonic.com/search/tool/soft-piping.html ／UXE3室外機型式仕様書 https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=CU-P335UXE3&itemID=t000100045060&volumeName=00001 。仕様書の室外機接続口径と系統主管径は同一概念として扱わない。
