@@ -82,11 +82,11 @@ class RefrigerantSizerEngine {
                 name: "冷暖フリービル用マルチ UXE3シリーズ（3管式）",
                 maxIndoorUnits: 52,
                 outdoorCapacities: [
-                    { hp: "8", kw: 22.4, model: "U-P224UXE3" },
-                    { hp: "10", kw: 28.0, model: "U-P280UXE3" },
-                    { hp: "12", kw: 33.5, model: "U-P335UXE3" },
-                    { hp: "14", kw: 40.0, model: "U-P400UXE3" },
-                    { hp: "16", kw: 45.0, model: "U-P450UXE3" },
+                    { hp: "8", kw: 22.4, model: "CU-P224UXE3" },
+                    { hp: "10", kw: 28.0, model: "CU-P280UXE3" },
+                    { hp: "12", kw: 33.5, model: "CU-P335UXE3" },
+                    { hp: "14", kw: 40.0, model: "CU-P400UXE3" },
+                    { hp: "16", kw: 45.0, model: "CU-P450UXE3" },
                     // 18/20HP are combination outdoor units; use the official combined model numbers.
                     { hp: "18", kw: 50.4, model: "PA-P504UXE3" },
                     { hp: "20", kw: 56.0, model: "PA-P560UXE3" }
