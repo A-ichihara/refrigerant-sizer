@@ -133,3 +133,40 @@ for (const [manufacturer, seriesId] of Object.entries(threePipeManufacturers)) {
     // This test characterizes the current defect; it does not endorse 90m as a manufacturer rule.
   });
 }
+
+/**
+ * 入力の根拠を明確にするための特性テスト。
+ * これはメーカーの相当長判定ではなく、現行エンジンの入力値の扱いを確認する。
+ */
+for (const [manufacturer, seriesId] of Object.entries(manufacturers)) {
+  test(manufacturer + ': 最遠長は入力実長の和であり継手相当長は加算しない', () => {
+    const tree = {
+      id: 'root', type: 'outdoor', capacity: 45, length: 0,
+      children: [{
+        id: 'b1', type: 'branch', length: 30,
+        children: [
+          { id: 'i1', type: 'indoor', capacity: 11.2, length: 20, children: [] },
+          { id: 'b2', type: 'branch', length: 15, children: [
+            { id: 'i2', type: 'indoor', capacity: 11.2, length: 10, children: [] }
+          ] }
+        ]
+      }]
+    };
+    const result = engineFor(manufacturer).calculateSystem(tree, seriesId, false);
+    assert.equal(result.totals.longestPath, 55);
+    assert.equal(result.totals.totalPipingLength, 75);
+    assert.ok(result.warnings.some(w => w.includes('【型式・施工基準未照合】')));
+    // 分岐継手等の直管相当長は入力・加算していない。
+  });
+
+  test(manufacturer + ': 室外機ノードの長さは最遠長に入るがBOMの配管長には入らない', () => {
+    const tree = makeTree(10);
+    tree.length = 5; // 現行UIの通常入力は0。非ゼロの保存データ等を想定。
+    const result = engineFor(manufacturer).calculateSystem(tree, seriesId, false);
+    assert.equal(result.totals.longestPath, 25);
+    assert.equal(result.totals.totalPipingLength, 25);
+    const liquidTotal = Object.values(result.totals.liquidPipes).reduce((a, b) => a + b, 0);
+    assert.equal(liquidTotal, 20);
+    // 計算結果の長さとBOM長の不一致を記録。根拠なく仕様変更しない。
+  });
+}
