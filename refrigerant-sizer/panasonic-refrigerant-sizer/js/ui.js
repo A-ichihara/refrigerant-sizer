@@ -99,6 +99,8 @@ class RefrigerantSizerUI {
         if (forceSUpBtn) {
             forceSUpBtn.disabled = this.activeSeriesId === 'fsv_uxe3';
             forceSUpBtn.title = this.activeSeriesId === 'fsv_uxe3' ? 'UXE3の手動増径は公式条件未確認のため停止中' : '';
+            const label = forceSUpBtn.querySelector('span');
+            if (label) label.textContent = this.activeSeriesId === 'fsv_uxe3' ? '⚡ 主管サイズUP（停止中）' : '⚡ 主管サイズUP';
             forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
         }
         this.update();
@@ -110,6 +112,8 @@ class RefrigerantSizerUI {
         if (sizeUpButton) {
             sizeUpButton.disabled = this.activeSeriesId === 'fsv_uxe3';
             sizeUpButton.title = sizeUpButton.disabled ? 'UXE3の手動増径は公式条件未確認のため停止中' : '';
+            const label = sizeUpButton.querySelector('span');
+            if (label) label.textContent = sizeUpButton.disabled ? '⚡ 主管サイズUP（停止中）' : '⚡ 主管サイズUP';
             sizeUpButton.classList.toggle('btn-primary', this.enableManualSizeUp);
         }
         this.validateAndRepairTreeForSeries(this.systemTree);
