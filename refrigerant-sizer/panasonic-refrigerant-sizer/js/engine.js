@@ -3,12 +3,12 @@
  * 
  * 対応シリーズ:
  * 1. FSV ME2シリーズ (冷暖切換)
- * 2. FSV MF3シリーズ (冷暖同時 3管式)
+ * 2. FSV MF3 / UXE3シリーズ（冷暖フリー・3管式）
  * 3. オフィス用マルチ (店舗・オフィス用)
  * 
  * 主な特徴:
  * - 配管サイズはパナソニック指定の JISミリ外径 (9.52, 12.7, 15.88, 38.1 等)
- * - 3管式冷暖同時における電磁弁キット(ソレノイドバルブキット)まわりの3管/2管配管選定
+ * - 3管式冷暖フリー系統における電磁弁キット(ソレノイドバルブキット)まわりの3管/2管配管選定
  * - 下流総容量と接続数に基づく電磁弁キットの型番自動選定と制限警告
  */
 
@@ -79,7 +79,7 @@ class RefrigerantSizerEngine {
                 ]
             },
             fsv_uxe3: {
-                name: "ビル用マルチ UXE3シリーズ (冷暖同時 3管式)",
+                name: "冷暖フリービル用マルチ UXE3シリーズ（3管式）",
                 maxIndoorUnits: 52,
                 outdoorCapacities: [
                     { hp: "8", kw: 22.4, model: "U-P224UXE3" },
@@ -342,7 +342,7 @@ class RefrigerantSizerEngine {
                 totals.totalLength += len;
 
                 if (seriesId === 'fsv_uxe3') {
-                    // UXE3(冷暖同時) 3管・2管ハイブリッド判定
+                    // UXE3（冷暖フリー）3管・2管ハイブリッド判定
                     if (node.type === 'outdoor' || (node.type === 'branch' && !inSolenoidDownstream)) {
                         if (child.type === 'solenoid_kit') {
                             // 室外機〜電磁弁キット間は3管式
@@ -363,7 +363,7 @@ class RefrigerantSizerEngine {
                             
                             warnings.push({
                                 type: 'danger',
-                                message: `冷暖同時(MF3)系統では、室外機と室内機の間に電磁弁キットが必要です。(${child.name})`
+                                message: `UXE3（冷暖フリー）系統では、室外機と室内機の間に電磁弁キットが必要です。(${child.name})`
                             });
 
                             this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
