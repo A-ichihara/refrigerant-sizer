@@ -251,12 +251,8 @@ class RefrigerantSizerEngine {
             liquid = 9.52; dischargeGas = 15.88; suctionGas = 19.05;
         } else if (outdoorKw <= 28.0) { // 10HP
             liquid = 9.52; dischargeGas = 19.05; suctionGas = 22.2;
-        } else if (outdoorKw <= 33.5) { // 12HP: UXE主管表
-            liquid = 12.7; dischargeGas = 19.05; suctionGas = 25.4;
-        } else if (outdoorKw <= 40.0) { // 14HP: UXE主管表
-            liquid = 12.7; dischargeGas = 22.2; suctionGas = 25.4;
-        } else if (outdoorKw <= 45.0) { // 16HP: UXE主管表
-            liquid = 12.7; dischargeGas = 22.2; suctionGas = 28.58;
+        } else if (outdoorKw <= 45.0) { // 12-16HP
+            liquid = 12.7; dischargeGas = 19.05; suctionGas = 28.58;
         } else if (outdoorKw <= 56.0) { // 18-20HP
             liquid = 15.88; dischargeGas = 22.2; suctionGas = 28.58;
         } else { // 24HP-
