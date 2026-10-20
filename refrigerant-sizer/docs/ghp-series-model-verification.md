@@ -117,3 +117,7 @@
 - 室外ユニット（H/R32・G/R410Aの区別）: https://www.aisin.com/jp/product/energy/ghp/compunit/index.html
 - XAIR IV 発売情報: https://www.aisin.com/jp/news/2026/010466.html
 - カタログダウンロード（2026年6月版R32、2026年4月版R410A）: https://www.aisin.com/jp/product/energy/ghp/download/index.html
+
+## ダイキンGHPの詳細照合メモ
+
+ダイキンGHPの5シリーズについて登録型式・冷媒・公式資料の照合状況を分離して記録した。詳細は[ダイキンGHP 登録型式・冷媒の照合メモ](./daikin-ghp-model-verification.md)を参照。型式の非実在を断定するものではなく、同一型式・同一冷媒・同一シリーズの公式設計資料が未特定であることを記録した。
