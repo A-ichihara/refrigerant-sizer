@@ -290,6 +290,12 @@ class RefrigerantSizerEngine {
         }
 
         const warnings = [];
+        if (seriesId === 'fsv_uxe3') {
+            warnings.push({
+                type: 'danger',
+                message: '【UXE3基準配管径未検証】現行の3管式基準径は、メーカー公式の区間別主管表とアプリ内配管区間の対応確認が未完了です。設計確定値として使用せず、対象機種の公式配管設計資料またはP-SPECで照合してください。'
+            });
+        }
         const totals = {
             liquidPipes: {},
             gasPipes: {},
