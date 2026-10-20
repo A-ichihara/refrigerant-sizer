@@ -224,3 +224,16 @@ test('parallel branches preserve independent physical lengths without double cou
   assert.deepEqual(segments.map(s => s.id), ['out->branch', 'branch->i1', 'branch->i2']);
   assert.equal(findMainPipeCandidates(tree)[0].actualLengthM, 20);
 });
+
+test('equivalent-length and manufacturer size-up fields stay unset at 90m boundary', () => {
+  for (const length of [89.9, 90, 90.1]) {
+    const tree = node('out', 'outdoor', 0, [
+      node('first', 'branch', length, [node('indoor', 'indoor', 5)])
+    ]);
+    const segments = extractSegments(tree);
+    assert.equal(segments[0].actualLengthM, length);
+    assert.ok(segments.every(s => s.equivalentLengthM === null));
+    assert.ok(segments.every(s => s.pipeSize === null && s.sizeUpRule === null && s.sourceDocument === null));
+    assert.equal(analyzeMainPipeCandidates(tree).verified, false);
+  }
+});
