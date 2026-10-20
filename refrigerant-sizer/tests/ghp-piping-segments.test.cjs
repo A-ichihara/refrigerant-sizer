@@ -174,3 +174,29 @@ test('current 3-pipe UI sample shape maps BS-unit inlet and downstream segments 
   // Structural role labels do not imply a manufacturer-approved size-up rule.
   assert.ok(segments.every(s => s.sizeUpRule === null && s.sourceDocument === null));
 });
+
+test('reject invalid root node and nonzero outdoor root length', () => {
+  assert.throws(() => extractSegments(node('i', 'indoor', 0)), /outdoor tree root/);
+  assert.throws(() => extractSegments(node('o', 'outdoor', 5, [node('i', 'indoor', 10)])), /root length/);
+  assert.throws(() => extractSegments(node('o', 'outdoor', NaN)), /root length/);
+  assert.throws(() => extractSegments(node('o', 'outdoor', -1)), /root length/);
+});
+
+test('reject malformed children collection instead of silently omitting pipe segments', () => {
+  const tree = node('o', 'outdoor', 0, []);
+  tree.children = { id: 'i', type: 'indoor', length: 12 };
+  assert.throws(() => extractSegments(tree), /children must be an array/);
+  tree.children = 'not-an-array';
+  assert.throws(() => extractSegments(tree), /children must be an array/);
+  tree.children = [node('i', 'indoor', 10)];
+  tree.children[0].children = {};
+  assert.throws(() => extractSegments(tree), /children must be an array/);
+});
+
+test('valid zero-length root and missing children remain compatible', () => {
+  const tree = { id: 'o', type: 'outdoor', length: 0, children: [
+    { id: 'i', type: 'indoor', length: 10 }
+  ] };
+  assert.equal(extractSegments(tree)[0].actualLengthM, 10);
+  assert.equal(analyzeMainPipeCandidates(tree).status, 'none');
+});
