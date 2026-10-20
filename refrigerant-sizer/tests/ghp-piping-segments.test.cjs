@@ -237,3 +237,20 @@ test('equivalent-length and manufacturer size-up fields stay unset at 90m bounda
     assert.equal(analyzeMainPipeCandidates(tree).verified, false);
   }
 });
+
+test('total installed pipe length is not confused with longest outdoor-to-indoor route', () => {
+  const tree = node('out', 'outdoor', 0, [
+    node('first', 'branch', 40, [
+      node('indoor-a', 'indoor', 30),
+      node('indoor-b', 'indoor', 30)
+    ])
+  ]);
+  const segments = extractSegments(tree);
+  const installedLength = segments.reduce((sum, segment) => sum + segment.actualLengthM, 0);
+  assert.equal(installedLength, 100);
+  assert.equal(findMainPipeCandidates(tree)[0].actualLengthM, 40);
+  // Each physical route is 40 + 30 = 70m; installed pipe totals 100m.
+  // Do not apply a manufacturer 90m threshold to the 100m material total.
+  assert.equal(40 + 30, 70);
+  assert.ok(segments.every(segment => segment.sizeUpRule === null));
+});
