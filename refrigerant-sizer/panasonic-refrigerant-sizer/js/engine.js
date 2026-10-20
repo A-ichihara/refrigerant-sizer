@@ -331,6 +331,14 @@ class RefrigerantSizerEngine {
         };
     }
 
+    // 旧UXE3 18HPデータのみ、公式50.4kW定格に合わせる。別シリーズや他の容量は変更しない。
+    migrateLegacyOutdoorCapacity(rootNode, seriesId) {
+        if (seriesId !== 'fsv_uxe3' || !rootNode || rootNode.type !== 'outdoor') return false;
+        if (typeof rootNode.capacity !== 'number' || Math.abs(rootNode.capacity - 50.0) > 0.001) return false;
+        rootNode.capacity = 50.4;
+        return true;
+    }
+
     processNodeSizing(node, seriesId, isManualSizeUp, inSolenoidDownstream, outdoorCap, totals, warnings) {
         node.modelNumber = this.generateModelNumber(node, seriesId);
 
