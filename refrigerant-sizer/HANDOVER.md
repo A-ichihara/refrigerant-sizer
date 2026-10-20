@@ -18,7 +18,7 @@
 - Panasonic EHP UXE3長配管条件: [調査メモ](./panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
 - Carrier回帰確認: [テスト記録](./docs/carrier-engine-regression.md)
 
-現行GitHub Actionsで実行するテストは、GHP安全性、Carrierエンジン、GHP配管区間、Panasonic UXE3の電磁弁キット下流配管の4ファイル。Panasonic UXE3の既存回帰テストを `.github/workflows/ghp-regression.yml` に追加済み。2026-10-20時点で、4テストを含むworkflow run `39367754651` と、監査メモ更新後のrun `39370841295` の両方が成功している。ただし、CI成功はメーカー公式資料との全配管径照合や実ブラウザ確認を意味しない。
+現行GitHub Actionsで実行するテストは、GHP安全性、GHPサイズアップUI安全性、Carrierエンジン、GHP配管区間、Panasonic UXE3の電磁弁キット下流配管の5ファイル。Panasonic UXE3の既存回帰テストを `.github/workflows/ghp-regression.yml` に追加済み。2026-10-20時点で、4テストを含むworkflow run `39367754651` と、監査メモ更新後のrun `39370841295` の両方が成功している。ただし、CI成功はメーカー公式資料との全配管径照合や実ブラウザ確認を意味しない。
 
 ---
 
@@ -534,6 +534,7 @@ git push origin main
 
 ```bash
 node --test refrigerant-sizer/tests/ghp-safety-regression.test.cjs
+node --test refrigerant-sizer/tests/ghp-sizeup-ui-safety.test.cjs
 node --test refrigerant-sizer/tests/carrier-engine-regression.test.cjs
 node --test refrigerant-sizer/tests/ghp-piping-segments.test.cjs
 node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs
@@ -603,3 +604,8 @@ GHPサイズアップ監査メモの現行状態への整合修正を含むコ�
 実行結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39370841295
 
 この確認により、当該コミットの4つの回帰テストワークフローが成功したことを確認した。ローカル実行・実ブラウザでの操作確認・公式資料に基づく全機種の配管径監査は別途であり、未確認項目を完了扱いにしない。
+
+
+## 2026-10-20 追記：GHPサイズアップUIの停止状態を回帰テスト化
+
+4社すべてのGHP画面で、サイズアップボタンがHTML上で無効化されていること、UI初期化時にも無効状態が強制されることを確認する静的回帰テスト `refrigerant-sizer/tests/ghp-sizeup-ui-safety.test.cjs` を追加し、`.github/workflows/ghp-regression.yml` に組み込んだ。テストはHTML属性とUI初期化コードを検査するものであり、実ブラウザの操作試験を代替するものではない。CI実行結果はActions run `39373327226` を確認し、完了後に記録する。
