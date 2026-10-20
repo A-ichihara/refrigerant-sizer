@@ -135,18 +135,20 @@
 
 ### 現在のCI対象（2026-10-20確認）
 
-現在の `.github/workflows/ghp-regression.yml` は次の3テストを実行する。
+現在の `.github/workflows/ghp-regression.yml` は次の5テストを実行する。
 
 - `refrigerant-sizer/tests/ghp-safety-regression.test.cjs`
+- `refrigerant-sizer/tests/ghp-sizeup-ui-safety.test.cjs`
 - `refrigerant-sizer/tests/carrier-engine-regression.test.cjs`
 - `refrigerant-sizer/tests/ghp-piping-segments.test.cjs`
+- `refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs`
 
-Panasonic EHPの `refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs` はリポジトリに存在するが、現時点のワークフローには実行ステップがない。CIで実行済みと報告してはならない。手動で実行する場合は、リポジトリルートで次を使用する。
+5テストすべての成功を確認した最新の実行（この手順書の直近更新時点）：
+- [GitHub Actions run 39375803011](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39375803011)
+- 対象コミット：`75827de19c21f361a19432e810c3dd2bbc485209`
+- 結果：`success`
 
-```sh
-node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs
-```
-
+このCI成功は自動テストが通過したことを示すものであり、公式資料への全型式照合、原本図表の直接確認、実ブラウザでの操作確認、または未実装の長配管自動増径が検証済みであることを意味しない。
 
 - CarrierのFSユニット誤警告について、シリーズ判定を限定する修正と回帰テストを追加済み。直近のGitHub Actionsは成功を確認済み。
 - GHP 4社の主管サイズアップ処理は、公式条件と区間モデルの照合が完了するまで設計機能として確定扱いしない。
