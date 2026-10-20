@@ -94,3 +94,42 @@ for (const [manufacturer, seriesId] of Object.entries(manufacturers)) {
     assert.equal(sizeUp.tree.children[0].pipeGas, baseline.tree.children[0].pipeGas);
   });
 }
+
+
+const threePipeManufacturers = {
+  aisin: 'aisin_ghp_heat_recovery',
+  daikin: 'daikin_ghp_hr',
+  yanmar: 'yanmar_ghp_exe_captor',
+  panasonic: 'panasonic_ghp_multi_free',
+};
+
+function makeThreePipeTree(branchLength) {
+  return {
+    id: 'root', type: 'outdoor', capacity: 56, length: 0,
+    children: [{
+      id: 'branch', type: 'branch', length: branchLength,
+      children: [{
+        id: 'bs', type: 'bs_unit', length: 1,
+        children: [{ id: 'indoor', type: 'indoor', capacity: 11.2, length: 10, children: [] }],
+      }],
+    }],
+  };
+}
+
+for (const [manufacturer, seriesId] of Object.entries(threePipeManufacturers)) {
+  test(manufacturer + ': 3管式でも現行90m超処理は室外機ノードだけをサイズアップする（既知不具合の特性確認）', () => {
+    const engine = engineFor(manufacturer);
+    const baseline = engine.calculateSystem(makeThreePipeTree(79), seriesId, false);
+    const sizeUp = engine.calculateSystem(makeThreePipeTree(80), seriesId, false);
+    assert.equal(baseline.totals.longestPath, 90);
+    assert.equal(sizeUp.totals.longestPath, 91);
+    assert.equal(sizeUp.tree.isSizedUp, true);
+    assert.notEqual(sizeUp.tree.pipeLiquid, baseline.tree.pipeLiquid);
+    assert.equal(sizeUp.tree.children[0].isSizedUp, undefined);
+    assert.equal(sizeUp.tree.children[0].pipeLiquid, baseline.tree.children[0].pipeLiquid);
+    assert.deepEqual(Object.keys(sizeUp.totals.liquidPipes), Object.keys(baseline.totals.liquidPipes));
+    assert.deepEqual(Object.keys(sizeUp.totals.highGasPipes), Object.keys(baseline.totals.highGasPipes));
+    assert.deepEqual(Object.keys(sizeUp.totals.lowGasPipes), Object.keys(baseline.totals.lowGasPipes));
+    // This test characterizes the current defect; it does not endorse 90m as a manufacturer rule.
+  });
+}
