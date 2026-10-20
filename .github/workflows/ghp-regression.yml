@@ -31,3 +31,5 @@ jobs:
         run: node --test refrigerant-sizer/tests/carrier-engine-regression.test.cjs
       - name: Run GHP piping segment tests
         run: node --test refrigerant-sizer/tests/ghp-piping-segments.test.cjs
+      - name: Run Panasonic UXE3 solenoid downstream regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs
