@@ -261,3 +261,16 @@ Panasonic公式の旧UXEシリーズ設計資料の検索可能テキストか�
 2. `形式`、系統相当馬力、冷房能力kW、構成室外ユニットの形式・台数、総合品番、各管径を別項目として持つ設計を検討する。
 3. 公式LA表の全馬力帯をアプリがサポートするか、対応範囲を8～20馬力に限定するかを決める。対応外の型式は暗黙に近似容量へ割り当てない。
 4. 管径表とツリー上の区間モデルを対応づけるまでは、自動増径と型式データの変更は行わない。
+
+## 2026-10-20 追記：UXE3単体室外機の正式品番表記を修正
+
+公式型式別仕様書に合わせ、UXE3の8～16馬力の品番を U-P224/280/335/400/450UXE3 から CU-P224/280/335/400/450UXE3 に修正した。18/20馬力の組合せ室外機は PA-P504UXE3 / PA-P560UXE3 とする。対象型式の公式資料例：
+- CU-P224UXE3：https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=CU-P224UXE3&itemID=t000100039271&volumeName=00001
+- CU-P335UXE3：https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=CU-P335UXE3&itemID=t000100045060&volumeName=00001
+- PA-P504UXE3：https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P504UXE3&itemID=t000100153626&volumeName=00001
+- PA-P560UXE3：https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P560UXE3&itemID=t000100154276&volumeName=00001
+
+- エンジン修正コミット：6589c955c3064d9c938741e3ac484d7bee34c1b2
+- 回帰テスト拡張コミット：e54506f7161ff77f1d7fecc343be5712f710a789
+
+この変更は品番表記と18馬力の冷房能力値に限定する。公式主管LA表と現行ツリー区間の対応、UXE3長配管時の増径条件、BOM区間分割は未解決であり、サイズアップは引き続き未適用とする。
