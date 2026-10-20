@@ -133,6 +133,21 @@
 
 ## 10. 現時点の既知事項と作業上の注意
 
+### 現在のCI対象（2026-10-20確認）
+
+現在の `.github/workflows/ghp-regression.yml` は次の3テストを実行する。
+
+- `refrigerant-sizer/tests/ghp-safety-regression.test.cjs`
+- `refrigerant-sizer/tests/carrier-engine-regression.test.cjs`
+- `refrigerant-sizer/tests/ghp-piping-segments.test.cjs`
+
+Panasonic EHPの `refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs` はリポジトリに存在するが、現時点のワークフローには実行ステップがない。CIで実行済みと報告してはならない。手動で実行する場合は、リポジトリルートで次を使用する。
+
+```sh
+node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs
+```
+
+
 - CarrierのFSユニット誤警告について、シリーズ判定を限定する修正と回帰テストを追加済み。直近のGitHub Actionsは成功を確認済み。
 - GHP 4社の主管サイズアップ処理は、公式条件と区間モデルの照合が完了するまで設計機能として確定扱いしない。
 - Panasonic EHP UXE3の上流3管式／下流2管式に関する既存テストはあるが、長配管自動サイズアップを検証するものではない。
