@@ -50,7 +50,10 @@ for (const [manufacturer, seriesId] of Object.entries(manufacturers)) {
     assert.equal(under.totals.longestPath, 90);
     assert.equal(over.totals.longestPath, 91);
     assert.ok(!under.warnings.some(w => w.includes('【サイズアップ未適用】')));
-    assert.ok(over.warnings.some(w => w.includes('【サイズアップ未適用】')));
+    const sizeUpWarning = over.warnings.find(w => w.includes('【サイズアップ未適用】'));
+    assert.ok(sizeUpWarning, 'over-threshold case must show the size-up warning');
+    assert.ok(sizeUpWarning.includes('90mは注意表示のための暫定トリガー'), '90m must be disclosed as a provisional trigger');
+    assert.ok(sizeUpWarning.includes('メーカー公式の相当長判定ではありません'), 'warning must not mislabel actual length as equivalent length');
     // 90m超判定は現行の暫定仕様の特性確認であり、メーカー公式の適用条件ではない。
   });
 
