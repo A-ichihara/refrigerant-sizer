@@ -620,3 +620,12 @@ GitHub Actions run `39373327226` は `success` で完了。GHP安全性、GHPサ
 https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39373327226
 
 なお、途中のrun `39373280045` は新規UIテストの正規表現エスケープ誤りで失敗したが、テストコードを修正し、後続run `39373327226` で全テストの成功を確認した。失敗結果を隠さず記録し、修正後の結果と区別する。
+
+
+## 2026-10-20 追記：UXE3資料の暫定扱いと最新CI確認
+
+- 旧UXE3設計資料URLは今回の調査環境で公式サイトのトップへリダイレクトされ、PDF原本の図表・脚注を直接確認できなかった。このため `panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md` の増径条件は「暫定読取」に明示的に格下げした。
+- 既存の引き継ぎ書6.4節にあるUXE3主管サイズ表も、原本照合が未完了の旧情報であることを明記した。表の値を確定値としてコードやテストに流用しない。
+- 作業手順書のCI一覧を現行5テストに更新。コミット `fd39c88b3c6e8faf2468cc765d921c075a42ef68` のGitHub Actions run `39375318352` は成功し、5テストすべて通過した。
+
+CI結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39375318352
