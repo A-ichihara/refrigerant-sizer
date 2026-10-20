@@ -42,3 +42,17 @@ test('UXE3 uses three-pipe upstream of solenoid kit and two-pipe throughout down
   assert.equal(Object.values(result.totals.lowGasPipes).reduce((sum, length) => sum + length, 0), 10);
   assert.equal(Object.values(result.totals.highGasPipes).reduce((sum, length) => sum + length, 0), 10);
 });
+
+
+test('UXE3 direct connection warning uses the correct series name, not MF3', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root', name: 'Outdoor', type: 'outdoor', capacity: 28, length: 0,
+    children: [{
+      id: 'indoor', name: 'Indoor without kit', type: 'indoor', capacity: 5.6, length: 8, children: []
+    }]
+  };
+  const result = engine.calculateSystem(tree, 'fsv_uxe3', false);
+  assert.ok(result.warnings.some(w => w.message.includes('UXE3（冷暖フリー）系統')));
+  assert.ok(result.warnings.every(w => !w.message.includes('冷暖同時(MF3)')));
+});
