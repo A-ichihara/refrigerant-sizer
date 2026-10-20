@@ -38,6 +38,7 @@ class RefrigerantSizerUI {
         this.enableManualSizeUp = loadedManualSizeUp;
         
         if (loadedTree) {
+            this.engine.migrateLegacyOutdoorCapacity(loadedTree, this.activeSeriesId);
             this.systemTree = loadedTree;
         } else {
             // デフォルトの初期ツリー
@@ -915,6 +916,7 @@ class RefrigerantSizerUI {
                         try {
                             const parsed = JSON.parse(readerEvent.target.result);
                             if (parsed.type === 'outdoor' && parsed.id) {
+                                this.engine.migrateLegacyOutdoorCapacity(parsed, this.activeSeriesId);
                                 this.systemTree = parsed;
                                 this.activeNodeId = parsed.id;
                                 this.update();
