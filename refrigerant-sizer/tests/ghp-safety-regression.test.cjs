@@ -49,14 +49,14 @@ for (const [manufacturer, seriesId] of Object.entries(manufacturers)) {
     const over = engine.calculateSystem(makeTree(81), seriesId, false);
     assert.equal(under.totals.longestPath, 90);
     assert.equal(over.totals.longestPath, 91);
-    assert.ok(!under.warnings.some(w => w.includes('配管サイズアップ条件に該当する可能性')));
-    assert.ok(over.warnings.some(w => w.includes('配管サイズアップ条件に該当する可能性')));
+    assert.ok(!under.warnings.some(w => w.includes('【サイズアップ未適用】')));
+    assert.ok(over.warnings.some(w => w.includes('【サイズアップ未適用】')));
     // 90m超判定は現行の暫定仕様の特性確認であり、メーカー公式の適用条件ではない。
   });
 
   test(manufacturer + ': 手動指定時の注意表示を維持する', () => {
     const result = engineFor(manufacturer).calculateSystem(makeTree(10), seriesId, true);
-    assert.ok(result.warnings.some(w => w.includes('配管サイズアップ条件に該当する可能性')));
+    assert.ok(result.warnings.some(w => w.includes('【サイズアップ未適用】')));
   });
 }
 
@@ -76,22 +76,22 @@ test('GHP 4社: 印刷用CSSに警告パネルの表示設定がある', () => {
 
 
 /**
- * 既知不具合の再現テスト（現状を固定するための characterization）。
- * 「正しい配管選定」を示すものではない。公式条件の照合と修正後に期待値を変更する。
+ * 安全回帰テスト: 未検証の自動増径は適用せず、境界超過を警告する。
+ * 正式なメーカー別ルールとBOM反映が確定するまで、室外機ノードのみを変更しない。
  */
 for (const [manufacturer, seriesId] of Object.entries(manufacturers)) {
-  test(manufacturer + ': 既知不具合・室外機サイズUPが子配管BOMに反映されない', () => {
+  test(manufacturer + ': 2管式で未検証の自動増径を適用しない', () => {
     const engine = engineFor(manufacturer);
     const baseline = engine.calculateSystem(makeTree(80), seriesId, false);
-    const sizeUp = engine.calculateSystem(makeTree(81), seriesId, false);
-    assert.equal(sizeUp.tree.isSizedUp, true, '室外機ノードにはサイズUPフラグが立つ');
-    assert.notEqual(sizeUp.tree.pipeLiquid, baseline.tree.pipeLiquid, '室外機の液管径は変わる');
-    assert.notEqual(sizeUp.tree.pipeGas, baseline.tree.pipeGas, '室外機のガス管径は変わる');
-    assert.equal(sizeUp.tree.children[0].isSizedUp, undefined, '長さを持つ子ノードはサイズUPされない');
-    assert.deepEqual(Object.keys(sizeUp.totals.liquidPipes), Object.keys(baseline.totals.liquidPipes), 'BOMの液管径は変わらない');
-    assert.deepEqual(Object.keys(sizeUp.totals.gasPipes), Object.keys(baseline.totals.gasPipes), 'BOMのガス管径は変わらない');
-    assert.equal(sizeUp.tree.children[0].pipeLiquid, baseline.tree.children[0].pipeLiquid);
-    assert.equal(sizeUp.tree.children[0].pipeGas, baseline.tree.children[0].pipeGas);
+    const over = engine.calculateSystem(makeTree(81), seriesId, false);
+    assert.ok(over.warnings.some(w => w.includes('【サイズアップ未適用】')));
+    assert.equal(over.tree.isSizedUp, undefined);
+    assert.equal(over.tree.pipeLiquid, baseline.tree.pipeLiquid);
+    assert.equal(over.tree.pipeGas, baseline.tree.pipeGas);
+    assert.equal(over.tree.children[0].pipeLiquid, baseline.tree.children[0].pipeLiquid);
+    assert.equal(over.tree.children[0].pipeGas, baseline.tree.children[0].pipeGas);
+    assert.deepEqual(over.totals.liquidPipes, baseline.totals.liquidPipes);
+    assert.deepEqual(over.totals.gasPipes, baseline.totals.gasPipes);
   });
 }
 
@@ -117,20 +117,19 @@ function makeThreePipeTree(branchLength) {
 }
 
 for (const [manufacturer, seriesId] of Object.entries(threePipeManufacturers)) {
-  test(manufacturer + ': 3管式でも現行90m超処理は室外機ノードだけをサイズアップする（既知不具合の特性確認）', () => {
+  test(manufacturer + ': 3管式で未検証の自動増径を適用しない', () => {
     const engine = engineFor(manufacturer);
     const baseline = engine.calculateSystem(makeThreePipeTree(79), seriesId, false);
-    const sizeUp = engine.calculateSystem(makeThreePipeTree(80), seriesId, false);
+    const over = engine.calculateSystem(makeThreePipeTree(80), seriesId, false);
     assert.equal(baseline.totals.longestPath, 90);
-    assert.equal(sizeUp.totals.longestPath, 91);
-    assert.equal(sizeUp.tree.isSizedUp, true);
-    assert.notEqual(sizeUp.tree.pipeLiquid, baseline.tree.pipeLiquid);
-    assert.equal(sizeUp.tree.children[0].isSizedUp, undefined);
-    assert.equal(sizeUp.tree.children[0].pipeLiquid, baseline.tree.children[0].pipeLiquid);
-    assert.deepEqual(Object.keys(sizeUp.totals.liquidPipes), Object.keys(baseline.totals.liquidPipes));
-    assert.deepEqual(Object.keys(sizeUp.totals.highGasPipes), Object.keys(baseline.totals.highGasPipes));
-    assert.deepEqual(Object.keys(sizeUp.totals.lowGasPipes), Object.keys(baseline.totals.lowGasPipes));
-    // This test characterizes the current defect; it does not endorse 90m as a manufacturer rule.
+    assert.equal(over.totals.longestPath, 91);
+    assert.ok(over.warnings.some(w => w.includes('【サイズアップ未適用】')));
+    assert.equal(over.tree.isSizedUp, undefined);
+    assert.equal(over.tree.pipeLiquid, baseline.tree.pipeLiquid);
+    assert.equal(over.tree.children[0].pipeLiquid, baseline.tree.children[0].pipeLiquid);
+    assert.deepEqual(over.totals.liquidPipes, baseline.totals.liquidPipes);
+    assert.deepEqual(over.totals.highGasPipes, baseline.totals.highGasPipes);
+    assert.deepEqual(over.totals.lowGasPipes, baseline.totals.lowGasPipes);
   });
 }
 
