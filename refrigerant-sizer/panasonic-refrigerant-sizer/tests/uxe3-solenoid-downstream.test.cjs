@@ -168,3 +168,12 @@ test('UXE3 manual size-up is safely ignored by engine with explicit warning', ()
   assert.deepEqual(requested.tree.children[0].children[0].pipes, standard.tree.children[0].children[0].pipes);
   assert.ok(requested.warnings.some(w => w.message.includes('UXE3手動サイズアップ未適用')));
 });
+
+test('UXE3 manual size-up button visibly communicates its stopped state', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const uiSource = fs.readFileSync(path.join(__dirname, '../js/ui.js'), 'utf8');
+  assert.match(uiSource, /forceSUpBtn\.disabled = this\.activeSeriesId === 'fsv_uxe3'/);
+  assert.match(uiSource, /label\.textContent = this\.activeSeriesId === 'fsv_uxe3' \? '⚡ 主管サイズUP（停止中）' : '⚡ 主管サイズUP'/);
+  assert.match(uiSource, /label\.textContent = sizeUpButton\.disabled \? '⚡ 主管サイズUP（停止中）' : '⚡ 主管サイズUP'/);
+});
