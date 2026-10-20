@@ -88,7 +88,7 @@ class RefrigerantSizerUI {
         if (this.seriesSelect) this.seriesSelect.value = this.activeSeriesId;
         if (this.gasSelect) this.gasSelect.value = this.activeGasType;
         const forceSUpBtn = document.getElementById('btn-force-sizeup');
-        if (forceSUpBtn) forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
+        if (forceSUpBtn) { forceSUpBtn.disabled = true; forceSUpBtn.setAttribute('aria-disabled', 'true'); forceSUpBtn.classList.remove('btn-primary'); }
         this.update();
     }
 
