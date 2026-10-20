@@ -74,6 +74,18 @@ test('GHP 4社: 印刷用CSSに警告パネルの表示設定がある', () => {
   }
 });
 
+test('GHP 4社: 未検証のサイズアップ操作は画面上で無効化される', () => {
+  for (const manufacturer of Object.keys(manufacturers)) {
+    const appDir = path.join(__dirname, '..', manufacturer + '-ghp-refrigerant-sizer');
+    const html = fs.readFileSync(path.join(appDir, 'index.html'), 'utf8');
+    const ui = fs.readFileSync(path.join(appDir, 'js', 'ui.js'), 'utf8');
+    assert.match(html, /id="btn-force-sizeup" disabled aria-disabled="true"/, manufacturer + ' HTML');
+    assert.ok(html.includes('主管サイズUP（停止中）'), manufacturer + ' label');
+    assert.ok(ui.includes('forceSUpBtn.disabled = true'), manufacturer + ' UI disable');
+    assert.ok(ui.includes("forceSUpBtn.classList.remove('btn-primary')"), manufacturer + ' no active state');
+  }
+});
+
 
 /**
  * 安全回帰テスト: 未検証の自動増径は適用せず、境界超過を警告する。
