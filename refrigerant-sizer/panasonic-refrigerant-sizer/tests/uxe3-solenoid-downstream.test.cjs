@@ -491,3 +491,39 @@ test('UXE3 segment audit flags invalid lengths and unknown metadata values witho
   assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('未定義の容量基準')));
   assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('未定義の検証状態')));
 });
+
+
+test('UXE3 segment audit reports malformed child entries and distinguishes cycles from shared nodes', () => {
+  const engine = new RefrigerantSizerEngine();
+  const cyclic = { id: 'root', type: 'outdoor', length: 0, children: [] };
+  const loop = { id: 'loop', type: 'branch', length: 2, children: [] };
+  cyclic.children.push(loop);
+  loop.children.push(cyclic);
+  cyclic.children.push(null);
+
+  const before = JSON.stringify(cyclic, (key, value) => key === 'children' && Array.isArray(value)
+    ? value.map(item => item && item.id ? item.id : item)
+    : value);
+  const audit = engine.auditUxE3PipeSegments(cyclic);
+  const after = JSON.stringify(cyclic, (key, value) => key === 'children' && Array.isArray(value)
+    ? value.map(item => item && item.id ? item.id : item)
+    : value);
+
+  assert.equal(after, before);
+  assert.ok(audit.warnings.some(w => w.message.includes('循環参照')));
+  assert.ok(audit.warnings.some(w => w.message.includes('子ノードがオブジェクトではありません')));
+  assert.equal(audit.findings.length, 3);
+});
+
+test('UXE3 segment audit detects a shared child object separately from a cycle', () => {
+  const engine = new RefrigerantSizerEngine();
+  const shared = { id: 'shared', type: 'branch', length: 3, children: [] };
+  const tree = {
+    type: 'outdoor', length: 0, children: [
+      { id: 'branch-a', type: 'branch', length: 1, children: [shared] },
+      { id: 'branch-b', type: 'branch', length: 2, children: [shared] }
+    ]
+  };
+  const audit = engine.auditUxE3PipeSegments(tree);
+  assert.ok(audit.warnings.some(w => w.message.includes('共有ノード')));
+});
