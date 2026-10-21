@@ -171,6 +171,31 @@ test('UXE3 manual size-up is safely ignored by engine with explicit warning', ()
   assert.ok(requested.warnings.some(w => w.message.includes('UXE3手動サイズアップ未適用')));
 });
 
+test('UXE3 unsupported outdoor capacity produces a clear stop warning', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    type: 'outdoor',
+    name: 'Unsupported 22HP system',
+    capacity: 61.5,
+    length: 0,
+    children: [{
+      type: 'solenoid_kit',
+      name: 'Solenoid kit',
+      length: 5,
+      children: [{ type: 'indoor', name: 'Indoor', capacity: 5.6, length: 8, children: [] }]
+    }]
+  };
+
+  const result = engine.calculateSystem(tree, 'fsv_uxe3', false);
+  assert.ok(result.warnings.some(w =>
+    w.type === 'danger' &&
+    w.message.includes('UXE3対応容量外') &&
+    w.message.includes('61.5kW') &&
+    w.message.includes('8～20HP')
+  ));
+  assert.ok(result.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
+});
+
 test('UXE3 unverified-base-diameter warning remains active for every registered outdoor capacity', () => {
   const engine = new RefrigerantSizerEngine();
   const capacities = engine.SERIES_DATABASE.fsv_uxe3.outdoorCapacities;
