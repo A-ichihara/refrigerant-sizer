@@ -628,6 +628,16 @@ test('UXE3 segment audit rejects unknown segment labels and malformed edge metad
         id: 'malformed-spec', type: 'solenoid_kit', length: 3,
         edgeSpec: null,
         children: []
+      },
+      {
+        id: 'malformed-field-types', type: 'branch', length: 2,
+        edgeSpec: {
+          segmentType: 123,
+          capacityBasis: 42,
+          sourceKey: { unexpected: true },
+          validationState: []
+        },
+        children: []
       }
     ]
   };
@@ -640,5 +650,10 @@ test('UXE3 segment audit rejects unknown segment labels and malformed edge metad
   assert.equal(audit.findings[0].capacityBasis, 'downstream_sum');
   assert.equal(audit.findings[1].segmentType, 'unclassified');
   assert.equal(audit.findings[1].capacityBasis, null);
+  assert.equal(audit.findings[2].segmentType, 'unclassified');
+  assert.equal(audit.findings[2].declarationState, 'unclassified');
+  assert.equal(audit.findings[2].capacityBasis, null);
+  assert.equal(audit.findings[2].sourceKey, null);
+  assert.equal(audit.findings[2].validationState, 'unverified');
   assert.ok(audit.warnings.some(w => w.message.includes('区間未確定')));
 });
