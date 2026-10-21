@@ -396,3 +396,67 @@ test('UXE3 branch pipe-length totals preserve 3-pipe upstream and 2-pipe downstr
   assert.ok(result.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
   // Totals are a characterization of current behavior, not validated manufacturer pipe sizes.
 });
+
+
+test('UXE3 segment audit is non-mutating and never infers official segment types from tree position', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root', type: 'outdoor', capacity: 45.0, length: 0, children: [
+      { id: 'branch', type: 'branch', length: 7, children: [
+        { id: 'kit', type: 'solenoid_kit', length: 11, children: [
+          { id: 'indoor', type: 'indoor', capacity: 5.6, length: 13, children: [] }
+        ] }
+      ] }
+    ]
+  };
+  const before = JSON.stringify(tree);
+  const audit = engine.auditUxE3PipeSegments(tree);
+
+  assert.equal(JSON.stringify(tree), before, 'audit must not mutate the source tree');
+  assert.deepEqual(audit.summary, { totalEdges: 3, unclassified: 3, declared: 0 });
+  assert.deepEqual(audit.findings.map(edge => edge.segmentType), [
+    'unclassified', 'unclassified', 'unclassified'
+  ]);
+  assert.ok(audit.findings.every(edge => edge.validationState === 'unverified'));
+  assert.ok(audit.warnings.some(w => w.message.includes('ノード構造だけから公式区間や管径を推定していません')));
+});
+
+test('UXE3 segment audit reports explicit segment labels as unverified declarations', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root', type: 'outdoor', capacity: 45.0, children: [
+      {
+        id: 'main', type: 'branch', length: 12,
+        edgeSpec: {
+          segmentType: 'main_LM',
+          capacityBasis: 'outdoor_total',
+          sourceKey: 'not-yet-verified',
+          validationState: 'unverified'
+        },
+        children: []
+      },
+      { id: 'unknown', type: 'solenoid_kit', length: 4, children: [] }
+    ]
+  };
+  const before = JSON.stringify(tree);
+  const audit = engine.auditUxE3PipeSegments(tree);
+
+  assert.equal(JSON.stringify(tree), before);
+  assert.deepEqual(audit.summary, { totalEdges: 2, unclassified: 1, declared: 1 });
+  assert.equal(audit.findings[0].segmentType, 'main_LM');
+  assert.equal(audit.findings[0].declarationState, 'declared_unverified');
+  assert.equal(audit.findings[0].validationState, 'unverified');
+  assert.equal(audit.findings[1].segmentType, 'unclassified');
+  assert.ok(audit.warnings.some(w => w.message.includes('監査結果はメーカー仕様への適合確認を意味しません')));
+});
+
+test('UXE3 segment audit rejects an invalid root without modifying it', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = { type: 'branch', children: [] };
+  const before = JSON.stringify(tree);
+  const audit = engine.auditUxE3PipeSegments(tree);
+
+  assert.equal(JSON.stringify(tree), before);
+  assert.deepEqual(audit.summary, { totalEdges: 0, unclassified: 0, declared: 0 });
+  assert.ok(audit.warnings.some(w => w.type === 'danger'));
+});
