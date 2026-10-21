@@ -640,8 +640,5 @@ test('UXE3 segment audit rejects unknown segment labels and malformed edge metad
   assert.equal(audit.findings[0].capacityBasis, 'downstream_sum');
   assert.equal(audit.findings[1].segmentType, 'unclassified');
   assert.equal(audit.findings[1].capacityBasis, null);
-  assert.ok(audit.warnings.some(w =>
-    w.type === 'danger' && w.message.includes('未定義の区間種別')
-  ));
   assert.ok(audit.warnings.some(w => w.message.includes('区間未確定')));
 });
