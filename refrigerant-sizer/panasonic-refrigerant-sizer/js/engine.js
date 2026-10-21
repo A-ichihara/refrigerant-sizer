@@ -385,6 +385,8 @@ class RefrigerantSizerEngine {
         ]);
         const visited = new WeakSet();
         const activePath = new WeakSet();
+        const capacityBasisValues = new Set(['outdoor_total', 'downstream_sum', 'indoor_model', 'not_resolved']);
+        const validationStateValues = new Set(['verified', 'unverified', 'unsupported']);
         const walk = (parent, path) => {
             if (!parent || typeof parent !== 'object') return;
             if (activePath.has(parent)) {
@@ -403,6 +405,12 @@ class RefrigerantSizerEngine {
             }
             visited.add(parent);
             activePath.add(parent);
+            if (parent.children !== undefined && !Array.isArray(parent.children)) {
+                warnings.push({
+                    type: 'danger',
+                    message: `UXE3区間監査：children が配列ではありません（${path}）。`
+                });
+            }
             const children = Array.isArray(parent.children) ? parent.children : [];
             children.forEach((child, index) => {
                 if (!child || typeof child !== 'object') {
@@ -437,8 +445,6 @@ class RefrigerantSizerEngine {
                 const validDeclaredType = Boolean(declaredType && allowedSegmentTypes.has(declaredType));
                 const lengthIsFinite = Boolean(child && Number.isFinite(child.length));
                 const lengthIsValid = lengthIsFinite && child.length >= 0;
-                const capacityBasisValues = new Set(['outdoor_total', 'downstream_sum', 'indoor_model', 'not_resolved']);
-                const validationStateValues = new Set(['verified', 'unverified', 'unsupported']);
                 const capacityBasis = spec && typeof spec.capacityBasis === 'string' && capacityBasisValues.has(spec.capacityBasis)
                     ? spec.capacityBasis
                     : null;
