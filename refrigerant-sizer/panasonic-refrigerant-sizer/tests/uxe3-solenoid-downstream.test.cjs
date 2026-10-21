@@ -577,3 +577,35 @@ test('UXE3 segment audit detects a shared child object separately from a cycle',
   const audit = engine.auditUxE3PipeSegments(tree);
   assert.ok(audit.warnings.some(w => w.message.includes('共有ノード')));
 });
+
+
+test('UXE3 segment declarations remain audit-only and cannot alter pipe sizing or BOM', () => {
+  const engine = new RefrigerantSizerEngine();
+  const makeTree = (edgeSpec) => ({
+    id: 'root', type: 'outdoor', capacity: 28, length: 0, children: [{
+      id: 'kit', type: 'solenoid_kit', length: 10, children: [{
+        id: 'indoor', type: 'indoor', capacity: 5.6, length: 8, children: []
+      }]
+    }]
+  });
+  const plain = makeTree();
+  const declared = makeTree();
+  declared.children[0].edgeSpec = {
+    segmentType: 'main_LM',
+    capacityBasis: 'downstream_sum',
+    sourceKey: 'unverified-source',
+    validationState: 'verified'
+  };
+  const before = JSON.stringify(declared);
+  const plainResult = engine.calculateSystem(plain, 'fsv_uxe3', false);
+  const declaredResult = engine.calculateSystem(declared, 'fsv_uxe3', false);
+
+  assert.deepEqual(declaredResult.totals, plainResult.totals, 'edge metadata must not change BOM or pipe length totals');
+  assert.deepEqual(declared.children[0].pipes, plain.children[0].pipes, 'edge metadata must not change selected pipe sizes');
+  assert.equal(JSON.stringify(declared), before.replace(/"edgeSpec":\{[^}]*\},?/, match => match.endsWith(',') ? '' : match),
+    'calculation must not rewrite or promote supplied edge metadata');
+  assert.equal(declaredResult.segmentAudit.findings[0].segmentType, 'main_LM');
+  assert.equal(declaredResult.segmentAudit.findings[0].validationState, 'unverified',
+    'a caller-provided verified flag is not manufacturer evidence');
+  assert.ok(declaredResult.warnings.some(w => w.message.includes('メーカー仕様への適合確認を意味しません')));
+});
