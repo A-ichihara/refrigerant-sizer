@@ -457,9 +457,17 @@ class RefrigerantSizerEngine {
                 const capacityBasis = spec && typeof spec.capacityBasis === 'string' && capacityBasisValues.has(spec.capacityBasis)
                     ? spec.capacityBasis
                     : null;
-                const declaredValidationState = spec && typeof spec.validationState === 'string' && validationStateValues.has(spec.validationState)
+                const suppliedValidationState = spec && typeof spec.validationState === 'string' && validationStateValues.has(spec.validationState)
                     ? spec.validationState
                     : 'unverified';
+                // A metadata flag is not evidence of manufacturer verification. Audit never promotes an edge to verified.
+                const declaredValidationState = suppliedValidationState === 'verified' ? 'unverified' : suppliedValidationState;
+                if (suppliedValidationState === 'verified') {
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：検証状態に「verified」が指定されていますが、入力メタデータだけではメーカー仕様への適合確認を意味しません。未検証として扱います（${childPath}）。`
+                    });
+                }
                 findings.push({
                     path: childPath,
                     parentId: parent.id || null,
