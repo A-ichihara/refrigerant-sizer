@@ -376,3 +376,23 @@ test('UXE3 3-pipe upstream branches currently use outdoor capacity, not branch d
   assert.ok(result.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
   // This test documents the current implementation; it does NOT validate official segment diameters.
 });
+
+
+test('UXE3 branch pipe-length totals preserve 3-pipe upstream and 2-pipe downstream separation', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = { type: 'outdoor', name: 'Outdoor', capacity: 45.0, children: [
+    { type: 'branch', name: 'Upstream', length: 7, children: [
+      { type: 'solenoid_kit', name: 'Kit', length: 11, children: [
+        { type: 'indoor', name: 'Indoor', capacity: 5.6, length: 13, children: [] }
+      ] }
+    ] }
+  ] };
+  const result = engine.calculateSystem(tree, 'fsv_uxe3');
+  assert.equal(result.totals.totalLength, 31);
+  assert.equal(Object.values(result.totals.highGasPipes).reduce((a, b) => a + b, 0), 18);
+  assert.equal(Object.values(result.totals.lowGasPipes).reduce((a, b) => a + b, 0), 18);
+  assert.equal(Object.values(result.totals.gasPipes).reduce((a, b) => a + b, 0), 13);
+  assert.equal(Object.values(result.totals.liquidPipes).reduce((a, b) => a + b, 0), 31);
+  assert.ok(result.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
+  // Totals are a characterization of current behavior, not validated manufacturer pipe sizes.
+});
