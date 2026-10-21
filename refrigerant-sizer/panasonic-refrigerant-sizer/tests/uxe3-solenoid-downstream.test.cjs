@@ -608,3 +608,40 @@ test('UXE3 segment declarations remain audit-only and cannot alter pipe sizing o
     'a caller-provided verified flag is not manufacturer evidence');
   assert.ok(declaredResult.warnings.some(w => w.message.includes('メーカー仕様への適合確認を意味しません')));
 });
+
+
+test('UXE3 segment audit rejects unknown segment labels and malformed edge metadata safely', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root', type: 'outdoor', capacity: 22.4, children: [
+      {
+        id: 'unknown-segment', type: 'branch', length: 5,
+        edgeSpec: {
+          segmentType: 'guess_from_topology',
+          capacityBasis: 'downstream_sum',
+          sourceKey: 'unverified-source',
+          validationState: 'unverified'
+        },
+        children: []
+      },
+      {
+        id: 'malformed-spec', type: 'solenoid_kit', length: 3,
+        edgeSpec: null,
+        children: []
+      }
+    ]
+  };
+  const before = JSON.stringify(tree);
+  const audit = engine.auditUxE3PipeSegments(tree);
+
+  assert.equal(JSON.stringify(tree), before, 'audit must not normalize or mutate source metadata');
+  assert.equal(audit.findings[0].segmentType, 'unclassified');
+  assert.equal(audit.findings[0].declarationState, 'unclassified');
+  assert.equal(audit.findings[0].capacityBasis, 'downstream_sum');
+  assert.equal(audit.findings[1].segmentType, 'unclassified');
+  assert.equal(audit.findings[1].capacityBasis, null);
+  assert.ok(audit.warnings.some(w =>
+    w.type === 'danger' && w.message.includes('未定義の区間種別')
+  ));
+  assert.ok(audit.warnings.some(w => w.message.includes('区間未確定')));
+});
