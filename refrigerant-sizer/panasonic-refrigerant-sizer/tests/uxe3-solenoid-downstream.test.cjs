@@ -398,6 +398,40 @@ test('UXE3 branch pipe-length totals preserve 3-pipe upstream and 2-pipe downstr
 });
 
 
+test('UXE3 calculation exposes read-only segment audit and includes its warnings', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root',
+    name: 'Outdoor',
+    type: 'outdoor',
+    capacity: 22.4,
+    length: 0,
+    children: [{
+      id: 'kit',
+      name: 'Solenoid kit',
+      type: 'solenoid_kit',
+      capacity: 0,
+      length: 10,
+      children: [{
+        id: 'indoor',
+        name: 'Indoor',
+        type: 'indoor',
+        capacity: 5.6,
+        length: 8,
+        children: []
+      }]
+    }]
+  };
+  const before = JSON.stringify(tree);
+  const result = engine.calculateSystem(tree, 'fsv_uxe3', false);
+
+  assert.ok(result.segmentAudit);
+  assert.equal(result.segmentAudit.summary.totalEdges, 2);
+  assert.equal(result.segmentAudit.summary.unclassified, 2);
+  assert.ok(result.warnings.some(w => w.message.includes('区間未確定')));
+  assert.equal(JSON.stringify(tree).includes('"edgeSpec"'), false, 'audit integration must not inject edge metadata');
+});
+
 test('UXE3 segment audit is non-mutating and never infers official segment types from tree position', () => {
   const engine = new RefrigerantSizerEngine();
   const tree = {
