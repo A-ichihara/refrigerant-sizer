@@ -1312,10 +1312,28 @@ class RefrigerantSizerUI {
             return;
         }
 
+        // Warning text can contain imported metadata; escape it before inserting into HTML.
+        const escapeHtml = (value) => String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        const warningMessages = safeWarnings.map((warning) => {
+            if (warning && typeof warning === 'object') {
+                if (typeof warning.message === 'string') return warning.message;
+                try {
+                    return JSON.stringify(warning);
+                } catch (_) {
+                    return '[表示できない警告データ]';
+                }
+            }
+            return String(warning);
+        });
+
         this.warningPanel.innerHTML = safeWarnings.map((warning, idx) => {
-            const message = warning && typeof warning === 'object'
-                ? (warning.message || JSON.stringify(warning))
-                : String(warning);
+            const message = warningMessages[idx];
             const isInfo = Boolean(warning && typeof warning === 'object' && warning.type === 'info');
             const isCritical = Boolean(warning && typeof warning === 'object' && warning.type === 'error')
                 || /警告|超過|エラー|不足|制限を超/.test(message);
@@ -1328,7 +1346,7 @@ class RefrigerantSizerUI {
                     <span class="alert-icon">${icon}</span>
                     <div class="alert-text">
                         <div class="alert-title">${title}</div>
-                        <div class="alert-desc">${message} <span style="font-size:0.7rem; color:var(--color-secondary);">(クリックで該当機器を強調)</span></div>
+                        <div class="alert-desc">${escapeHtml(message)} <span style="font-size:0.7rem; color:var(--color-secondary);">(クリックで該当機器を強調)</span></div>
                     </div>
                 </div>
             `;
@@ -1337,7 +1355,7 @@ class RefrigerantSizerUI {
         const warningItems = this.warningPanel.querySelectorAll('.alert-card.clickable');
         warningItems.forEach((item, idx) => {
             item.addEventListener('click', () => {
-                const warningText = safeWarnings[idx] || item.textContent;
+                const warningText = warningMessages[idx] || item.textContent;
 
                 document.querySelectorAll('.node-card').forEach(nc => nc.classList.remove('error-blink'));
                 const targetId = this.activeNodeId || 'root';
