@@ -330,3 +330,21 @@ test('UXE3 unverified pipe label remains visually distinct on screen and in prin
   assert.match(css, /@media print\s*\{[\s\S]*?\.pipe-size-unverified\s*\{/);
   assert.match(css, /color: #78350f !important/);
 });
+
+
+test('UXE3 rejects finite outdoor capacities not present in its official-model master', () => {
+  const engine = new RefrigerantSizerEngine();
+  const registered = engine.SERIES_DATABASE.fsv_uxe3.outdoorCapacities.map(x => x.kw);
+  for (const capacity of [0, -1, 20, 25, 30, 50.0, 61.5, 100]) {
+    assert.ok(!registered.includes(capacity), `fixture accidentally registered: ${capacity}`);
+    const tree = { type: 'outdoor', name: 'Unregistered outdoor', capacity, children: [
+      { type: 'solenoid_kit', name: 'Kit', length: 2, children: [
+        { type: 'indoor', name: 'Room', capacity: 5.6, length: 3, children: [] }
+      ] }
+    ] };
+    const result = engine.calculateSystem(tree, 'fsv_uxe3');
+    assert.ok(result.warnings.some(w => w.type === 'danger' && w.message.includes('UXE3対応容量外')), `no warning for ${capacity}`);
+    assert.equal(tree.modelNumber, '-', `unexpected model for ${capacity}`);
+    assert.ok(result.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
+  }
+});
