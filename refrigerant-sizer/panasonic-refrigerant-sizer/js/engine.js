@@ -452,6 +452,13 @@ class RefrigerantSizerEngine {
                     ? spec.segmentType
                     : null;
                 const validDeclaredType = Boolean(declaredType && allowedSegmentTypes.has(declaredType));
+                if (spec && Object.prototype.hasOwnProperty.call(spec, 'segmentType')
+                    && (!validDeclaredType || typeof spec.segmentType !== 'string')) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：未定義または不正な区間種別を検出しました。未分類として扱います（${childPath}）。`
+                    });
+                }
                 const lengthIsFinite = Boolean(child && Number.isFinite(child.length));
                 const lengthIsValid = lengthIsFinite && child.length >= 0;
                 const capacityBasis = spec && typeof spec.capacityBasis === 'string' && capacityBasisValues.has(spec.capacityBasis)
@@ -490,16 +497,27 @@ class RefrigerantSizerEngine {
                         message: `UXE3区間監査：配管長が未入力・非数値、または負数です（${childPath}）。`
                     });
                 }
-                if (spec && typeof spec.capacityBasis === 'string' && spec.capacityBasis && !capacityBasis) {
+                if (spec && Object.prototype.hasOwnProperty.call(spec, 'capacityBasis')
+                    && (typeof spec.capacityBasis !== 'string'
+                        || (spec.capacityBasis !== '' && !capacityBasisValues.has(spec.capacityBasis)))) {
                     warnings.push({
                         type: 'danger',
-                        message: `UXE3区間監査：未定義の容量基準「${spec.capacityBasis}」を検出しました（${childPath}）。`
+                        message: `UXE3区間監査：未定義または不正な容量基準を検出しました（${childPath}）。`
                     });
                 }
-                if (spec && typeof spec.validationState === 'string' && spec.validationState && !validationStateValues.has(spec.validationState)) {
+                if (spec && Object.prototype.hasOwnProperty.call(spec, 'validationState')
+                    && (typeof spec.validationState !== 'string'
+                        || (spec.validationState !== '' && !validationStateValues.has(spec.validationState)))) {
                     warnings.push({
                         type: 'danger',
-                        message: `UXE3区間監査：未定義の検証状態「${spec.validationState}」を検出しました（${childPath}）。`
+                        message: `UXE3区間監査：未定義または不正な検証状態を検出しました（${childPath}）。`
+                    });
+                }
+                if (spec && Object.prototype.hasOwnProperty.call(spec, 'sourceKey')
+                    && typeof spec.sourceKey !== 'string') {
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：資料キーの型が不正です（${childPath}）。`
                     });
                 }
                 if (child && typeof child === 'object') walk(child, childPath);
