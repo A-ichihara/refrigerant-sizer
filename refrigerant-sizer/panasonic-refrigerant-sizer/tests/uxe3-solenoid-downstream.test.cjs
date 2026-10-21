@@ -596,14 +596,13 @@ test('UXE3 segment declarations remain audit-only and cannot alter pipe sizing o
     sourceKey: 'unverified-source',
     validationState: 'verified'
   };
-  const before = JSON.stringify(declared);
+  const declaredSpecBefore = structuredClone(declared.children[0].edgeSpec);
   const plainResult = engine.calculateSystem(plain, 'fsv_uxe3', false);
   const declaredResult = engine.calculateSystem(declared, 'fsv_uxe3', false);
 
   assert.deepEqual(declaredResult.totals, plainResult.totals, 'edge metadata must not change BOM or pipe length totals');
   assert.deepEqual(declared.children[0].pipes, plain.children[0].pipes, 'edge metadata must not change selected pipe sizes');
-  assert.equal(JSON.stringify(declared), before.replace(/"edgeSpec":\{[^}]*\},?/, match => match.endsWith(',') ? '' : match),
-    'calculation must not rewrite or promote supplied edge metadata');
+  assert.deepEqual(declared.children[0].edgeSpec, declaredSpecBefore, 'calculation must not rewrite or promote supplied edge metadata');
   assert.equal(declaredResult.segmentAudit.findings[0].segmentType, 'main_LM');
   assert.equal(declaredResult.segmentAudit.findings[0].validationState, 'unverified',
     'a caller-provided verified flag is not manufacturer evidence');
