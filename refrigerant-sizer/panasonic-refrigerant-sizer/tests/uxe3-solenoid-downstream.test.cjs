@@ -460,3 +460,34 @@ test('UXE3 segment audit rejects an invalid root without modifying it', () => {
   assert.deepEqual(audit.summary, { totalEdges: 0, unclassified: 0, declared: 0 });
   assert.ok(audit.warnings.some(w => w.type === 'danger'));
 });
+
+
+test('UXE3 segment audit flags invalid lengths and unknown metadata values without mutating input', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root', type: 'outdoor', capacity: 45, children: [
+      {
+        id: 'negative-length', type: 'branch', length: -2,
+        edgeSpec: {
+          segmentType: 'main_LM',
+          capacityBasis: 'invented_basis',
+          validationState: 'manufacturer_verified_without_evidence'
+        },
+        children: []
+      },
+      { id: 'missing-length', type: 'solenoid_kit', children: [] }
+    ]
+  };
+  const before = JSON.stringify(tree);
+  const audit = engine.auditUxE3PipeSegments(tree);
+
+  assert.equal(JSON.stringify(tree), before, 'audit must not mutate source tree');
+  assert.equal(audit.findings[0].lengthState, 'invalid_negative');
+  assert.equal(audit.findings[0].lengthM, -2);
+  assert.equal(audit.findings[0].capacityBasis, null);
+  assert.equal(audit.findings[0].validationState, 'unverified');
+  assert.equal(audit.findings[1].lengthState, 'missing_or_nonfinite');
+  assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('配管長が未入力・非数値、または負数')));
+  assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('未定義の容量基準')));
+  assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('未定義の検証状態')));
+});
