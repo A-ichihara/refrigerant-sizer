@@ -351,8 +351,17 @@ class RefrigerantSizerEngine {
         }
         this.processNodeSizing(rootNode, seriesId, effectiveManualSizeUp, false, rootNode.capacity, totals, warnings);
 
+        // UXE3区間監査を計算結果へ接続し、未分類・不正な辺をUIにも明示する。
+        // 監査は読み取り専用で、管径計算やBOMの値は変更しない。
+        let segmentAudit = null;
+        if (seriesId === 'fsv_uxe3') {
+            segmentAudit = this.auditUxE3PipeSegments(rootNode);
+            warnings.push(...segmentAudit.warnings);
+        }
+
         return {
             tree: rootNode,
+            segmentAudit,
             warnings: warnings,
             totals: totals
         };
