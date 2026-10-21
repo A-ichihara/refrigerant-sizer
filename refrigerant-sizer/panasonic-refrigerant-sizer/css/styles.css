@@ -841,3 +841,28 @@ footer {
         height: 600px;
     }
 }
+
+/* UXE3: 未検証の管径を確定値と誤認させないための明示ラベル */
+.pipe-size-unverified {
+    display: block;
+    margin: 0 0 0.45rem;
+    padding: 0.3rem 0.45rem;
+    border: 1px solid rgba(245, 158, 11, 0.55);
+    border-radius: 4px;
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.45;
+    white-space: normal;
+}
+
+@media print {
+    .pipe-size-unverified {
+        border: 1px solid #92400e !important;
+        background: #fef3c7 !important;
+        color: #78350f !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
