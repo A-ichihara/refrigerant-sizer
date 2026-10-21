@@ -322,3 +322,14 @@ UXE3区間監査で表示するメッセージには、保存済み系統デー�
 
 この修正は警告文の表示安全性を改善するものであり、UXE3の管径選定がメーカー公式仕様に適合したことを意味しない。
 
+## 2026-10-22 追記：警告表示の回帰テスト完了
+
+警告文のHTMLエスケープと、循環参照を含む警告オブジェクトの例外防止について、専用テスト `panasonic-refrigerant-sizer/tests/ui-warning-rendering.test.cjs` を追加し、GHP回帰ワークフローに組み込んだ。
+
+- テスト追加コミット：`fe4c22509e17`
+- ワークフロー組み込みコミット：`884b16cd5594`
+- CI：[GitHub Actions run 39662501826](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39662501826) — `completed / success`
+- 確認結果：GHP安全性、GHPサイズアップUI、Carrierエンジン、GHP配管区間、Panasonic UXE3電磁弁下流、Panasonic警告表示の全テスト工程が成功。
+
+対処方法モーダル側は `textContent` で警告文を表示していることも確認した。今回の変更はUI表示の安全性と回帰防止を対象とし、メーカー配管表との照合や管径計算の適合性を保証するものではない。
+
