@@ -457,3 +457,14 @@ GitHub Actionsでは両コミットとも成功を確認済み。
 - 不正なルートには危険警告を返す。区間監査の追加によって既存のUXE3管径ロジックを「検証済み」に昇格させない。
 
 関連コミット：9eead9968dcf（監査メソッド）、f86837df1e56（テスト追加）。2026-10-22のGitHub Actions履歴を確認し、両コミットに対応する実行は completed / success。監査メソッドとテスト追加のCIは成功済み。ただし、これは非破壊監査機能の回帰テスト成功を示すものであり、メーカー公式の区間分類・管径適合を証明するものではない。
+## 2026-10-22 追加監査：区間メタデータと配管長の入力検証
+
+区間監査を拡張し、辺ごとの配管長が未入力・非数値・負数の場合に危険警告を返すようにした。また、`edgeSpec.capacityBasis` と `edgeSpec.validationState` は許可した値だけを監査結果に採用し、未知の値は安全側に倒して未設定／`unverified` として扱い、警告する。
+
+- `lengthState`: `valid_nonnegative` / `invalid_negative` / `missing_or_nonfinite`
+- 容量基準の許容値: `outdoor_total` / `downstream_sum` / `indoor_model` / `not_resolved`
+- 検証状態の許容値: `verified` / `unverified` / `unsupported`
+- `verified` の入力があっても、監査処理自体はメーカー根拠を検証しない。文字列だけで検証済みに昇格させることはしない。
+- UIは現在 `panasonic_sizer_system_tree` にツリー全体をJSON保存・復元するため、将来 `edgeSpec` を追加した場合も通常の保存形式で保持できる見込み。ただし、現時点ではUIからの区間編集機能はなく、既存データへの自動付与も行わない。
+
+関連コミット：`7f0f7ad42f84`（監査入力の検証）、`22bf35395daf`（テスト追加）。CI結果はGitHub Actionsで確認後に記録する。
