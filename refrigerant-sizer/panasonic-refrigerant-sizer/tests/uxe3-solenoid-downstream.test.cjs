@@ -515,6 +515,23 @@ test('UXE3 segment audit reports malformed child entries and distinguishes cycle
   assert.equal(audit.findings.length, 3);
 });
 
+test('UXE3 segment audit warns when a node children property is not an array', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root',
+    type: 'outdoor',
+    children: { id: 'not-an-array' }
+  };
+  const before = JSON.stringify(tree);
+  const audit = engine.auditUxE3PipeSegments(tree);
+
+  assert.equal(JSON.stringify(tree), before, 'audit must not mutate source tree');
+  assert.equal(audit.summary.totalEdges, 0);
+  assert.ok(audit.warnings.some(w =>
+    w.type === 'danger' && w.message.includes('children が配列ではありません')
+  ));
+});
+
 test('UXE3 segment audit detects a shared child object separately from a cycle', () => {
   const engine = new RefrigerantSizerEngine();
   const shared = { id: 'shared', type: 'branch', length: 3, children: [] };
