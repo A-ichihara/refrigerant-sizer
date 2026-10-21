@@ -205,10 +205,15 @@ class RefrigerantSizerUI {
 
         // 配管結果バッジ
         let pipeHtml = '';
+        // UXE3の管径表は公式区間との対応照合が未完了。警告文だけでなく、各ノードの管径にも未検証表示を付ける。
+        const unverifiedPipeLabel = this.activeSeriesId === 'fsv_uxe3'
+            ? '<div class="pipe-size-unverified" role="note">管径参考値・未検証（公式区間照合未完了）</div>'
+            : '';
         if (node.type !== 'outdoor') {
             if (node.pipes && node.pipes.type === '3pipe') {
                 pipeHtml = `
                     <div class="pipe-result-badge">
+                        ${unverifiedPipeLabel}
                         <div>液管: φ${node.pipes.liquid}</div>
                         <div style="color:var(--color-warning);">吐出ガス: φ${node.pipes.highGas}</div>
                         <div style="color:var(--color-secondary);">吸入ガス: φ${node.pipes.lowGas}</div>
@@ -217,6 +222,7 @@ class RefrigerantSizerUI {
             } else if (node.pipes && node.pipes.type === '2pipe') {
                 pipeHtml = `
                     <div class="pipe-result-badge">
+                        ${unverifiedPipeLabel}
                         <div>液管: φ${node.pipes.liquid}</div>
                         <div>ガス管: φ${node.pipes.gas}</div>
                     </div>
@@ -230,6 +236,7 @@ class RefrigerantSizerUI {
                 const sizes = this.engine.selectThreePipeSize(node.capacity, this.activeSeriesId === 'fsv_uxe3' ? false : this.enableManualSizeUp);
                 pipeHtml = `
                     <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        ${unverifiedPipeLabel}
                         <div>液管: φ${sizes.liquid} (主管)</div>
                         <div style="color:var(--color-warning);">吐出ガス: φ${sizes.dischargeGas} (主管)</div>
                         <div style="color:var(--color-secondary);">吸入ガス: φ${sizes.suctionGas} (主管)</div>
