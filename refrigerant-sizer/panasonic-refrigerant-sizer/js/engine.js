@@ -404,23 +404,50 @@ class RefrigerantSizerEngine {
                     ? spec.segmentType
                     : null;
                 const validDeclaredType = Boolean(declaredType && allowedSegmentTypes.has(declaredType));
+                const lengthIsFinite = Boolean(child && Number.isFinite(child.length));
+                const lengthIsValid = lengthIsFinite && child.length >= 0;
+                const capacityBasisValues = new Set(['outdoor_total', 'downstream_sum', 'indoor_model', 'not_resolved']);
+                const validationStateValues = new Set(['verified', 'unverified', 'unsupported']);
+                const capacityBasis = spec && typeof spec.capacityBasis === 'string' && capacityBasisValues.has(spec.capacityBasis)
+                    ? spec.capacityBasis
+                    : null;
+                const declaredValidationState = spec && typeof spec.validationState === 'string' && validationStateValues.has(spec.validationState)
+                    ? spec.validationState
+                    : 'unverified';
                 findings.push({
                     path: childPath,
                     parentId: parent.id || null,
                     parentType: parent.type || null,
                     childId: child && child.id || null,
                     childType: child && child.type || null,
-                    lengthM: child && Number.isFinite(child.length) ? child.length : null,
+                    lengthM: lengthIsFinite ? child.length : null,
+                    lengthState: !lengthIsFinite ? 'missing_or_nonfinite' : (lengthIsValid ? 'valid_nonnegative' : 'invalid_negative'),
                     segmentType: validDeclaredType ? declaredType : 'unclassified',
                     declarationState: validDeclaredType && declaredType !== 'unclassified'
                         ? 'declared_unverified'
                         : 'unclassified',
-                    capacityBasis: spec && typeof spec.capacityBasis === 'string' ? spec.capacityBasis : null,
+                    capacityBasis,
                     sourceKey: spec && typeof spec.sourceKey === 'string' ? spec.sourceKey : null,
-                    validationState: spec && typeof spec.validationState === 'string'
-                        ? spec.validationState
-                        : 'unverified'
+                    validationState: declaredValidationState
                 });
+                if (!lengthIsValid) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：配管長が未入力・非数値、または負数です（${childPath}）。`
+                    });
+                }
+                if (spec && typeof spec.capacityBasis === 'string' && spec.capacityBasis && !capacityBasis) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：未定義の容量基準「${spec.capacityBasis}」を検出しました（${childPath}）。`
+                    });
+                }
+                if (spec && typeof spec.validationState === 'string' && spec.validationState && !validationStateValues.has(spec.validationState)) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：未定義の検証状態「${spec.validationState}」を検出しました（${childPath}）。`
+                    });
+                }
                 if (child && typeof child === 'object') walk(child, childPath);
             });
         };
