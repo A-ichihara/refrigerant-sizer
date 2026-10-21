@@ -384,19 +384,50 @@ class RefrigerantSizerEngine {
             'unclassified'
         ]);
         const visited = new WeakSet();
+        const activePath = new WeakSet();
         const walk = (parent, path) => {
             if (!parent || typeof parent !== 'object') return;
+            if (activePath.has(parent)) {
+                warnings.push({
+                    type: 'danger',
+                    message: `循環参照を検出したため、その接続先の監査を停止しました（${path}）。`
+                });
+                return;
+            }
             if (visited.has(parent)) {
                 warnings.push({
                     type: 'danger',
-                    message: `共有ノードまたは循環参照を検出したため、区間監査を停止しました（${path}）。`
+                    message: `共有ノードを検出しました。複数の親から参照されているため、配管ツリーの一意性を確認してください（${path}）。`
                 });
                 return;
             }
             visited.add(parent);
+            activePath.add(parent);
             const children = Array.isArray(parent.children) ? parent.children : [];
             children.forEach((child, index) => {
-                const childPath = `${path}/${child && child.id ? child.id : `${child && child.type ? child.type : 'node'}[${index}]`}`;
+                if (!child || typeof child !== 'object') {
+                    const childPath = `${path}/invalid-child[${index}]`;
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：子ノードがオブジェクトではありません（${childPath}）。`
+                    });
+                    findings.push({
+                        path: childPath,
+                        parentId: parent.id || null,
+                        parentType: parent.type || null,
+                        childId: null,
+                        childType: null,
+                        lengthM: null,
+                        lengthState: 'missing_or_nonfinite',
+                        segmentType: 'unclassified',
+                        declarationState: 'unclassified',
+                        capacityBasis: null,
+                        sourceKey: null,
+                        validationState: 'unverified'
+                    });
+                    return;
+                }
+                const childPath = `${path}/${child.id ? child.id : `${child.type ? child.type : 'node'}[${index}]`}`;
                 const spec = child && child.edgeSpec && typeof child.edgeSpec === 'object'
                     ? child.edgeSpec
                     : null;
@@ -450,6 +481,7 @@ class RefrigerantSizerEngine {
                 }
                 if (child && typeof child === 'object') walk(child, childPath);
             });
+            activePath.delete(parent);
         };
         walk(rootNode, rootNode.id || 'root');
 
