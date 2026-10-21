@@ -270,3 +270,13 @@ test('UXE3 marks displayed pipe diameters as unverified on indoor and outdoor no
   assert.match(uiSource, /管径参考値・未検証（公式区間照合未完了）/);
   assert.equal((uiSource.match(/\$\{unverifiedPipeLabel\}/g) || []).length, 3);
 });
+
+test('UXE3 unverified pipe label remains visually distinct on screen and in print', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const css = fs.readFileSync(path.join(__dirname, '../css/styles.css'), 'utf8');
+  assert.match(css, /\.pipe-size-unverified\s*\{/);
+  assert.match(css, /border: 1px solid rgba\(245, 158, 11, 0\.55\)/);
+  assert.match(css, /@media print\s*\{[\s\S]*?\.pipe-size-unverified\s*\{/);
+  assert.match(css, /color: #78350f !important/);
+});
