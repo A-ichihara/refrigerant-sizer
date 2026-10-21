@@ -261,3 +261,12 @@ test('UXE3 pipe reference table keeps its non-official-data disclaimer', () => {
   assert.match(uiSource, /メーカーの正式設計表そのものではありません/);
   assert.match(uiSource, /実設計では該当機種の最新技術資料との照合が必要です/);
 });
+
+test('UXE3 marks displayed pipe diameters as unverified on indoor and outdoor nodes', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const uiSource = fs.readFileSync(path.join(__dirname, '../js/ui.js'), 'utf8');
+  assert.match(uiSource, /const unverifiedPipeLabel = this\.activeSeriesId === 'fsv_uxe3'/);
+  assert.match(uiSource, /管径参考値・未検証（公式区間照合未完了）/);
+  assert.equal((uiSource.match(/\$\{unverifiedPipeLabel\}/g) || []).length, 3);
+});
