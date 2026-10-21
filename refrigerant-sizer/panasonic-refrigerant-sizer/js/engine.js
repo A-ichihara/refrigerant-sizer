@@ -296,6 +296,18 @@ class RefrigerantSizerEngine {
                 message: '【UXE3基準配管径未検証】現行の3管式基準径は、メーカー公式の区間別主管表とアプリ内配管区間の対応確認が未完了です。設計確定値として使用せず、対象機種の公式配管設計資料またはP-SPECで照合してください。'
             });
         }
+
+        // UXE3は現行マスターで8～20HPのみを扱う。範囲外を近似サイズで黙って計算しない。
+        if (seriesId === 'fsv_uxe3') {
+            const supportedCapacities = this.SERIES_DATABASE.fsv_uxe3.outdoorCapacities.map(item => item.kw);
+            const capacitySupported = supportedCapacities.some(kw => Math.abs(kw - rootNode.capacity) < 0.001);
+            if (!capacitySupported) {
+                warnings.push({
+                    type: 'danger',
+                    message: `【UXE3対応容量外】室外機容量 ${rootNode.capacity}kW は現行アプリの対応マスター（8～20HP）に登録されていません。表示される管径・型式・BOMを設計値として使用せず、対象機種の公式資料またはP-SPECで選定してください。`
+                });
+            }
+        }
         const totals = {
             liquidPipes: {},
             gasPipes: {},
