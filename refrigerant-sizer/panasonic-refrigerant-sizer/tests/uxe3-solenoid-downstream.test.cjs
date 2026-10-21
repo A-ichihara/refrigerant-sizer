@@ -348,3 +348,31 @@ test('UXE3 rejects finite outdoor capacities not present in its official-model m
     assert.ok(result.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
   }
 });
+
+
+test('UXE3 3-pipe upstream branches currently use outdoor capacity, not branch downstream capacity (characterization)', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = { type: 'outdoor', name: 'Outdoor 16HP', capacity: 45.0, children: [
+    { type: 'branch', name: 'First branch', length: 4, children: [
+      { type: 'solenoid_kit', name: 'Kit A', length: 6, children: [
+        { type: 'indoor', name: 'Room A', capacity: 5.6, length: 2, children: [] }
+      ] },
+      { type: 'solenoid_kit', name: 'Kit B', length: 8, children: [
+        { type: 'indoor', name: 'Room B', capacity: 5.6, length: 3, children: [] }
+      ] }
+    ] }
+  ] };
+  const result = engine.calculateSystem(tree, 'fsv_uxe3');
+  const branch = tree.children[0];
+  assert.equal(branch.capacitySum, 11.2);
+  assert.deepEqual(branch.children.map(n => n.capacitySum), [5.6, 5.6]);
+  const currentReference = engine.selectThreePipeSize(45.0);
+  for (const segment of [branch, ...branch.children]) {
+    assert.deepEqual(segment.pipes, {
+      type: '3pipe', liquid: currentReference.liquid,
+      highGas: currentReference.dischargeGas, lowGas: currentReference.suctionGas
+    });
+  }
+  assert.ok(result.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
+  // This test documents the current implementation; it does NOT validate official segment diameters.
+});
