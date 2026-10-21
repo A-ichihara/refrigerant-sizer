@@ -655,5 +655,9 @@ test('UXE3 segment audit rejects unknown segment labels and malformed edge metad
   assert.equal(audit.findings[2].capacityBasis, null);
   assert.equal(audit.findings[2].sourceKey, null);
   assert.equal(audit.findings[2].validationState, 'unverified');
+  assert.ok(audit.warnings.some(w => w.message.includes('未定義または不正な区間種別')));
+  assert.ok(audit.warnings.some(w => w.message.includes('未定義または不正な容量基準')));
+  assert.ok(audit.warnings.some(w => w.message.includes('未定義または不正な検証状態')));
+  assert.ok(audit.warnings.some(w => w.message.includes('資料キーの型が不正')));
   assert.ok(audit.warnings.some(w => w.message.includes('区間未確定')));
 });
