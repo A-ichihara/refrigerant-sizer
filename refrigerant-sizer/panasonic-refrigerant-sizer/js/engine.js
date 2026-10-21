@@ -358,6 +358,96 @@ class RefrigerantSizerEngine {
         };
     }
 
+    /**
+     * UXE3配管ツリーの接続辺を、データ変更なしで監査する。
+     * 親子関係やノード種別だけからメーカー区間を推測しない。
+     * edgeSpec.segmentType が明示されていても、公式資料の検証済みとは扱わない。
+     */
+    auditUxE3PipeSegments(rootNode) {
+        const findings = [];
+        const warnings = [];
+        if (!rootNode || typeof rootNode !== 'object' || rootNode.type !== 'outdoor') {
+            return {
+                seriesId: 'fsv_uxe3',
+                findings,
+                summary: { totalEdges: 0, unclassified: 0, declared: 0 },
+                warnings: [{ type: 'danger', message: 'UXE3区間監査には outdoor をルートとする有効なツリーが必要です。' }]
+            };
+        }
+
+        const allowedSegmentTypes = new Set([
+            'main_LM',
+            'branch_main_LC_LH',
+            'outdoor_interconnect_LO',
+            'branch_to_solenoid',
+            'solenoid_to_indoor',
+            'unclassified'
+        ]);
+        const visited = new WeakSet();
+        const walk = (parent, path) => {
+            if (!parent || typeof parent !== 'object') return;
+            if (visited.has(parent)) {
+                warnings.push({
+                    type: 'danger',
+                    message: `共有ノードまたは循環参照を検出したため、区間監査を停止しました（${path}）。`
+                });
+                return;
+            }
+            visited.add(parent);
+            const children = Array.isArray(parent.children) ? parent.children : [];
+            children.forEach((child, index) => {
+                const childPath = `${path}/${child && child.id ? child.id : `${child && child.type ? child.type : 'node'}[${index}]`}`;
+                const spec = child && child.edgeSpec && typeof child.edgeSpec === 'object'
+                    ? child.edgeSpec
+                    : null;
+                const declaredType = spec && typeof spec.segmentType === 'string'
+                    ? spec.segmentType
+                    : null;
+                const validDeclaredType = Boolean(declaredType && allowedSegmentTypes.has(declaredType));
+                findings.push({
+                    path: childPath,
+                    parentId: parent.id || null,
+                    parentType: parent.type || null,
+                    childId: child && child.id || null,
+                    childType: child && child.type || null,
+                    lengthM: child && Number.isFinite(child.length) ? child.length : null,
+                    segmentType: validDeclaredType ? declaredType : 'unclassified',
+                    declarationState: validDeclaredType && declaredType !== 'unclassified'
+                        ? 'declared_unverified'
+                        : 'unclassified',
+                    capacityBasis: spec && typeof spec.capacityBasis === 'string' ? spec.capacityBasis : null,
+                    sourceKey: spec && typeof spec.sourceKey === 'string' ? spec.sourceKey : null,
+                    validationState: spec && typeof spec.validationState === 'string'
+                        ? spec.validationState
+                        : 'unverified'
+                });
+                if (child && typeof child === 'object') walk(child, childPath);
+            });
+        };
+        walk(rootNode, rootNode.id || 'root');
+
+        const declared = findings.filter(item => item.declarationState === 'declared_unverified').length;
+        const unclassified = findings.length - declared;
+        if (unclassified > 0) {
+            warnings.push({
+                type: 'danger',
+                message: `UXE3区間監査：${unclassified}本の接続辺は区間未確定です。ノード構造だけから公式区間や管径を推定していません。`
+            });
+        }
+        if (declared > 0) {
+            warnings.push({
+                type: 'danger',
+                message: `UXE3区間監査：${declared}本の接続辺に区間ラベルがありますが、監査結果はメーカー仕様への適合確認を意味しません。`
+            });
+        }
+        return {
+            seriesId: 'fsv_uxe3',
+            findings,
+            summary: { totalEdges: findings.length, unclassified, declared },
+            warnings
+        };
+    }
+
     // 旧UXE3 18HPデータのみ、公式50.4kW定格に合わせる。別シリーズや他の容量は変更しない。
     migrateLegacyOutdoorCapacity(rootNode, seriesId) {
         if (seriesId !== 'fsv_uxe3' || !rootNode || rootNode.type !== 'outdoor') return false;
