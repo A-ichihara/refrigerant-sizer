@@ -422,7 +422,6 @@ test('UXE3 calculation exposes read-only segment audit and includes its warnings
       }]
     }]
   };
-  const before = JSON.stringify(tree);
   const result = engine.calculateSystem(tree, 'fsv_uxe3', false);
 
   assert.ok(result.segmentAudit);
