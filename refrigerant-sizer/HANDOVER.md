@@ -795,3 +795,12 @@ UXE3のメーカー公式基準管径・長配管増径は引き続き未確定�
 - CI成功：監査ロジック [39724843251](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724843251)、監査回帰テスト [39724847762](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724847762)、UI [39724748781](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724748781)、UI回帰テスト [39724751927](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724751927)。
 - 関連コミット：`04212957f0f1db7d7784bddcacc1672cd4cdc932`、`fc256789b788a850075708e204a35c5dcb9bfc12`、`958c8c69add4e68638c86500d75bcedb323d8bd2`、`d981ffdbd26a4fab51fde8828d34cf373ce291e9`。
 - これらは監査メタデータの異常値処理であり、UXE3の基準管径・公式区間対応・長配管自動増径の検証完了を意味しない。管径選定・BOMロジックは変更していない。
+
+
+## 2026-10-22 追記：実レンダリング回帰テストとPanasonic公式表の画像確認
+
+- UI回帰テストをソースコードの正規表現確認から、実際に `renderPropertyEditor()` を呼び出してHTML生成結果を確認するテストへ強化。未知文字列・数値型ラベル・`edgeSpec: null`・配列形式の4ケースで「未分類（指定なし）」が選択されることを検証する。
+- テストコミット `012fab0648929fcb89f16a040ea59b1bb70d6169`、GitHub Actions [39725895705](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39725895705)：success。
+- Panasonic公式 [PA-P900UXE3 据付工事説明書PDF](https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P900UXE3&itemID=t000100040329&volumeName=00001) の印刷ページ -6-（表4・表5）および -8-（表6）を画像で確認し、各表の区分・行列構造・注記を `panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md` に記録。
+- 記録コミット `6d3523e5741e80905601b588043a02f833b19f71`、CI [39728409241](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39728409241)：success。表4・表5追記コミット `d4e1aaf455532b3b71c5d2f0559d144551c11d17`、CI [39728447066](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39728447066)：success。
+- 重要：画像確認は表の見出し・構造・注記の確認であり、結合セルを含む全径値の転記、全対象型式への適用確認、表とアプリの物理配管辺の対応付けは未完了。現行 `selectThreePipeSize()` を公式表から正当化できたわけではない。管径選定、BOM、長配管自動増径、手動サイズアップは変更せず、UXE3基準径未検証警告と手動サイズアップ停止を維持する。
