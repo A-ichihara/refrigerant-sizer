@@ -175,3 +175,36 @@ test('UXE3 segment selector is inert for other series and outdoor nodes', () => 
     }
   }
 });
+
+test('UXE3 tree repair preserves edgeSpec declarations on existing nodes', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  ui.activeSeriesId = 'fsv_uxe3';
+  ui.engine = {
+    SERIES_DATABASE: {
+      fsv_uxe3: { outdoorCapacities: [{ kw: 50 }] }
+    }
+  };
+  const edgeSpec = {
+    version: 1,
+    segmentType: 'branch_main_LC_LH',
+    capacityBasis: 'not_resolved',
+    sourceKey: 'panasonic-manual-pending-review',
+    validationState: 'unverified'
+  };
+  const tree = {
+    id: 'root',
+    type: 'outdoor',
+    capacity: 50,
+    children: [{
+      id: 'branch-1',
+      type: 'branch',
+      edgeSpec,
+      children: []
+    }]
+  };
+
+  ui.validateAndRepairTreeForSeries(tree);
+
+  assert.deepEqual(tree.children[0].edgeSpec, edgeSpec);
+  assert.equal(tree.children[0].edgeSpec.validationState, 'unverified');
+});
