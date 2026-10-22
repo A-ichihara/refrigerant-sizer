@@ -583,3 +583,18 @@ GitHub Actions 実行 [39701788246](https://github.com/A-ichihara/refrigerant-si
 | 表示 | 区間一覧は折りたたみ表示 | 件数が多い場合の可読性、区間と系統図の対応、実ブラウザでの確認 |
 
 **推奨する最小の次工程**：UIに選択操作を追加する前に、保存／再読込時の `edgeSpec` 非破壊性と、他シリーズでは区間監査UIを表示しないことをテストで固定する。区間指定ができるようになっても管径・BOMに即時反映させず、監査専用の宣言として段階導入する。
+
+## 2026-10-22 UI区間指定の実装状況：区間変更時の容量基準リセット
+
+UXE3の非室外機ノードを対象に、プロパティ編集画面から区間種別を宣言できるセレクターを追加した。対象区分は `main_LM`、`branch_main_LC_LH`、`outdoor_interconnect_LO`、`branch_to_solenoid`、`solenoid_to_indoor`、`unclassified`。この入力は**監査用の宣言**であり、管径選定・長さ集計・BOMには接続していない。
+
+区間種別を変更した場合は、以前の区間に対して入力されていた `capacityBasis` を `not_resolved` に戻し、`validationState` を `unverified` に戻す。これにより、例えば `branch_main_LC_LH` から `main_LM` へ切り替えた際に、以前の容量基準を新しい区間へ誤って引き継ぐことを防ぐ。その他のメタデータ（資料キー等）は保持する。無効な区間値は受け付けず、UXE3以外のシリーズと室外機ノードにはこの編集機能を適用しない。
+
+### 回帰テスト・CI
+
+- 実装：[`26ee24b`](https://github.com/A-ichihara/refrigerant-sizer/commit/26ee24b768f25042e5c634261a24e0ea6daf3669)
+- テスト：[`3cc08bf`](https://github.com/A-ichihara/refrigerant-sizer/commit/3cc08bf3c055263cc5db863a7d0df22490de047d)
+- [実装CI 39706950886](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39706950886)：completed / success
+- [テストCI 39706957063](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39706957063)：completed / success
+
+受入範囲は、UIの宣言値更新・区間変更時の容量基準リセット・検証状態のリセット・関連属性の保持・無効値の拒否、および対象シリーズ／ノードの制限に関する回帰テストである。CI成功はメーカー資料との適合を意味しない。公式表の型式適用、区間と容量基準の対応、管径選定およびBOM連動は引き続き未検証であり、正式径ロジックの変更は資料照合ゲートを通過するまで行わない。
