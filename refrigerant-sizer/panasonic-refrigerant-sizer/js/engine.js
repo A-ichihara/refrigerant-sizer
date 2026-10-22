@@ -445,9 +445,16 @@ class RefrigerantSizerEngine {
                     return;
                 }
                 const childPath = `${path}/${child.id ? child.id : `${child.type ? child.type : 'node'}[${index}]`}`;
-                const spec = child && child.edgeSpec && typeof child.edgeSpec === 'object'
-                    ? child.edgeSpec
-                    : null;
+                const hasEdgeSpec = Object.prototype.hasOwnProperty.call(child, 'edgeSpec');
+                const isValidEdgeSpec = hasEdgeSpec && child.edgeSpec !== null
+                    && typeof child.edgeSpec === 'object' && !Array.isArray(child.edgeSpec);
+                const spec = isValidEdgeSpec ? child.edgeSpec : null;
+                if (hasEdgeSpec && !isValidEdgeSpec) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：edgeSpec がオブジェクト形式ではありません。区間情報を未分類として扱います（${childPath}）。`
+                    });
+                }
                 const declaredType = spec && typeof spec.segmentType === 'string'
                     ? spec.segmentType
                     : null;
