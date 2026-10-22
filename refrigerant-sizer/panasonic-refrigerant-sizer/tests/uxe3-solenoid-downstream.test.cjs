@@ -522,7 +522,7 @@ test('UXE3 segment audit flags invalid lengths and unknown metadata values witho
   assert.equal(audit.findings[1].lengthState, 'missing_or_nonfinite');
   assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('配管長が未入力・非数値、または負数')));
   assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('未定義または不正な容量基準')));
-  assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('未定義の検証状態')));
+  assert.ok(audit.warnings.some(w => w.type === 'danger' && w.message.includes('未定義または不正な検証状態')));
 });
 
 
