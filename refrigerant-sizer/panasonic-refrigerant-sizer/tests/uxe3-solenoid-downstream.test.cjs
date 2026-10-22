@@ -661,3 +661,57 @@ test('UXE3 segment audit rejects unknown segment labels and malformed edge metad
   assert.ok(audit.warnings.some(w => w.message.includes('資料キーの型が不正')));
   assert.ok(audit.warnings.some(w => w.message.includes('区間未確定')));
 });
+
+
+test('UXE3 edge declarations survive JSON save and reload without changing sizing or BOM', () => {
+  const engine = new RefrigerantSizerEngine();
+  const original = {
+    id: 'root', type: 'outdoor', capacity: 28, length: 0, children: [{
+      id: 'branch', type: 'branch', length: 12,
+      edgeSpec: {
+        version: 1,
+        segmentType: 'branch_main_LC_LH',
+        capacityBasis: 'downstream_sum',
+        sourceKey: 'pending-official-check',
+        validationState: 'verified'
+      },
+      children: [{
+        id: 'kit', type: 'solenoid_kit', length: 5, children: [{
+          id: 'indoor', type: 'indoor', capacity: 5.6, length: 8, children: []
+        }]
+      }]
+    }]
+  };
+  const saved = JSON.stringify(original);
+  const reloaded = JSON.parse(saved);
+  const baseline = JSON.parse(saved);
+  delete baseline.children[0].edgeSpec;
+
+  const result = engine.calculateSystem(reloaded, 'fsv_uxe3', false);
+  const baselineResult = engine.calculateSystem(baseline, 'fsv_uxe3', false);
+
+  assert.deepEqual(reloaded.children[0].edgeSpec, original.children[0].edgeSpec);
+  assert.equal(result.segmentAudit.findings[0].segmentType, 'branch_main_LC_LH');
+  assert.equal(result.segmentAudit.findings[0].declarationState, 'declared_unverified');
+  assert.equal(result.segmentAudit.findings[0].validationState, 'unverified');
+  assert.ok(result.warnings.some(w => w.message.includes('verified')));
+  assert.deepEqual(result.totals, baselineResult.totals);
+  assert.deepEqual(reloaded.children[0].pipes, baseline.children[0].pipes);
+  assert.equal(reloaded.children[0].length, 12);
+});
+
+test('UXE3 legacy JSON without edgeSpec stays unclassified after reload', () => {
+  const engine = new RefrigerantSizerEngine();
+  const legacy = {
+    id: 'root', type: 'outdoor', capacity: 28, length: 0, children: [{
+      id: 'kit', type: 'solenoid_kit', length: 10, children: [{
+        id: 'indoor', type: 'indoor', capacity: 5.6, length: 8, children: []
+      }]
+    }]
+  };
+  const reloaded = JSON.parse(JSON.stringify(legacy));
+  const result = engine.calculateSystem(reloaded, 'fsv_uxe3', false);
+  assert.ok(result.segmentAudit.findings.every(edge => edge.segmentType === 'unclassified'));
+  assert.equal(Object.hasOwn(reloaded.children[0], 'edgeSpec'), false);
+  assert.equal(Object.hasOwn(reloaded.children[0].children[0], 'edgeSpec'), false);
+});
