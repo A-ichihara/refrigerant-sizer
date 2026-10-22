@@ -534,6 +534,31 @@ class RefrigerantSizerUI {
             `;
         }
 
+        if (this.activeSeriesId === 'fsv_uxe3' && node.type !== 'outdoor') {
+            // 選択した区間は監査専用。公式資料との照合や管径の自動変更は行わない。
+            const segmentOptions = [
+                ['unclassified', '未分類（指定なし）'],
+                ['main_LM', '主管 LM'],
+                ['branch_main_LC_LH', '分岐後主管 LC～LH'],
+                ['outdoor_interconnect_LO', '室外接続主配管 LO'],
+                ['branch_to_solenoid', '分岐管～電磁弁キット'],
+                ['solenoid_to_indoor', '電磁弁キット～室内機']
+            ];
+            const declared = node.edgeSpec && typeof node.edgeSpec === 'object'
+                && typeof node.edgeSpec.segmentType === 'string'
+                ? node.edgeSpec.segmentType : 'unclassified';
+            editorHtml += `<div class="form-group">
+                <label>UXE3 配管区間（監査用・メーカー未検証）</label>
+                <select class="form-select" id="edit-uxe3-segment">`;
+            segmentOptions.forEach(([value, label]) => {
+                editorHtml += `<option value="${value}" ${declared === value ? 'selected' : ''}>${label}</option>`;
+            });
+            editorHtml += `</select>
+                <div style="font-size:0.75rem;color:var(--color-secondary);margin-top:4px;">
+                    選択は公式確認を意味せず、管径・配管長・BOMに影響しません。
+                </div></div>`;
+        }
+
         editorHtml += `<div style="display:flex; flex-direction:column; gap:8px; margin-top:1.25rem; border-top:1px solid var(--border-color); padding-top:1rem;">`;
 
         if (node.type === 'outdoor' || node.type === 'branch' || node.type === 'solenoid_kit') {
@@ -586,6 +611,26 @@ class RefrigerantSizerUI {
         if (editLen) {
             editLen.addEventListener('change', (e) => {
                 node.length = Math.max(0, parseFloat(e.target.value) || 0);
+                this.update();
+            });
+        }
+
+        const editUxE3Segment = document.getElementById('edit-uxe3-segment');
+        if (editUxE3Segment && this.activeSeriesId === 'fsv_uxe3' && node.type !== 'outdoor') {
+            editUxE3Segment.addEventListener('change', (e) => {
+                const allowed = new Set([
+                    'unclassified', 'main_LM', 'branch_main_LC_LH',
+                    'outdoor_interconnect_LO', 'branch_to_solenoid', 'solenoid_to_indoor'
+                ]);
+                const value = e.target.value;
+                if (!allowed.has(value)) return;
+                const oldSpec = node.edgeSpec && typeof node.edgeSpec === 'object'
+                    && !Array.isArray(node.edgeSpec) ? node.edgeSpec : {};
+                node.edgeSpec = {
+                    ...oldSpec,
+                    segmentType: value,
+                    validationState: 'unverified'
+                };
                 this.update();
             });
         }
