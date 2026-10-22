@@ -1394,6 +1394,25 @@ class RefrigerantSizerUI {
         content.appendChild(description);
         card.appendChild(content);
         this.warningPanel.prepend(card);
+
+        // 個別区間は文字列として表示し、インポートしたIDをHTMLとして解釈しない。
+        if (Array.isArray(audit.findings) && audit.findings.length > 0) {
+            const details = document.createElement('details');
+            const heading = document.createElement('summary');
+            heading.textContent = '配管区間の監査一覧を表示（メーカー未検証）';
+            details.appendChild(heading);
+            const list = document.createElement('ul');
+            audit.findings.forEach((edge, index) => {
+                const item = document.createElement('li');
+                const path = typeof edge?.path === 'string' ? edge.path : `区間${index + 1}`;
+                const segment = typeof edge?.segmentType === 'string' ? edge.segmentType : 'unclassified';
+                const state = edge?.declarationState === 'declared_unverified' ? '宣言あり・未検証' : '未分類';
+                item.textContent = `${path}：${segment}（${state}）`;
+                list.appendChild(item);
+            });
+            details.appendChild(list);
+            this.warningPanel.appendChild(details);
+        }
     }
 
     findNodeById(node, id) {
