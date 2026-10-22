@@ -118,3 +118,59 @@ test('renderSegmentAuditSummary lists individual edges as text without HTML inje
     global.document = originalDocument;
   }
 });
+
+
+test('UXE3 segment selector stores audit-only declaration and resets verified flag', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  ui.activeSeriesId = 'fsv_uxe3';
+  let updates = 0;
+  ui.update = () => { updates++; };
+  const node = { type: 'branch', edgeSpec: { segmentType: 'main_LM', sourceKey: 'original', validationState: 'verified' } };
+  const handlers = {};
+  const originalDocument = global.document;
+  global.document = {
+    getElementById: id => id === 'edit-uxe3-segment'
+      ? { addEventListener: (event, handler) => { handlers[event] = handler; } }
+      : null
+  };
+  try {
+    ui.bindEditorEvents(node);
+    assert.equal(typeof handlers.change, 'function');
+    handlers.change({ target: { value: 'branch_main_LC_LH' } });
+    assert.equal(node.edgeSpec.segmentType, 'branch_main_LC_LH');
+    assert.equal(node.edgeSpec.validationState, 'unverified');
+    assert.equal(node.edgeSpec.sourceKey, 'original');
+    assert.equal(updates, 1);
+    assert.equal(JSON.parse(JSON.stringify(node)).edgeSpec.segmentType, 'branch_main_LC_LH');
+    handlers.change({ target: { value: 'unknown-manufacturer-segment' } });
+    assert.equal(node.edgeSpec.segmentType, 'branch_main_LC_LH');
+    assert.equal(updates, 1);
+  } finally {
+    global.document = originalDocument;
+  }
+});
+
+test('UXE3 segment selector is inert for other series and outdoor nodes', () => {
+  const originalDocument = global.document;
+  for (const [series, type] of [['fsv_ux3', 'branch'], ['fsv_uxe3', 'outdoor']]) {
+    const ui = Object.create(RefrigerantSizerUI.prototype);
+    ui.activeSeriesId = series;
+    let updates = 0;
+    let registered = false;
+    ui.update = () => { updates++; };
+    const node = { type };
+    global.document = {
+      getElementById: id => id === 'edit-uxe3-segment'
+        ? { addEventListener: () => { registered = true; } }
+        : null
+    };
+    try {
+      ui.bindEditorEvents(node);
+      assert.equal(registered, false, `${series}/${type} must not bind selector`);
+      assert.equal(updates, 0);
+      assert.equal(Object.hasOwn(node, 'edgeSpec'), false);
+    } finally {
+      global.document = originalDocument;
+    }
+  }
+});
