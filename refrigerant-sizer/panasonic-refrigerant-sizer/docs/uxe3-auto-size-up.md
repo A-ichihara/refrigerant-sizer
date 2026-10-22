@@ -598,3 +598,14 @@ UXE3の非室外機ノードを対象に、プロパティ編集画面から区�
 - [テストCI 39706957063](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39706957063)：completed / success
 
 受入範囲は、UIの宣言値更新・区間変更時の容量基準リセット・検証状態のリセット・関連属性の保持・無効値の拒否、および対象シリーズ／ノードの制限に関する回帰テストである。CI成功はメーカー資料との適合を意味しない。公式表の型式適用、区間と容量基準の対応、管径選定およびBOM連動は引き続き未検証であり、正式径ロジックの変更は資料照合ゲートを通過するまで行わない。
+
+## 2026-10-22 UI区間指定の追補：同一区間の再選択と検証メタデータ
+
+区間セレクターで現在と同じ区間を再選択した場合、既存の `capacityBasis`、`validationState`、`sourceKey` を保持するようにした。区間が実際に変更された場合に限り、`capacityBasis` を `not_resolved`、`validationState` を `unverified` にリセットする。これにより、値を変更していない操作で検証状態を不要に失うことを防ぎつつ、異なる区間へ古い容量基準や検証状態を持ち越さない。
+
+- 実装修正：[bad0291](https://github.com/A-ichihara/refrigerant-sizer/commit/bad0291ede53a82c779f09664cfe807b1837cf95)
+- 回帰テスト：[3b1d6f7](https://github.com/A-ichihara/refrigerant-sizer/commit/3b1d6f77abcef3fca6b1be8edb5fca1ae520b89b)
+- [実装修正CI 39720515524](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39720515524)：completed / success
+- [回帰テストCI 39720524546](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39720524546)：completed / success
+
+この変更も監査メタデータの扱いに限定し、管径選定・配管長集計・BOMは変更しない。`validationState: "verified"` はユーザー入力や保存値だけではメーカー仕様の検証証拠にならない、という既存の不変条件を維持する。
