@@ -244,10 +244,36 @@ test('UXE3 segment selector preserves validation metadata when selection is unch
   }
 });
 
-test('UXE3 segment selector displays unknown saved labels as unclassified', () => {
-  const fs = require('node:fs');
-  const path = require('node:path');
-  const uiSource = fs.readFileSync(path.join(__dirname, '../js/ui.js'), 'utf8');
-  assert.match(uiSource, /const declaredCandidate = node\.edgeSpec[\s\S]*?typeof node\.edgeSpec\.segmentType === 'string'/);
-  assert.match(uiSource, /segmentOptions\.some\(\(\[value\]\) => value === declaredCandidate\)[\s\S]*?\? declaredCandidate : 'unclassified'/);
+test('UXE3 segment selector renders unknown and malformed saved labels as unclassified', () => {
+  const originalDocument = global.document;
+  const makeUi = edgeSpec => {
+    const ui = Object.create(RefrigerantSizerUI.prototype);
+    ui.activeSeriesId = 'fsv_uxe3';
+    ui.activeNodeId = 'branch-1';
+    ui.systemTree = {
+      id: 'root', type: 'outdoor', capacity: 50, children: [{
+        id: 'branch-1', type: 'branch', name: 'Branch', length: 5,
+        modelNumber: 'TEST', edgeSpec, children: []
+      }]
+    };
+    ui.engine = { SERIES_DATABASE: { fsv_uxe3: { outdoorCapacities: [] } } };
+    ui.propPanel = { innerHTML: '' };
+    ui.bindEditorEvents = () => {};
+    return ui;
+  };
+  try {
+    for (const edgeSpec of [
+      { segmentType: 'unknown-manufacturer-segment' },
+      { segmentType: 123 },
+      null,
+      []
+    ]) {
+      const ui = makeUi(edgeSpec);
+      ui.renderPropertyEditor();
+      assert.match(ui.propPanel.innerHTML, /<option value="unclassified" selected>未分類（指定なし）<\/option>/);
+      assert.doesNotMatch(ui.propPanel.innerHTML, /<option value="unknown-manufacturer-segment" selected>/);
+    }
+  } finally {
+    global.document = originalDocument;
+  }
 });
