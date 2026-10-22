@@ -785,3 +785,13 @@ UXE3のメーカー公式基準管径・長配管増径は引き続き未確定�
 - 調査メモ：panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md に追記（コミット fb6e5f367d71213753a3a6c19810382bd53a7913）
 - この警告は選定ロジックの修正ではなく、未検証状態の誤認防止策。UXE3基準径と自動増径の公式適合性は未確定・未適用。
 - GitHub Actions run `39431669743`（コミット `6c1bc012d58c895826429eaceb7dd71cbd54c159`）は `success`。GHP安全性、GHPサイズアップUI、Carrier、GHP配管区間、Panasonic UXE3の5テストステップすべて成功。結果：https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39431669743
+
+
+
+## 2026-10-22 追記：UXE3監査メタデータの安全処理とCI
+
+- 監査専用 `edgeSpec` が `null` や配列などの不正形式の場合、監査警告を出して区間を未分類として扱い、元データを変更しない処理を追加。
+- UIの区間セレクターは未知の保存済み区間ラベルを「未分類」として表示する。これは表示上のフォールバックであり、元のJSONを自動修正しない。
+- CI成功：監査ロジック [39724843251](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724843251)、監査回帰テスト [39724847762](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724847762)、UI [39724748781](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724748781)、UI回帰テスト [39724751927](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724751927)。
+- 関連コミット：`04212957f0f1db7d7784bddcacc1672cd4cdc932`、`fc256789b788a850075708e204a35c5dcb9bfc12`、`958c8c69add4e68638c86500d75bcedb323d8bd2`、`d981ffdbd26a4fab51fde8828d34cf373ce291e9`。
+- これらは監査メタデータの異常値処理であり、UXE3の基準管径・公式区間対応・長配管自動増径の検証完了を意味しない。管径選定・BOMロジックは変更していない。
