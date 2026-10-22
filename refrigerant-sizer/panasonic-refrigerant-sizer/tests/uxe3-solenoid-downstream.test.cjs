@@ -802,3 +802,39 @@ test('UXE3 edge metadata remains isolated from the UX3 calculation path', () => 
     'UX3 result must not contain a UXE3 segment audit');
   assert.ok(annotatedResult.warnings.every(w => !w.message.includes('UXE3区間監査')));
 });
+
+test('UXE3 unsupported validation declarations remain unverified and do not change sizing', () => {
+  const engine = new RefrigerantSizerEngine();
+  const makeTree = (withSpec) => {
+    const kit = {
+      id: 'kit', type: 'solenoid_kit', length: 10,
+      children: [{ id: 'indoor', type: 'indoor', capacity: 5.6, length: 8, children: [] }]
+    };
+    if (withSpec) {
+      kit.edgeSpec = {
+        segmentType: 'branch_to_solenoid',
+        capacityBasis: 'not_resolved',
+        validationState: 'unsupported',
+        sourceKey: 'not-applicable-to-model'
+      };
+    }
+    return { id: 'root', type: 'outdoor', capacity: 28, length: 0, children: [kit] };
+  };
+  const baseline = makeTree(false);
+  const declared = makeTree(true);
+  const originalSpec = structuredClone(declared.children[0].edgeSpec);
+  const baselineResult = engine.calculateSystem(baseline, 'fsv_uxe3', false);
+  const declaredResult = engine.calculateSystem(declared, 'fsv_uxe3', false);
+
+  assert.deepEqual(declaredResult.totals, baselineResult.totals);
+  assert.deepEqual(declared.children[0].pipes, baseline.children[0].pipes);
+  assert.deepEqual(declared.children[0].children[0].pipes, baseline.children[0].children[0].pipes);
+  assert.deepEqual(declared.children[0].edgeSpec, originalSpec);
+  const finding = declaredResult.segmentAudit.findings[0];
+  assert.equal(finding.segmentType, 'branch_to_solenoid');
+  assert.equal(finding.declarationState, 'declared_unverified');
+  assert.equal(finding.validationState, 'unsupported');
+  assert.equal(finding.capacityBasis, 'not_resolved');
+  assert.ok(declaredResult.warnings.some(w => w.message.includes('メーカー仕様への適合確認を意味しません')));
+  assert.ok(declaredResult.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
+});
