@@ -243,3 +243,11 @@ test('UXE3 segment selector preserves validation metadata when selection is unch
     global.document = originalDocument;
   }
 });
+
+test('UXE3 segment selector displays unknown saved labels as unclassified', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const uiSource = fs.readFileSync(path.join(__dirname, '../js/ui.js'), 'utf8');
+  assert.match(uiSource, /const declaredCandidate = node\.edgeSpec[\s\S]*?typeof node\.edgeSpec\.segmentType === 'string'/);
+  assert.match(uiSource, /segmentOptions\.some\(\(\[value\]\) => value === declaredCandidate\)[\s\S]*?\? declaredCandidate : 'unclassified'/);
+});
