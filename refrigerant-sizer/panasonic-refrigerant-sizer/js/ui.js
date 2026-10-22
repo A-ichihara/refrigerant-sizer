@@ -632,7 +632,7 @@ class RefrigerantSizerUI {
                     segmentType: value,
                     // 区間を変更した場合、前区間の容量基準を誤って引き継がない。
                     capacityBasis: segmentChanged ? 'not_resolved' : oldSpec.capacityBasis,
-                    validationState: 'unverified'
+                    validationState: segmentChanged ? 'unverified' : oldSpec.validationState
                 };
                 this.update();
             });
