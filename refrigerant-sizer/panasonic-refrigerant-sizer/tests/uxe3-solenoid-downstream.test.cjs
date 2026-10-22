@@ -733,3 +733,31 @@ test('UXE3 segment audit warns on null and array edgeSpec shapes without mutatin
   assert.deepEqual(audit.findings.map(edge => edge.declarationState), ['unclassified', 'unclassified']);
   assert.equal(audit.warnings.filter(w => w.message.includes('edgeSpec がオブジェクト形式ではありません')).length, 2);
 });
+
+
+test('UXE3 malformed edgeSpec containers do not affect calculation sizing or BOM', () => {
+  const engine = new RefrigerantSizerEngine();
+  const makeTree = edgeSpec => ({
+    id: 'root', type: 'outdoor', capacity: 28, length: 0, children: [{
+      id: 'kit', type: 'solenoid_kit', length: 10, edgeSpec, children: [{
+        id: 'indoor', type: 'indoor', capacity: 5.6, length: 8, children: []
+      }]
+    }]
+  });
+  const baseline = makeTree(undefined);
+  const baselineResult = engine.calculateSystem(baseline, 'fsv_uxe3', false);
+
+  for (const edgeSpec of [null, []]) {
+    const malformed = makeTree(edgeSpec);
+    const before = JSON.stringify(malformed);
+    const result = engine.calculateSystem(malformed, 'fsv_uxe3', false);
+
+    assert.deepEqual(result.totals, baselineResult.totals);
+    assert.deepEqual(malformed.children[0].pipes, baseline.children[0].pipes);
+    assert.deepEqual(malformed.children[0].children[0].pipes, baseline.children[0].children[0].pipes);
+    assert.deepEqual(malformed.children[0].edgeSpec, edgeSpec);
+    assert.ok(result.segmentAudit.findings.every(edge => edge.segmentType === 'unclassified'));
+    assert.ok(result.warnings.some(w => w.message.includes('edgeSpec がオブジェクト形式ではありません')));
+    assert.equal(JSON.parse(before).children[0].edgeSpec === null, edgeSpec === null);
+  }
+});
