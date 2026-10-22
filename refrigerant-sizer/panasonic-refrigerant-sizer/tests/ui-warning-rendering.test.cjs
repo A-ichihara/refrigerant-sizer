@@ -125,7 +125,7 @@ test('UXE3 segment selector stores audit-only declaration and resets verified fl
   ui.activeSeriesId = 'fsv_uxe3';
   let updates = 0;
   ui.update = () => { updates++; };
-  const node = { type: 'branch', edgeSpec: { segmentType: 'main_LM', sourceKey: 'original', validationState: 'verified' } };
+  const node = { type: 'branch', edgeSpec: { segmentType: 'main_LM', capacityBasis: 'outdoor_total', sourceKey: 'original', validationState: 'verified' } };
   const handlers = {};
   const originalDocument = global.document;
   global.document = {
@@ -139,6 +139,7 @@ test('UXE3 segment selector stores audit-only declaration and resets verified fl
     handlers.change({ target: { value: 'branch_main_LC_LH' } });
     assert.equal(node.edgeSpec.segmentType, 'branch_main_LC_LH');
     assert.equal(node.edgeSpec.validationState, 'unverified');
+    assert.equal(node.edgeSpec.capacityBasis, 'not_resolved', 'changing segment must not retain a potentially stale capacity basis');
     assert.equal(node.edgeSpec.sourceKey, 'original');
     assert.equal(updates, 1);
     assert.equal(JSON.parse(JSON.stringify(node)).edgeSpec.segmentType, 'branch_main_LC_LH');
