@@ -609,3 +609,15 @@ UXE3の非室外機ノードを対象に、プロパティ編集画面から区�
 - [回帰テストCI 39720524546](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39720524546)：completed / success
 
 この変更も監査メタデータの扱いに限定し、管径選定・配管長集計・BOMは変更しない。`validationState: "verified"` はユーザー入力や保存値だけではメーカー仕様の検証証拠にならない、という既存の不変条件を維持する。
+
+
+## 2026-10-22 追記：区間監査メタデータの不正形式を安全に処理
+
+UXE3の監査専用 `edgeSpec` について、保存済みJSONに不正形式が含まれるケースの安全処理と回帰テストを追加した。
+
+- `edgeSpec` プロパティが存在するのに値が `null`、配列などのオブジェクト以外の形式であれば、監査警告を出し、その辺を未分類として扱う。監査処理は元のツリーを書き換えない。
+- UIでは、保存済みの `segmentType` が未知の文字列、または不正な型である場合、セレクターは「未分類」を表示する。これは表示上のフォールバックであり、保存データを自動的に書き換えるものではない。
+- 変更コミット：監査ロジック `04212957f0f1db7d7784bddcacc1672cd4cdc932`、回帰テスト `fc256789b788a850075708e204a35c5dcb9bfc12`、UIフォールバック `958c8c69add4e68638c86500d75bcedb323d8bd2`、UI回帰テスト `d981ffdbd26a4fab51fde8828d34cf373ce291e9`。
+- GitHub Actions：監査ロジック [run 39724843251](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724843251)、監査回帰テスト [run 39724847762](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724847762)、UI [run 39724748781](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724748781)、UI回帰テスト [run 39724751927](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724751927) はすべて成功。
+
+この作業は監査情報の異常値処理と誤表示防止に限定する。メーカー公式の基準管径・区間判定・長配管増径条件を確定したものではなく、UXE3の管径選定・BOM計算は変更していない。
