@@ -715,3 +715,21 @@ test('UXE3 legacy JSON without edgeSpec stays unclassified after reload', () => 
   assert.equal(Object.hasOwn(reloaded.children[0], 'edgeSpec'), false);
   assert.equal(Object.hasOwn(reloaded.children[0].children[0], 'edgeSpec'), false);
 });
+
+
+test('UXE3 segment audit warns on null and array edgeSpec shapes without mutating input', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root', type: 'outdoor', capacity: 22.4, children: [
+      { id: 'null-spec', type: 'branch', length: 2, edgeSpec: null, children: [] },
+      { id: 'array-spec', type: 'solenoid_kit', length: 3, edgeSpec: [], children: [] }
+    ]
+  };
+  const before = JSON.stringify(tree);
+  const audit = engine.auditUxE3PipeSegments(tree);
+
+  assert.equal(JSON.stringify(tree), before, 'audit must not normalize or mutate source metadata');
+  assert.deepEqual(audit.findings.map(edge => edge.segmentType), ['unclassified', 'unclassified']);
+  assert.deepEqual(audit.findings.map(edge => edge.declarationState), ['unclassified', 'unclassified']);
+  assert.equal(audit.warnings.filter(w => w.message.includes('edgeSpec がオブジェクト形式ではありません')).length, 2);
+});
