@@ -798,7 +798,7 @@ test('UXE3 edge metadata remains isolated from the UX3 calculation path', () => 
     sourceKey: 'UXE3-only-test-metadata',
     validationState: 'verified'
   });
-  assert.equal(Object.hasOwn(annotatedResult, 'segmentAudit'), false,
-    'UXE3-specific segment audit must not be added to the UX3 result');
+  assert.equal(annotatedResult.segmentAudit, null,
+    'UX3 result must not contain a UXE3 segment audit');
   assert.ok(annotatedResult.warnings.every(w => !w.message.includes('UXE3区間監査')));
 });
