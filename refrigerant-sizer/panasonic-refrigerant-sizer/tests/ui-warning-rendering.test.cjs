@@ -208,3 +208,38 @@ test('UXE3 tree repair preserves edgeSpec declarations on existing nodes', () =>
   assert.deepEqual(tree.children[0].edgeSpec, edgeSpec);
   assert.equal(tree.children[0].edgeSpec.validationState, 'unverified');
 });
+
+
+test('UXE3 segment selector preserves validation metadata when selection is unchanged', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  ui.activeSeriesId = 'fsv_uxe3';
+  let updates = 0;
+  ui.update = () => { updates++; };
+  const node = {
+    type: 'branch',
+    edgeSpec: {
+      segmentType: 'main_LM',
+      capacityBasis: 'outdoor_total',
+      sourceKey: 'reviewed-source',
+      validationState: 'verified'
+    }
+  };
+  let handler;
+  const originalDocument = global.document;
+  global.document = {
+    getElementById: id => id === 'edit-uxe3-segment'
+      ? { addEventListener: (event, callback) => { if (event === 'change') handler = callback; } }
+      : null
+  };
+  try {
+    ui.bindEditorEvents(node);
+    handler({ target: { value: 'main_LM' } });
+    assert.equal(node.edgeSpec.segmentType, 'main_LM');
+    assert.equal(node.edgeSpec.capacityBasis, 'outdoor_total');
+    assert.equal(node.edgeSpec.validationState, 'verified');
+    assert.equal(node.edgeSpec.sourceKey, 'reviewed-source');
+    assert.equal(updates, 1);
+  } finally {
+    global.document = originalDocument;
+  }
+});
