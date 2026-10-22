@@ -78,3 +78,43 @@ test('renderSegmentAuditSummary ignores absent or invalid summary safely', () =>
   });
   assert.equal(calls, 0);
 });
+
+
+test('renderSegmentAuditSummary lists individual edges as text without HTML injection', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  const inserted = [];
+  ui.warningPanel = {
+    prepend: node => inserted.push(node),
+    appendChild: node => inserted.push(node)
+  };
+  const originalDocument = global.document;
+  global.document = {
+    createElement: tag => ({
+      tagName: tag,
+      children: [],
+      appendChild(child) { this.children.push(child); },
+      textContent: '',
+      className: ''
+    })
+  };
+  try {
+    ui.renderSegmentAuditSummary({
+      seriesId: 'fsv_uxe3',
+      summary: { totalEdges: 2, unclassified: 1, declared: 1 },
+      findings: [
+        { path: '<img src=x onerror=alert(1)>', segmentType: 'unclassified', declarationState: 'unclassified' },
+        { path: 'root/main', segmentType: 'main_LM', declarationState: 'declared_unverified' }
+      ]
+    });
+    assert.equal(inserted.length, 2);
+    const details = inserted[1];
+    assert.equal(details.tagName, 'details');
+    const list = details.children[1];
+    assert.equal(list.children.length, 2);
+    assert.match(list.children[0].textContent, /<img src=x onerror=alert\(1\)>/);
+    assert.match(list.children[0].textContent, /未分類/);
+    assert.match(list.children[1].textContent, /宣言あり・未検証/);
+  } finally {
+    global.document = originalDocument;
+  }
+});
