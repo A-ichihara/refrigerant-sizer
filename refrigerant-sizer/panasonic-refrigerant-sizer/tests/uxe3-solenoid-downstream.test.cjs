@@ -761,3 +761,44 @@ test('UXE3 malformed edgeSpec containers do not affect calculation sizing or BOM
     assert.equal(JSON.stringify(JSON.parse(before).children[0].edgeSpec), JSON.stringify(edgeSpec));
   }
 });
+
+test('UXE3 edge metadata remains isolated from the UX3 calculation path', () => {
+  const engine = new RefrigerantSizerEngine();
+  const makeTree = (withEdgeSpec) => {
+    const branch = {
+      id: 'branch', type: 'branch', length: 12, children: [
+        { id: 'indoor', type: 'indoor', capacity: 5.6, length: 8, children: [] }
+      ]
+    };
+    if (withEdgeSpec) {
+      branch.edgeSpec = {
+        segmentType: 'main_LM',
+        capacityBasis: 'outdoor_total',
+        sourceKey: 'UXE3-only-test-metadata',
+        validationState: 'verified'
+      };
+    }
+    return {
+      id: 'root', type: 'outdoor', capacity: 28, length: 0,
+      children: [branch]
+    };
+  };
+
+  const plain = makeTree(false);
+  const annotated = makeTree(true);
+  const plainResult = engine.calculateSystem(plain, 'fsv_ux3', false);
+  const annotatedResult = engine.calculateSystem(annotated, 'fsv_ux3', false);
+
+  assert.deepEqual(annotatedResult.totals, plainResult.totals);
+  assert.deepEqual(annotated.children[0].pipes, plain.children[0].pipes);
+  assert.deepEqual(annotated.children[0].children[0].pipes, plain.children[0].children[0].pipes);
+  assert.deepEqual(annotated.children[0].edgeSpec, {
+    segmentType: 'main_LM',
+    capacityBasis: 'outdoor_total',
+    sourceKey: 'UXE3-only-test-metadata',
+    validationState: 'verified'
+  });
+  assert.equal(Object.hasOwn(annotatedResult, 'segmentAudit'), false,
+    'UXE3-specific segment audit must not be added to the UX3 result');
+  assert.ok(annotatedResult.warnings.every(w => !w.message.includes('UXE3区間監査')));
+});
