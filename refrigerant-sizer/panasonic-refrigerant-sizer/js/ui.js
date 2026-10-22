@@ -544,9 +544,12 @@ class RefrigerantSizerUI {
                 ['branch_to_solenoid', '分岐管～電磁弁キット'],
                 ['solenoid_to_indoor', '電磁弁キット～室内機']
             ];
-            const declared = node.edgeSpec && typeof node.edgeSpec === 'object'
-                && typeof node.edgeSpec.segmentType === 'string'
+            const declaredCandidate = node.edgeSpec && typeof node.edgeSpec === 'object'
+                && !Array.isArray(node.edgeSpec) && typeof node.edgeSpec.segmentType === 'string'
                 ? node.edgeSpec.segmentType : 'unclassified';
+            // 保存済みJSONに未知の区間ラベルがあっても、UIでは未分類として表示する。
+            const declared = segmentOptions.some(([value]) => value === declaredCandidate)
+                ? declaredCandidate : 'unclassified';
             editorHtml += `<div class="form-group">
                 <label>UXE3 配管区間（監査用・メーカー未検証）</label>
                 <select class="form-select" id="edit-uxe3-segment">`;
