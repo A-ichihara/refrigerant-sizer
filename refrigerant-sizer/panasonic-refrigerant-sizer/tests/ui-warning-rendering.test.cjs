@@ -29,3 +29,52 @@ test('renderWarnings handles circular warning objects without throwing', () => {
   assert.doesNotThrow(() => ui.renderWarnings([circularWarning]));
   assert.match(ui.warningPanel.innerHTML, /表示できない警告データ/);
 });
+
+
+test('renderSegmentAuditSummary prepends UXE3 classification counts without rewriting warnings', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  const existing = { marker: 'existing warning' };
+  const inserted = [];
+  const panel = {
+    prepend: node => inserted.push(node)
+  };
+  ui.warningPanel = panel;
+  const originalDocument = global.document;
+  global.document = {
+    createElement: tag => ({
+      tagName: tag,
+      children: [],
+      appendChild(child) { this.children.push(child); },
+      textContent: '',
+      className: ''
+    })
+  };
+  try {
+    ui.renderSegmentAuditSummary({
+      seriesId: 'fsv_uxe3',
+      summary: { totalEdges: 5, unclassified: 3, declared: 2 }
+    });
+    assert.equal(inserted.length, 1);
+    const [card] = inserted;
+    assert.equal(card.className, 'alert-card warning');
+    assert.match(card.children[0].children[0].textContent, /未検証/);
+    assert.match(card.children[0].children[1].textContent, /接続区間 5件／未分類 3件／区間宣言あり 2件/);
+    assert.match(card.children[0].children[1].textContent, /照合は未完了/);
+    assert.equal(existing.marker, 'existing warning');
+  } finally {
+    global.document = originalDocument;
+  }
+});
+
+test('renderSegmentAuditSummary ignores absent or invalid summary safely', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  let calls = 0;
+  ui.warningPanel = { prepend: () => { calls++; } };
+  assert.doesNotThrow(() => {
+    ui.renderSegmentAuditSummary(null);
+    ui.renderSegmentAuditSummary({ seriesId: 'fsv_ux3', summary: { totalEdges: 1, unclassified: 1, declared: 0 } });
+    ui.renderSegmentAuditSummary({ seriesId: 'fsv_uxe3', summary: { totalEdges: '1', unclassified: 1, declared: 0 } });
+    ui.renderSegmentAuditSummary({ seriesId: 'fsv_uxe3' });
+  });
+  assert.equal(calls, 0);
+});
