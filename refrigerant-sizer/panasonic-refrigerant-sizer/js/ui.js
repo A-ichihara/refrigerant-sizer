@@ -140,6 +140,7 @@ class RefrigerantSizerUI {
         this.drawConnections();
         this.renderTotals(results.totals);
         this.renderWarnings(results.warnings);
+        this.renderSegmentAuditSummary(results.segmentAudit);
         this.renderPropertyEditor();
     }
 
@@ -1369,6 +1370,30 @@ class RefrigerantSizerUI {
                 this.openFixSuggestionModal(warningText);
             });
         });
+    }
+
+    // UXE3区間監査の概要のみを表示。宣言済みの区間も公式確認済みとは扱わない。
+    renderSegmentAuditSummary(audit) {
+        if (!this.warningPanel || !audit || audit.seriesId !== 'fsv_uxe3') return;
+        const summary = audit.summary;
+        if (!summary || !Number.isInteger(summary.totalEdges)
+            || !Number.isInteger(summary.unclassified)
+            || !Number.isInteger(summary.declared)) return;
+
+        const card = document.createElement('div');
+        card.className = 'alert-card warning';
+        const content = document.createElement('div');
+        content.className = 'alert-text';
+        const title = document.createElement('div');
+        title.className = 'alert-title';
+        title.textContent = 'UXE3 配管区間の分類状況（未検証）';
+        const description = document.createElement('div');
+        description.className = 'alert-desc';
+        description.textContent = `接続区間 ${summary.totalEdges}件／未分類 ${summary.unclassified}件／区間宣言あり ${summary.declared}件。宣言済み区間もメーカー資料との照合は未完了です。`;
+        content.appendChild(title);
+        content.appendChild(description);
+        card.appendChild(content);
+        this.warningPanel.prepend(card);
     }
 
     findNodeById(node, id) {
