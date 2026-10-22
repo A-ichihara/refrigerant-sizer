@@ -18,9 +18,20 @@
 - Panasonic EHP UXE3長配管条件: [調査メモ](./refrigerant-sizer/panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)
 - Carrier回帰確認: [テスト記録](./refrigerant-sizer/docs/carrier-engine-regression.md)
 
-現行GitHub Actionsで実行しているテストは、GHP安全性、Carrierエンジン、GHP配管区間の3ファイル。Panasonic EHPの既存テストはリポジトリに存在するが、現行workflowには含まれていない。
+現行 `.github/workflows/ghp-regression.yml` では、GHP安全性2種、Carrierエンジン、GHP配管区間に加え、Panasonic UXE3の `uxe3-solenoid-downstream.test.cjs` と `ui-warning-rendering.test.cjs` も実行する。過去の「Panasonic EHPテストはworkflowに含まれない」という記述は古い。
 
 ---
+
+### 2026-10-22 Panasonic UXE3 区間監査・UI作業の最新状況
+
+- 区間セレクターはUXE3の非室外機ノードに限定。区間宣言は監査専用で、管径・長さ集計・BOMには接続していない。
+- 区間変更時のみ `capacityBasis` を `not_resolved`、`validationState` を `unverified` にリセット。同一区間の再選択では既存の容量基準・検証状態・資料キーを保持する。
+- 系統ツリー修復とJSON保存／再読込で `edgeSpec` が保持される回帰テストを追加済み。旧データで `edgeSpec` がない場合は未分類のまま扱う。
+- `verified` という文字列だけではメーカー検証済みと判定しない。公式表・適用型式・結合セル・脚注の照合が終わるまで、正式管径・自動増径・BOM連動は変更しない。
+- 実装修正 `bad0291`、回帰テスト `3b1d6f7`、設計資料更新 `aa0ff89` のGitHub Actionsは成功確認済み。最新CI：[39720633445](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39720633445)。
+- 詳細：[Panasonic UXE3自動増径・区間監査設計メモ](./refrigerant-sizer/panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md)。
+
+次の作業では、まずこの引き継ぎ書と現行workflowの記載を基準にする。ソフトウェアCIの成功はメーカー仕様への適合確認を意味しない。
 
 ## 1. プロジェクト概要
 
