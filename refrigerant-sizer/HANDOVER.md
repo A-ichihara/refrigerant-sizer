@@ -804,3 +804,6 @@ UXE3のメーカー公式基準管径・長配管増径は引き続き未確定�
 - Panasonic公式 [PA-P900UXE3 据付工事説明書PDF](https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P900UXE3&itemID=t000100040329&volumeName=00001) の印刷ページ -6-（表4・表5）および -8-（表6）を画像で確認し、各表の区分・行列構造・注記を `panasonic-refrigerant-sizer/docs/uxe3-auto-size-up.md` に記録。
 - 記録コミット `6d3523e5741e80905601b588043a02f833b19f71`、CI [39728409241](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39728409241)：success。表4・表5追記コミット `d4e1aaf455532b3b71c5d2f0559d144551c11d17`、CI [39728447066](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39728447066)：success。
 - 重要：画像確認は表の見出し・構造・注記の確認であり、結合セルを含む全径値の転記、全対象型式への適用確認、表とアプリの物理配管辺の対応付けは未完了。現行 `selectThreePipeSize()` を公式表から正当化できたわけではない。管径選定、BOM、長配管自動増径、手動サイズアップは変更せず、UXE3基準径未検証警告と手動サイズアップ停止を維持する。
+
+
+- 追加の安全性テスト：`edgeSpec: null` と `edgeSpec: []` を含む計算で、正常な未指定メタデータの基準ケースとBOM集計・管径が一致し、監査警告が出ることを確認。テストコミット `9b3e21280c56cbc31f7ae69b20864aebbf02baa5`、CI [39728618544](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39728618544)：success。管径選定ロジックは変更なし。
