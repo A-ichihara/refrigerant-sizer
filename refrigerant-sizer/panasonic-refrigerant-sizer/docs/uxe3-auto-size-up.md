@@ -621,3 +621,16 @@ UXE3の監査専用 `edgeSpec` について、保存済みJSONに不正形式が
 - GitHub Actions：監査ロジック [run 39724843251](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724843251)、監査回帰テスト [run 39724847762](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724847762)、UI [run 39724748781](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724748781)、UI回帰テスト [run 39724751927](https://github.com/A-ichihara/refrigerant-sizer/actions/runs/39724751927) はすべて成功。
 
 この作業は監査情報の異常値処理と誤表示防止に限定する。メーカー公式の基準管径・区間判定・長配管増径条件を確定したものではなく、UXE3の管径選定・BOM計算は変更していない。
+
+
+## 2026-10-22 追記：Panasonic公式据付説明書の表6を原本画像で再確認
+
+Panasonic公式の [PA-P900UXE3 据付工事説明書PDF](https://hvac.panasonic.com/search/add-on/hvac/fileDownload2.jsp?hinban=PA-P900UXE3&itemID=t000100040329&volumeName=00001) を開き、印刷ページ「-8-」の表6「室内ユニット接続配管（ℓ1～ℓ40）」をPDF画像で確認した。表6は、少なくとも次の2区間を別々の行で規定している。
+
+- 「分岐管～電磁弁キット配管」：吸込管・吐出管・液管
+- 「電磁弁キット～室内接続配管」：ガス管・液管
+
+また、224形・280形室内ユニットでは、電磁弁キット160形を並列使用し、キットの前後で配管を分岐する旨の注記を画像で確認した。これは、電磁弁キット前後を単純な同一径・単一辺として扱えるとは限らないことを示すため、区間分類とBOM表現の設計上の制約として扱う。
+
+**今回の確認範囲は表6の行構造と注記の目視確認まで。** 表6の全セルを機械可読の確定マスターに転記したわけではなく、表4・表5の結合セル対応、型式適用範囲、分岐構成とアプリ内ノードの対応、径別BOMの整合性は未検証のまま。よってエンジン、管径マスター、BOM、手動サイズアップ挙動は変更していない。既存のUXE3基準径未検証警告と手動サイズアップ停止を維持する。
+
