@@ -1446,6 +1446,15 @@ class RefrigerantSizerUI {
         card.appendChild(content);
         this.warningPanel.prepend(card);
 
+        // 監査専用の区間種別を画面では日本語で表示する。管径選定や区間判定は行わない。
+        const segmentLabels = {
+            main_LM: '主管 LM',
+            branch_main_LC_LH: '分岐後主管 LC～LH',
+            outdoor_interconnect_LO: '室外接続主配管 LO',
+            branch_to_solenoid: '分岐管～電磁弁キット',
+            solenoid_to_indoor: '電磁弁キット～室内機',
+            unclassified: '未分類'
+        };
         // 個別区間は文字列として表示し、インポートしたIDをHTMLとして解釈しない。
         if (Array.isArray(audit.findings) && audit.findings.length > 0) {
             const details = document.createElement('details');
@@ -1458,7 +1467,11 @@ class RefrigerantSizerUI {
                 const path = typeof edge?.path === 'string' ? edge.path : `区間${index + 1}`;
                 const segment = typeof edge?.segmentType === 'string' ? edge.segmentType : 'unclassified';
                 const state = edge?.declarationState === 'declared_unverified' ? '宣言あり・未検証' : '未分類';
-                item.textContent = `${path}：${segment}（${state}）`;
+                const label = Object.prototype.hasOwnProperty.call(segmentLabels, segment)
+                    ? segmentLabels[segment] : segmentLabels.unclassified;
+                const length = edge?.lengthState === 'valid_nonnegative' && Number.isFinite(edge.lengthM)
+                    ? `／配管長 ${edge.lengthM}m` : '／配管長 未確認';
+                item.textContent = `${path}：${label}（${state}）${length}`;
                 list.appendChild(item);
             });
             details.appendChild(list);
