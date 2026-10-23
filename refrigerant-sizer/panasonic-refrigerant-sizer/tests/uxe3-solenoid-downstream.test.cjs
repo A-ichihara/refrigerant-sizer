@@ -917,3 +917,34 @@ test('UXE3 malformed metadata field types cannot affect sizing or BOM', () => {
       `missing warning: ${phrase}`);
   }
 });
+
+test('UXE3 metadata cannot affect manual size-up stop or calculated totals', () => {
+  const engine = new RefrigerantSizerEngine();
+  const makeTree = (withSpec) => {
+    const kit = {
+      id: 'kit', type: 'solenoid_kit', length: 10,
+      children: [{ id: 'indoor', type: 'indoor', capacity: 5.6, length: 8, children: [] }]
+    };
+    if (withSpec) kit.edgeSpec = {
+      segmentType: 'main_LM',
+      capacityBasis: 'outdoor_total',
+      validationState: 'verified',
+      sourceKey: 'unreviewed'
+    };
+    return { id: 'root', type: 'outdoor', capacity: 28, length: 0, children: [kit] };
+  };
+  const baseline = makeTree(false);
+  const annotated = makeTree(true);
+  const originalSpec = structuredClone(annotated.children[0].edgeSpec);
+  const standard = engine.calculateSystem(baseline, 'fsv_uxe3', false);
+  const manual = engine.calculateSystem(annotated, 'fsv_uxe3', true);
+
+  assert.deepEqual(manual.totals, standard.totals);
+  assert.deepEqual(annotated.children[0].pipes, baseline.children[0].pipes);
+  assert.deepEqual(annotated.children[0].children[0].pipes, baseline.children[0].children[0].pipes);
+  assert.deepEqual(annotated.children[0].edgeSpec, originalSpec);
+  assert.equal(manual.segmentAudit.findings[0].validationState, 'unverified');
+  assert.ok(manual.warnings.some(w => w.message.includes('UXE3手動サイズアップ未適用')));
+  assert.ok(manual.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
+  assert.ok(manual.warnings.some(w => w.message.includes('メーカー仕様への適合確認を意味しません')));
+});
