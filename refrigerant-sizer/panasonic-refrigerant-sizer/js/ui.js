@@ -1475,7 +1475,13 @@ class RefrigerantSizerUI {
                     ? segmentLabels[segment] : segmentLabels.unclassified;
                 const length = edge?.lengthState === 'valid_nonnegative' && Number.isFinite(edge.lengthM)
                     ? `／配管長 ${edge.lengthM}m` : '／配管長 未確認';
+                const needsLengthReview = edge?.lengthState !== 'valid_nonnegative';
                 item.textContent = `${path}：${label}（${state}）${length}`;
+                if (needsLengthReview) {
+                    item.style.fontWeight = '600';
+                    item.style.color = 'var(--color-danger, #b91c1c)';
+                    item.textContent += '【配管長要確認】';
+                }
                 list.appendChild(item);
             });
             details.appendChild(list);
