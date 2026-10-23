@@ -876,3 +876,44 @@ test('UXE3 unknown segment labels cannot alter calculation sizing or BOM', () =>
   assert.ok(annotatedResult.warnings.some(w => w.message.includes('未定義または不正な区間種別')));
   assert.ok(annotatedResult.warnings.some(w => w.message.includes('区間未確定')));
 });
+
+test('UXE3 malformed metadata field types cannot affect sizing or BOM', () => {
+  const engine = new RefrigerantSizerEngine();
+  const makeTree = (withSpec) => {
+    const kit = {
+      id: 'kit', type: 'solenoid_kit', length: 10,
+      children: [{ id: 'indoor', type: 'indoor', capacity: 5.6, length: 8, children: [] }]
+    };
+    if (withSpec) kit.edgeSpec = {
+      segmentType: 123,
+      capacityBasis: { unexpected: 'object' },
+      validationState: ['verified'],
+      sourceKey: ['unreviewed']
+    };
+    return { id: 'root', type: 'outdoor', capacity: 28, length: 0, children: [kit] };
+  };
+  const baseline = makeTree(false);
+  const annotated = makeTree(true);
+  const beforeSpec = structuredClone(annotated.children[0].edgeSpec);
+  const baselineResult = engine.calculateSystem(baseline, 'fsv_uxe3', false);
+  const annotatedResult = engine.calculateSystem(annotated, 'fsv_uxe3', false);
+
+  assert.deepEqual(annotatedResult.totals, baselineResult.totals);
+  assert.deepEqual(annotated.children[0].pipes, baseline.children[0].pipes);
+  assert.deepEqual(annotated.children[0].children[0].pipes, baseline.children[0].children[0].pipes);
+  assert.deepEqual(annotated.children[0].edgeSpec, beforeSpec);
+  const finding = annotatedResult.segmentAudit.findings[0];
+  assert.equal(finding.segmentType, 'unclassified');
+  assert.equal(finding.capacityBasis, null);
+  assert.equal(finding.validationState, 'unverified');
+  assert.equal(finding.sourceKey, null);
+  for (const phrase of [
+    '未定義または不正な区間種別',
+    '未定義または不正な容量基準',
+    '未定義または不正な検証状態',
+    '資料キーの型が不正'
+  ]) {
+    assert.ok(annotatedResult.warnings.some(w => w.message.includes(phrase)),
+      `missing warning: ${phrase}`);
+  }
+});
