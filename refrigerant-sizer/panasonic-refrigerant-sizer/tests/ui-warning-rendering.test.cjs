@@ -280,3 +280,42 @@ test('UXE3 segment selector renders unknown and malformed saved labels as unclas
     global.document = originalDocument;
   }
 });
+
+test('UXE3 audit list prioritizes pipe-length review without mutating findings', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  const nodes = [];
+  ui.warningPanel = {
+    prepend: node => nodes.push(node),
+    appendChild: node => nodes.push(node)
+  };
+  const originalDocument = global.document;
+  global.document = {
+    createElement: tag => ({
+      tagName: tag, children: [], textContent: '', className: '', style: {},
+      appendChild(child) { this.children.push(child); }
+    })
+  };
+  const findings = [
+    { path: 'root/valid', segmentType: 'main_LM', declarationState: 'declared_unverified', lengthM: 5, lengthState: 'valid_nonnegative' },
+    { path: 'root/missing', segmentType: 'unclassified', declarationState: 'unclassified', lengthM: null, lengthState: 'missing_or_nonfinite' },
+    { path: 'root/negative', segmentType: 'unclassified', declarationState: 'unclassified', lengthM: -2, lengthState: 'invalid_negative' }
+  ];
+  const original = structuredClone(findings);
+  try {
+    ui.renderSegmentAuditSummary({
+      seriesId: 'fsv_uxe3',
+      summary: { totalEdges: 3, unclassified: 2, declared: 1 },
+      findings
+    });
+    const rows = nodes[1].children[1].children;
+    assert.match(rows[0].textContent, /root\/missing/);
+    assert.match(rows[1].textContent, /root\/negative/);
+    assert.match(rows[2].textContent, /root\/valid/);
+    assert.match(rows[0].textContent, /配管長要確認/);
+    assert.match(rows[1].textContent, /配管長要確認/);
+    assert.doesNotMatch(rows[2].textContent, /配管長要確認/);
+    assert.deepEqual(findings, original);
+  } finally {
+    global.document = originalDocument;
+  }
+});
