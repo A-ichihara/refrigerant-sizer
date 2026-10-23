@@ -838,3 +838,41 @@ test('UXE3 unsupported validation declarations remain unverified and do not chan
   assert.ok(declaredResult.warnings.some(w => w.message.includes('メーカー仕様への適合確認を意味しません')));
   assert.ok(declaredResult.warnings.some(w => w.message.includes('UXE3基準配管径未検証')));
 });
+
+test('UXE3 unknown segment labels cannot alter calculation sizing or BOM', () => {
+  const engine = new RefrigerantSizerEngine();
+  const makeTree = (withSpec) => {
+    const branch = {
+      id: 'branch', type: 'branch', length: 7, children: [{
+        id: 'kit', type: 'solenoid_kit', length: 11, children: [{
+          id: 'indoor', type: 'indoor', capacity: 5.6, length: 13, children: []
+        }]
+      }]
+    };
+    if (withSpec) branch.edgeSpec = {
+      segmentType: 'unrecognized_manufacturer_segment',
+      capacityBasis: 'downstream_sum',
+      validationState: 'verified',
+      sourceKey: 'unreviewed'
+    };
+    return { id: 'root', type: 'outdoor', capacity: 28, length: 0, children: [branch] };
+  };
+
+  const baseline = makeTree(false);
+  const annotated = makeTree(true);
+  const originalSpec = structuredClone(annotated.children[0].edgeSpec);
+  const baseResult = engine.calculateSystem(baseline, 'fsv_uxe3', false);
+  const annotatedResult = engine.calculateSystem(annotated, 'fsv_uxe3', false);
+
+  assert.deepEqual(annotatedResult.totals, baseResult.totals);
+  assert.deepEqual(annotated.children[0].pipes, baseline.children[0].pipes);
+  assert.deepEqual(annotated.children[0].children[0].pipes, baseline.children[0].children[0].pipes);
+  assert.deepEqual(annotated.children[0].children[0].children[0].pipes,
+    baseline.children[0].children[0].children[0].pipes);
+  assert.deepEqual(annotated.children[0].edgeSpec, originalSpec);
+  assert.equal(annotatedResult.segmentAudit.findings[0].segmentType, 'unclassified');
+  assert.equal(annotatedResult.segmentAudit.findings[0].declarationState, 'unclassified');
+  assert.equal(annotatedResult.segmentAudit.findings[0].validationState, 'unverified');
+  assert.ok(annotatedResult.warnings.some(w => w.message.includes('未定義または不正な区間種別')));
+  assert.ok(annotatedResult.warnings.some(w => w.message.includes('区間未確定')));
+});
