@@ -1466,7 +1466,12 @@ class RefrigerantSizerUI {
             heading.textContent = '配管区間の監査一覧を表示（メーカー未検証）';
             details.appendChild(heading);
             const list = document.createElement('ul');
-            audit.findings.forEach((edge, index) => {
+            // 配管長が未確認の区間を先に表示し、入力漏れを探しやすくする。
+            // 元の監査配列の順序・内容は変更しない。
+            const orderedFindings = audit.findings.map((edge, index) => ({ edge, index }))
+                .sort((a, b) => Number(b.edge?.lengthState !== 'valid_nonnegative')
+                    - Number(a.edge?.lengthState !== 'valid_nonnegative'));
+            orderedFindings.forEach(({ edge, index }) => {
                 const item = document.createElement('li');
                 const path = typeof edge?.path === 'string' ? edge.path : `区間${index + 1}`;
                 const segment = typeof edge?.segmentType === 'string' ? edge.segmentType : 'unclassified';
