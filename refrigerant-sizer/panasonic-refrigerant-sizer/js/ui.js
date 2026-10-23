@@ -1440,7 +1440,11 @@ class RefrigerantSizerUI {
         title.textContent = 'UXE3 配管区間の分類状況（未検証）';
         const description = document.createElement('div');
         description.className = 'alert-desc';
-        description.textContent = `接続区間 ${summary.totalEdges}件／未分類 ${summary.unclassified}件／区間宣言あり ${summary.declared}件。宣言済み区間もメーカー資料との照合は未完了です。`;
+        const invalidLengthCount = Array.isArray(audit.findings)
+            ? audit.findings.filter(edge => edge?.lengthState !== 'valid_nonnegative').length : null;
+        const lengthSummary = invalidLengthCount === null ? ''
+            : `／配管長の要確認 ${invalidLengthCount}件`;
+        description.textContent = `接続区間 ${summary.totalEdges}件／未分類 ${summary.unclassified}件／区間宣言あり ${summary.declared}件${lengthSummary}。宣言済み区間もメーカー資料との照合は未完了です。`;
         content.appendChild(title);
         content.appendChild(description);
         card.appendChild(content);
