@@ -94,7 +94,8 @@ test('renderSegmentAuditSummary lists individual edges as text without HTML inje
       children: [],
       appendChild(child) { this.children.push(child); },
       textContent: '',
-      className: ''
+      className: '',
+      style: {}
     })
   };
   try {
@@ -113,6 +114,8 @@ test('renderSegmentAuditSummary lists individual edges as text without HTML inje
     assert.equal(list.children.length, 2);
     assert.match(list.children[0].textContent, /<img src=x onerror=alert\(1\)>/);
     assert.match(list.children[0].textContent, /未分類/);
+    assert.match(list.children[0].textContent, /配管長要確認/);
+    assert.equal(list.children[0].style.fontWeight, '600');
     assert.match(list.children[1].textContent, /宣言あり・未検証/);
   } finally {
     global.document = originalDocument;
