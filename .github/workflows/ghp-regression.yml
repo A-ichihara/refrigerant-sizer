@@ -35,5 +35,9 @@ jobs:
         run: node --test refrigerant-sizer/tests/ghp-piping-segments.test.cjs
       - name: Run Panasonic UXE3 solenoid downstream regression tests
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-solenoid-downstream.test.cjs
+      - name: Run Panasonic UXE3 pipe path audit regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-path-audit.test.cjs
+      - name: Run Panasonic UXE3 capacity basis regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-capacity-basis.test.cjs
       - name: Run Panasonic UI warning rendering tests
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/ui-warning-rendering.test.cjs
