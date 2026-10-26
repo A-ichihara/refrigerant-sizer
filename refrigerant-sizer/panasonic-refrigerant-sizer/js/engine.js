@@ -486,6 +486,8 @@ class RefrigerantSizerEngine {
                         childType: null,
                         lengthM: null,
                         lengthState: 'missing_or_nonfinite',
+                        lengthEquivalentM: null,
+                        equivalentLengthState: 'missing_or_nonfinite',
                         segmentType: 'unclassified',
                         declarationState: 'unclassified',
                         capacityBasis: null,
@@ -518,6 +520,18 @@ class RefrigerantSizerEngine {
                 }
                 const lengthIsFinite = Boolean(child && Number.isFinite(child.length));
                 const lengthIsValid = lengthIsFinite && child.length >= 0;
+                // 相当長は辺ごとの任意入力（child.lengthEquivalent）でのみ与える。
+                // PA-P900UXE3 に相当長換算表はないため算出しない。未入力の場合は
+                // 判定不可とし、実長で代用しない。入力されたが不正な値（非数値・
+                // 非有限・負数）は未入力として扱い、危険警告を出す（実長の扱いと同じ）。
+                const rawEquivalentLength = child.lengthEquivalent;
+                const equivalentIsFinite = typeof rawEquivalentLength === 'number'
+                    && Number.isFinite(rawEquivalentLength);
+                const equivalentIsValid = equivalentIsFinite && rawEquivalentLength >= 0;
+                const equivalentLengthState = rawEquivalentLength === undefined || rawEquivalentLength === null
+                    ? 'missing_or_nonfinite'
+                    : (equivalentIsValid ? 'valid_nonnegative'
+                        : (equivalentIsFinite ? 'invalid_negative' : 'missing_or_nonfinite'));
                 const capacityBasis = spec && typeof spec.capacityBasis === 'string' && capacityBasisValues.has(spec.capacityBasis)
                     ? spec.capacityBasis
                     : null;
@@ -540,6 +554,8 @@ class RefrigerantSizerEngine {
                     childType: child && child.type || null,
                     lengthM: lengthIsFinite ? child.length : null,
                     lengthState: !lengthIsFinite ? 'missing_or_nonfinite' : (lengthIsValid ? 'valid_nonnegative' : 'invalid_negative'),
+                    lengthEquivalentM: equivalentIsValid ? rawEquivalentLength : null,
+                    equivalentLengthState,
                     segmentType: validDeclaredType ? declaredType : 'unclassified',
                     declarationState: validDeclaredType && declaredType !== 'unclassified'
                         ? 'declared_unverified'
@@ -552,6 +568,12 @@ class RefrigerantSizerEngine {
                     warnings.push({
                         type: 'danger',
                         message: `UXE3区間監査：配管長が未入力・非数値、または負数です（${childPath}）。`
+                    });
+                }
+                if (rawEquivalentLength !== undefined && rawEquivalentLength !== null && !equivalentIsValid) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `UXE3区間監査：相当長が未入力・非数値、または負数です。相当長は未入力として扱います（${childPath}）。`
                     });
                 }
                 if (spec && Object.prototype.hasOwnProperty.call(spec, 'capacityBasis')
@@ -606,12 +628,14 @@ class RefrigerantSizerEngine {
     }
 
     /**
-     * UXE3配管ツリーの経路を、データ変更なしで診断する（優先度C・実装順序1）。
+     * UXE3配管ツリーの経路を、データ変更なしで診断する（優先度C・実装順序1・3）。
      * 室外機〜各室内機の経路を列挙し、L1候補（実長による最遠経路）と、
      * 決定事項D1の規則に基づくLM候補（LA＋LB）・ΔL候補を監査出力として返す。
      * LM候補・ΔL候補は決定事項D1の規則による区間であり、メーカーの文言に
-     * よる明示的な定義ではない。相当長は入力がないため判定不可とし、実長で
-     * 代用しない。管径選定・BOM・length・警告パネルには接続しない。
+     * よる明示的な定義ではない。相当長は辺ごとの任意入力（子ノードの
+     * `lengthEquivalent`）でのみ与える。PA-P900UXE3 に相当長換算表は
+     * ないため算出せず、未入力の辺を含む経路の相当長は判定不可とし、
+     * 実長で代用しない。管径選定・BOM・length・警告パネルには接続しない。
      * 入力ツリーを変更しない。循環参照・共有ノード・深すぎるツリーでも
      * 終了するよう、経路数と深さに上限を設ける。
      */
@@ -635,6 +659,7 @@ class RefrigerantSizerEngine {
             seriesId: 'fsv_uxe3',
             leafPaths: [],
             l1Candidate: notDeterminable(reason),
+            l1EquivalentCandidate: notDeterminable(reason),
             lmCandidate: {
                 status: 'not_determinable',
                 reason,
@@ -647,6 +672,8 @@ class RefrigerantSizerEngine {
                 laEdgeChildId: null,
                 lbEdgeChildId: null,
                 lengthActualM: null,
+                lengthEquivalentM: null,
+                equivalentStatus: 'not_determinable',
                 lengthState: 'missing_or_nonfinite',
                 nodeLabels: []
             },
@@ -660,6 +687,11 @@ class RefrigerantSizerEngine {
                 maxLengthM: null,
                 minLengthM: null,
                 deltaM: null,
+                maxLengthEquivalentM: null,
+                minLengthEquivalentM: null,
+                deltaEquivalentM: null,
+                equivalentStatus: 'not_determinable',
+                equivalentTerminalCount: 0,
                 lengthState: 'missing_or_nonfinite'
             },
             summary: {
@@ -692,12 +724,22 @@ class RefrigerantSizerEngine {
             if (node.length < 0) return { value: null, state: 'invalid_negative' };
             return { value: node.length, state: 'valid_nonnegative' };
         };
+        // 相当長は辺ごとの任意入力（child.lengthEquivalent）でのみ与える。
+        // 未入力（undefined／null）は判定不可であり、警告は出さない（任意入力のため）。
+        // 入力されたが不正な値（非数値・非有限・負数）は未入力として扱う。
+        const equivalentLengthOf = (node) => {
+            if (!node || node.lengthEquivalent === undefined || node.lengthEquivalent === null
+                || !Number.isFinite(node.lengthEquivalent)) return { value: null, state: 'missing_or_nonfinite' };
+            if (node.lengthEquivalent < 0) return { value: null, state: 'invalid_negative' };
+            return { value: node.lengthEquivalent, state: 'valid_nonnegative' };
+        };
 
         // 概要：各接続辺を一度だけ数える（共有ノードの配下は重複計上しない）。
         let totalEdges = 0;
         let totalLengthM = 0;
         let longestEdgeM = null;
         let invalidLengthEdges = 0;
+        let hasValidEquivalentLength = false;
         const seen = new Set();
         const stack = [rootNode];
         while (stack.length > 0) {
@@ -713,6 +755,15 @@ class RefrigerantSizerEngine {
                     if (longestEdgeM === null || len.value > longestEdgeM) longestEdgeM = len.value;
                 } else {
                     invalidLengthEdges += 1;
+                }
+                const eqLen = equivalentLengthOf(child);
+                if (eqLen.state === 'valid_nonnegative') hasValidEquivalentLength = true;
+                if (child && child.lengthEquivalent !== undefined && child.lengthEquivalent !== null
+                    && eqLen.state !== 'valid_nonnegative') {
+                    notes.push({
+                        type: 'danger',
+                        message: `UXE3経路診断：相当長が未入力・非数値、または負数です。相当長は未入力として扱います（${child.id || child.type || '名称不明'}）。`
+                    });
                 }
                 if (child && typeof child === 'object') stack.push(child);
             });
@@ -747,6 +798,7 @@ class RefrigerantSizerEngine {
             activePath.add(node);
             if (children.length === 0) {
                 const invalid = edges.find((edge) => edge.lengthState !== 'valid_nonnegative');
+                const invalidEq = edges.find((edge) => edge.equivalentState !== 'valid_nonnegative');
                 leafPaths.push({
                     leafId: idOf(node),
                     leafType: node.type || null,
@@ -759,7 +811,11 @@ class RefrigerantSizerEngine {
                     lengthActualM: invalid
                         ? null
                         : edges.reduce((sum, edge) => sum + edge.lengthM, 0),
-                    lengthState: invalid ? invalid.lengthState : 'valid_nonnegative'
+                    lengthState: invalid ? invalid.lengthState : 'valid_nonnegative',
+                    lengthEquivalentM: invalidEq
+                        ? null
+                        : edges.reduce((sum, edge) => sum + edge.lengthEquivalentM, 0),
+                    equivalentState: invalidEq ? invalidEq.equivalentState : 'valid_nonnegative'
                 });
             } else {
                 children.forEach((child, index) => {
@@ -769,13 +825,14 @@ class RefrigerantSizerEngine {
                     }
                     const childLabel = labelOf(child, index);
                     const len = lengthOf(child);
+                    const eqLen = equivalentLengthOf(child);
                     walk(
                         child,
                         [...nodeLabels, childLabel],
                         [...nodeTypes, child && child.type ? child.type : null],
                         [...nodeIds, idOf(child)],
                         [...edgeChildIds, idOf(child) || childLabel],
-                        [...edges, { childId: idOf(child) || childLabel, lengthM: len.value, lengthState: len.state }],
+                        [...edges, { childId: idOf(child) || childLabel, lengthM: len.value, lengthState: len.state, lengthEquivalentM: eqLen.value, equivalentState: eqLen.state }],
                         depth + 1
                     );
                 });
@@ -793,7 +850,9 @@ class RefrigerantSizerEngine {
         const indoorPaths = leafPaths.filter((path) => path.leafType === 'indoor');
         const indoorValidPaths = indoorPaths.filter((path) => path.lengthActualM !== null);
 
-        // L1候補：実長による最遠の室内機経路。相当長は判定不可。
+        // L1候補：実長による最遠の室内機経路。lengthEquivalentM は同経路の
+        // 相当長（全辺の相当長が有効な場合のみ）。相当長が未入力・不正の辺を
+        // 含む場合は判定不可とし、実長で代用しない。
         let l1Candidate;
         if (indoorValidPaths.length === 0) {
             const reason = indoorPaths.length === 0
@@ -812,14 +871,55 @@ class RefrigerantSizerEngine {
                 nodeLabels: [...farthest.nodeLabels],
                 edgeChildIds: [...farthest.edgeChildIds],
                 lengthActualM: farthest.lengthActualM,
-                lengthEquivalentM: null,
-                equivalentStatus: 'not_determinable',
+                lengthEquivalentM: farthest.lengthEquivalentM,
+                equivalentStatus: farthest.lengthEquivalentM === null ? 'not_determinable' : 'determined',
                 lengthState: 'valid_nonnegative'
             };
-            notes.push({
-                type: 'info',
-                message: 'UXE3経路診断：L1候補は実長による最遠経路です。相当長は入力がないため判定不可であり、実長で代用していません。'
-            });
+        }
+
+        // L1候補（相当長基準）：相当長による最遠の室内機経路。相当長が
+        // 未入力・不正の辺を含む経路は対象外とし、実長で代用しない。
+        // 実長基準のL1候補とは別の経路になることがある。
+        const indoorEquivalentPaths = indoorPaths.filter((path) => path.lengthEquivalentM !== null);
+        let l1EquivalentCandidate;
+        if (indoorEquivalentPaths.length === 0) {
+            const reason = indoorPaths.length === 0
+                ? '室内機までの経路がありません。'
+                : '室内機までの経路の相当長が未入力・非数値、または負数です。';
+            l1EquivalentCandidate = notDeterminable(reason);
+        } else {
+            const farthestEq = indoorEquivalentPaths.reduce((best, path) => (
+                path.lengthEquivalentM > best.lengthEquivalentM ? path : best
+            ));
+            l1EquivalentCandidate = {
+                status: 'candidate',
+                reason: null,
+                leafId: farthestEq.leafId,
+                nodeLabels: [...farthestEq.nodeLabels],
+                edgeChildIds: [...farthestEq.edgeChildIds],
+                lengthActualM: farthestEq.lengthActualM,
+                lengthEquivalentM: farthestEq.lengthEquivalentM,
+                equivalentStatus: 'determined',
+                lengthState: farthestEq.equivalentState
+            };
+        }
+        if (l1Candidate.status === 'candidate') {
+            if (l1EquivalentCandidate.status === 'candidate') {
+                notes.push({
+                    type: 'info',
+                    message: `UXE3経路診断：L1候補は実長による最遠経路です（${l1Candidate.leafId}、実長 ${l1Candidate.lengthActualM}m）。相当長基準の最遠経路は${l1EquivalentCandidate.leafId}です（相当長 ${l1EquivalentCandidate.lengthEquivalentM}m）。`
+                });
+            } else if (!hasValidEquivalentLength) {
+                notes.push({
+                    type: 'info',
+                    message: 'UXE3経路診断：L1候補は実長による最遠経路です。相当長は入力がないため判定不可であり、実長で代用していません。'
+                });
+            } else {
+                notes.push({
+                    type: 'info',
+                    message: 'UXE3経路診断：L1候補は実長による最遠経路です。相当長が一部の辺で未入力・不正のため、相当長基準のL1候補は判定不可であり、実長で代用していません。'
+                });
+            }
         }
 
         // LM候補：L1候補経路上の分岐ノードを決定事項D1の規則で読み替える。
@@ -839,6 +939,8 @@ class RefrigerantSizerEngine {
                 laEdgeChildId: null,
                 lbEdgeChildId: null,
                 lengthActualM: null,
+                lengthEquivalentM: null,
+                equivalentStatus: 'not_determinable',
                 lengthState: 'missing_or_nonfinite',
                 nodeLabels: []
             };
@@ -863,6 +965,8 @@ class RefrigerantSizerEngine {
                     laEdgeChildId: null,
                     lbEdgeChildId: null,
                     lengthActualM: null,
+                    lengthEquivalentM: null,
+                    equivalentStatus: 'not_determinable',
                     lengthState: 'missing_or_nonfinite',
                     nodeLabels: []
                 };
@@ -875,6 +979,7 @@ class RefrigerantSizerEngine {
                 const laEdge = farthest.edges[branchIndexes[1] - 1];
                 const lbEdge = farthest.edges[branchIndexes[2] - 1];
                 const invalidEdge = [laEdge, lbEdge].find((edge) => edge.lengthState !== 'valid_nonnegative');
+                const invalidEqEdge = [laEdge, lbEdge].find((edge) => edge.equivalentState !== 'valid_nonnegative');
                 lmCandidate = {
                     status: 'candidate',
                     reason: null,
@@ -887,6 +992,8 @@ class RefrigerantSizerEngine {
                     laEdgeChildId: laEdge.childId,
                     lbEdgeChildId: lbEdge.childId,
                     lengthActualM: invalidEdge ? null : laEdge.lengthM + lbEdge.lengthM,
+                    lengthEquivalentM: invalidEqEdge ? null : laEdge.lengthEquivalentM + lbEdge.lengthEquivalentM,
+                    equivalentStatus: invalidEqEdge ? 'not_determinable' : 'determined',
                     lengthState: invalidEdge ? invalidEdge.lengthState : 'valid_nonnegative',
                     nodeLabels: [
                         farthest.nodeLabels[branchIndexes[0]],
@@ -898,6 +1005,12 @@ class RefrigerantSizerEngine {
                     type: 'info',
                     message: 'UXE3経路診断：LM候補は決定事項D1（2026-10-26）の規則に基づきます。室外第一分岐・第一分岐の対応は図1の確認に基づく決定であり、メーカーの文言による明示的な定義ではありません。'
                 });
+                if (!invalidEqEdge) {
+                    notes.push({
+                        type: 'info',
+                        message: `UXE3経路診断：LM候補の相当長は LA＋LB の相当長の合計です（${lmCandidate.lengthEquivalentM}m）。`
+                    });
+                }
             }
         }
 
@@ -914,6 +1027,11 @@ class RefrigerantSizerEngine {
                 maxLengthM: null,
                 minLengthM: null,
                 deltaM: null,
+                maxLengthEquivalentM: null,
+                minLengthEquivalentM: null,
+                deltaEquivalentM: null,
+                equivalentStatus: 'not_determinable',
+                equivalentTerminalCount: 0,
                 lengthState: 'missing_or_nonfinite'
             };
         } else {
@@ -922,13 +1040,15 @@ class RefrigerantSizerEngine {
             ));
             const prefixLabels = farthest.nodeLabels.slice(0, firstBranchIndex + 1);
             const suffixes = [];
+            const eqSuffixes = [];
             indoorPaths.forEach((path) => {
                 const sharesPrefix = prefixLabels.every((label, index) => path.nodeLabels[index] === label);
                 if (!sharesPrefix) return;
                 const suffixEdges = path.edges.slice(firstBranchIndex);
                 const invalid = suffixEdges.find((edge) => edge.lengthState !== 'valid_nonnegative');
-                if (invalid) return;
-                suffixes.push(suffixEdges.reduce((sum, edge) => sum + edge.lengthM, 0));
+                if (!invalid) suffixes.push(suffixEdges.reduce((sum, edge) => sum + edge.lengthM, 0));
+                const invalidEq = suffixEdges.find((edge) => edge.equivalentState !== 'valid_nonnegative');
+                if (!invalidEq) eqSuffixes.push(suffixEdges.reduce((sum, edge) => sum + edge.lengthEquivalentM, 0));
             });
             if (suffixes.length === 0) {
                 deltaLCandidate = {
@@ -941,11 +1061,18 @@ class RefrigerantSizerEngine {
                     maxLengthM: null,
                     minLengthM: null,
                     deltaM: null,
+                    maxLengthEquivalentM: null,
+                    minLengthEquivalentM: null,
+                    deltaEquivalentM: null,
+                    equivalentStatus: 'not_determinable',
+                    equivalentTerminalCount: 0,
                     lengthState: 'missing_or_nonfinite'
                 };
             } else {
                 const maxLengthM = Math.max(...suffixes);
                 const minLengthM = Math.min(...suffixes);
+                const maxLengthEquivalentM = eqSuffixes.length === 0 ? null : Math.max(...eqSuffixes);
+                const minLengthEquivalentM = eqSuffixes.length === 0 ? null : Math.min(...eqSuffixes);
                 deltaLCandidate = {
                     status: 'candidate',
                     reason: null,
@@ -956,8 +1083,19 @@ class RefrigerantSizerEngine {
                     maxLengthM,
                     minLengthM,
                     deltaM: maxLengthM - minLengthM,
+                    maxLengthEquivalentM,
+                    minLengthEquivalentM,
+                    deltaEquivalentM: eqSuffixes.length === 0 ? null : maxLengthEquivalentM - minLengthEquivalentM,
+                    equivalentStatus: eqSuffixes.length === 0 ? 'not_determinable' : 'determined',
+                    equivalentTerminalCount: eqSuffixes.length,
                     lengthState: 'valid_nonnegative'
                 };
+                if (eqSuffixes.length > 0) {
+                    notes.push({
+                        type: 'info',
+                        message: `UXE3経路診断：ΔL候補の相当長基準の差も特定できました（最大 ${maxLengthEquivalentM}m・最小 ${minLengthEquivalentM}m・差 ${deltaLCandidate.deltaEquivalentM}m）。`
+                    });
+                }
             }
         }
 
@@ -965,6 +1103,7 @@ class RefrigerantSizerEngine {
             seriesId: 'fsv_uxe3',
             leafPaths,
             l1Candidate,
+            l1EquivalentCandidate,
             lmCandidate,
             deltaLCandidate,
             summary: {
