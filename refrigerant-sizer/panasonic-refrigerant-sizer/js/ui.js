@@ -139,6 +139,7 @@ class RefrigerantSizerUI {
         this.renderTree(results.tree);
         this.drawConnections();
         this.renderTotals(results.totals);
+        this.renderLongPipeSummary(results);
         this.renderWarnings(results.warnings);
         this.renderSegmentAuditSummary(results.segmentAudit);
         this.renderPropertyEditor();
@@ -175,7 +176,10 @@ class RefrigerantSizerUI {
             badgeText = `室内機 [${styleShort}]`; 
             badgeClass = 'type-indoor'; 
         }
-        else if (node.type === 'solenoid_kit') { badgeText = '電磁弁キット'; badgeClass = 'type-bs-unit'; }
+        else if (node.type === 'solenoid_kit') {
+            badgeText = node.parallelCount > 1 ? `電磁弁キット ×${node.parallelCount} 並列` : '電磁弁キット';
+            badgeClass = 'type-bs-unit';
+        }
 
         // スペック一覧
         let specHtml = '';
@@ -194,6 +198,7 @@ class RefrigerantSizerUI {
             specHtml = `
                 <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${(node.capacitySum || 0).toFixed(1)} kW</span></div>
                 <div class="spec-item"><span class="spec-lbl">接続台数:</span><span class="spec-val">${childIndoors} 台</span></div>
+                ${node.parallelCount > 1 ? `<div class="spec-item"><span class="spec-lbl">並列台数:</span><span class="spec-val">${node.parallelCount}台（×${node.parallelCount} 並列）</span></div>` : ''}
                 <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
             `;
         } else {
@@ -210,8 +215,14 @@ class RefrigerantSizerUI {
         const unverifiedPipeLabel = this.activeSeriesId === 'fsv_uxe3'
             ? '<div class="pipe-size-unverified" role="note">管径参考値・未検証（公式区間照合未完了）</div>'
             : '';
+        // UXE3の長配管条件（＊2・＊3）が LM 辺に適用される場合、その辺の
+        // 管径表示は増径後の径を示す。＊3 の分割区間は区間ごとに示す。
+        // 適用がない場合は従来どおり基準径を表示する。
+        const lmDisplay = this.activeSeriesId === 'fsv_uxe3' ? this.getUxE3LmEdgeDisplay(node) : null;
         if (node.type !== 'outdoor') {
-            if (node.pipes && node.pipes.type === '3pipe') {
+            if (lmDisplay) {
+                pipeHtml = this.buildUxE3LmPipeBadgeHtml(lmDisplay, unverifiedPipeLabel);
+            } else if (node.pipes && node.pipes.type === '3pipe') {
                 pipeHtml = `
                     <div class="pipe-result-badge">
                         ${unverifiedPipeLabel}
@@ -345,10 +356,34 @@ class RefrigerantSizerUI {
                 this.svgCanvas.appendChild(path);
 
                 // 配管道中への冷媒サイズ記号（ラベル）自動記入
-                const pLiquid = child.pipeLiquid || (child.pipes && child.pipes.liquid);
-                const pGas = child.pipeGas || (child.pipes && child.pipes.gas);
-                const pHighGas = child.pipeHighGas || (child.pipes && child.pipes.highGas);
-                const pLowGas = child.pipeLowGas || (child.pipes && child.pipes.lowGas);
+                let pLiquid = child.pipeLiquid || (child.pipes && child.pipes.liquid);
+                let pGas = child.pipeGas || (child.pipes && child.pipes.gas);
+                let pHighGas = child.pipeHighGas || (child.pipes && child.pipes.highGas);
+                let pLowGas = child.pipeLowGas || (child.pipes && child.pipes.lowGas);
+
+                // UXE3 の LM 辺に ＊2・＊3 が適用される場合、接続線ラベルの
+                // 径も増径後の径に合わせる。＊3 で辺内に増径区間と基準径区間
+                // が混ざる場合は基準径のままにし、分割がある旨だけを示す
+                // （区間ごとの詳細はノードカードに表示する）。
+                let lmRuleTag = '';
+                const lmDisplay = this.activeSeriesId === 'fsv_uxe3' ? this.getUxE3LmEdgeDisplay(child) : null;
+                if (lmDisplay) {
+                    if (lmDisplay.rule === 'star2') {
+                        pLiquid = lmDisplay.diameters.liquid;
+                        pHighGas = lmDisplay.diameters.dischargeGas;
+                        pLowGas = lmDisplay.diameters.suctionGas;
+                        lmRuleTag = ' ＊2';
+                    } else if (lmDisplay.rule === 'star3') {
+                        const singleUpsized = lmDisplay.segments.length === 1 && lmDisplay.segments[0].kind === 'upsized';
+                        if (singleUpsized) {
+                            const d = lmDisplay.segments[0].diameters;
+                            pLiquid = d.liquid;
+                            pHighGas = d.dischargeGas;
+                            pLowGas = d.suctionGas;
+                        }
+                        lmRuleTag = ' ＊3';
+                    }
+                }
 
                 if (pLiquid || pGas || pHighGas) {
                     const midX = (startX + endX) / 2;
@@ -395,7 +430,7 @@ class RefrigerantSizerUI {
                     tHeader.setAttribute('x', midX);
                     tHeader.setAttribute('y', boxY + rowH - 2);
                     tHeader.setAttribute('fill', segmentColor);
-                    tHeader.textContent = segmentLabel;
+                    tHeader.textContent = segmentLabel + lmRuleTag;
                     g.appendChild(tHeader);
 
                     const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -864,6 +899,12 @@ class RefrigerantSizerUI {
             const lenStr = `${node.length || 0} m`;
             const modelStr = node.modelNumber || node.jointModel || "-";
             const sizedUpTag = node.isSizedUp ? ' <span style="color:var(--color-secondary); font-weight:700;">(サイズUP)</span>' : '';
+            // LM 辺に ＊2・＊3 が適用される場合は、その旨を型番欄に示す
+            // （区間ごとの径の詳細はノードカードに表示する）。
+            const lmDisplay = this.activeSeriesId === 'fsv_uxe3' ? this.getUxE3LmEdgeDisplay(node) : null;
+            const lmTag = !lmDisplay ? '' : lmDisplay.rule === 'star2'
+                ? ' <span style="color:var(--color-secondary); font-weight:700;">(＊2適用)</span>'
+                : ' <span style="color:var(--color-secondary); font-weight:700;">(＊3適用・分割あり)</span>';
 
             let pipeLiquidStr = node.pipeLiquid ? `φ${node.pipeLiquid}` : "-";
             let pipeGasStr = node.pipeGas ? `φ${node.pipeGas}` : "-";
@@ -883,7 +924,7 @@ class RefrigerantSizerUI {
                     ` : `
                         <td style="font-family:var(--font-mono); font-weight:600; color:var(--color-secondary);">${pipeGasStr}</td>
                     `}
-                    <td style="font-size:0.75rem; font-family:var(--font-mono);">${modelStr}${sizedUpTag}</td>
+                    <td style="font-size:0.75rem; font-family:var(--font-mono);">${modelStr}${sizedUpTag}${lmTag}</td>
                 </tr>
             `;
 
@@ -1230,6 +1271,134 @@ class RefrigerantSizerUI {
         downloadAnchor.remove();
     }
 
+    /**
+     * UXE3 の LM 辺（LA・LB）について、長配管条件（＊2・＊3）による
+     * 増径の表示情報を返す。適用がない場合は null。
+     * this.sizerResult（update() で設定済み）の lmSplit / longPipe /
+     * pathAudit を読むだけであり、計算結果を変更しない。
+     */
+    getUxE3LmEdgeDisplay(node) {
+        if (!node || !this.sizerResult) return null;
+        const results = this.sizerResult;
+        const longPipe = results.longPipe;
+        const pathAudit = results.pathAudit;
+        // ＊2：LM 全体の一律増径。LA・LB の両辺が増径後の径になる。
+        if (longPipe && longPipe.star2 && longPipe.star2.status === 'applied'
+            && longPipe.star2.upsizedDiameters && pathAudit && pathAudit.lmCandidate
+            && pathAudit.lmCandidate.status === 'candidate') {
+            const lm = pathAudit.lmCandidate;
+            const segment = node.id === lm.laEdgeChildId ? 'LA'
+                : node.id === lm.lbEdgeChildId ? 'LB' : null;
+            if (segment) {
+                return {
+                    rule: 'star2',
+                    segment,
+                    diameters: { ...longPipe.star2.upsizedDiameters },
+                    baseDiameters: longPipe.star2.baseDiameters ? { ...longPipe.star2.baseDiameters } : null
+                };
+            }
+        }
+        // ＊3：LM の最初の 50m だけ増径。辺ごとの分割区間を示す。
+        const lmSplit = results.lmSplit;
+        if (lmSplit && lmSplit.status === 'applied' && Array.isArray(lmSplit.edges)) {
+            const edge = lmSplit.edges.find((entry) => entry && entry.edgeChildId === node.id);
+            if (edge && Array.isArray(edge.segments) && edge.segments.length > 0) {
+                return {
+                    rule: 'star3',
+                    segment: edge.segment || null,
+                    segments: edge.segments.map((seg) => ({
+                        fromM: seg.fromM,
+                        toM: seg.toM,
+                        lengthM: seg.lengthM,
+                        kind: seg.kind,
+                        diameters: seg.diameters ? { ...seg.diameters } : null
+                    }))
+                };
+            }
+        }
+        return null;
+    }
+
+    /** LM 辺の管径バッジ（＊2・＊3 適用時）。増径後の径を示す。 */
+    buildUxE3LmPipeBadgeHtml(lmDisplay, unverifiedPipeLabel) {
+        const label = unverifiedPipeLabel || '';
+        if (!lmDisplay) return '';
+        if (lmDisplay.rule === 'star2') {
+            const d = lmDisplay.diameters || {};
+            return `
+                <div class="pipe-result-badge">
+                    ${label}
+                    <div>液管: φ${d.liquid}</div>
+                    <div style="color:var(--color-warning);">吐出ガス: φ${d.dischargeGas}</div>
+                    <div style="color:var(--color-secondary);">吸入ガス: φ${d.suctionGas}</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">＊2適用：LM全体を1ランク増径</div>
+                </div>
+            `;
+        }
+        // ＊3：区間ごとに増径／基準径を示す。位置は LM の室外機側の端
+        // （室外第一分岐）からの距離である。
+        const rows = (lmDisplay.segments || []).map((seg) => {
+            const d = seg.diameters || {};
+            const kindLabel = seg.kind === 'upsized' ? '増径' : '基準径';
+            return `<div>LM ${seg.fromM}m〜${seg.toM}m（${kindLabel}）: 液φ${d.liquid}・吐出φ${d.dischargeGas}・吸入φ${d.suctionGas}</div>`;
+        }).join('');
+        return `
+            <div class="pipe-result-badge">
+                ${label}
+                ${rows}
+                <div style="font-size:0.7rem; color:var(--text-muted);">＊3適用：最初の50mのみ1ランク増径（液管は増径なし）</div>
+            </div>
+        `;
+    }
+
+    /**
+     * UXE3 長配管条件（＊2・＊3）の適用結果を、集計パネル（結果表示）に
+     * 示す。警告パネルには追加しない。＊2 が判定不可の場合の注記もここに
+     * 出す（警告パネルには出さない。実装順序3の既定と同じ）。
+     * 文言には「相当長」の語を使わない。
+     */
+    renderLongPipeSummary(results) {
+        if (!this.totalsPanel) return;
+        const html = this.buildUxE3LongPipeSummaryHtml(results);
+        if (html) this.totalsPanel.innerHTML += html;
+    }
+
+    buildUxE3LongPipeSummaryHtml(results) {
+        const longPipe = results && results.longPipe;
+        if (!longPipe || typeof longPipe.appliedRule !== 'string') return '';
+        const changedPipes = (adjust) => {
+            if (!adjust) return [];
+            const entries = [
+                { label: '吸込', key: 'suction' },
+                { label: '吐出', key: 'discharge' },
+                { label: '液', key: 'liquid' }
+            ];
+            return entries
+                .filter(({ key }) => adjust[key] && adjust[key].to !== adjust[key].from)
+                .map(({ label, key }) => `${label} φ${adjust[key].from}→φ${adjust[key].to}`);
+        };
+        let body = '';
+        if (longPipe.appliedRule === 'star2') {
+            const detail = changedPipes(longPipe.star2 && longPipe.star2.totalsAdjust).join('、');
+            body = `＊2を適用しました。LM全体を1ランク増径しました${detail ? `（${detail}）` : ''}。＊3 は適用しません。`;
+        } else if (longPipe.appliedRule === 'star3') {
+            const lmSplit = results.lmSplit;
+            const detail = changedPipes(lmSplit && lmSplit.totalsAdjust).join('、');
+            const lm = lmSplit && Number.isFinite(lmSplit.lmLengthActualM) ? lmSplit.lmLengthActualM : null;
+            body = `＊3を適用しました。${lm !== null ? `LM実長 ${lm}m が50mを超えるため、` : ''}最初の50mの吸込管・吐出管を1ランク増径しました${detail ? `（${detail}）` : ''}。液管は増径しません。`;
+        } else if (longPipe.appliedRule === 'not_determinable') {
+            body = '＊2の判定ができませんでした。L1の長さ情報が不足しているため、＊2の判定は行っていません。＊3も適用されませんでした。';
+        } else {
+            body = '＊2・＊3とも適用されませんでした。';
+        }
+        return `
+            <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+                <h4 style="font-size: 0.78rem; color: var(--color-secondary); margin-bottom: 6px;">🔧 長配管条件（＊2・＊3）</h4>
+                <div style="font-size:0.78rem; color:var(--text-primary);">${body}</div>
+            </div>
+        `;
+    }
+
     renderTotals(totals) {
         if (!this.totalsPanel) return;
 
@@ -1276,6 +1445,12 @@ class RefrigerantSizerUI {
             html += `<tr><td>ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.gasPipes[sz]} m</td></tr>`;
             hasPipes = true;
         });
+        // 室外機グループのバランス管（UXE3・C6）。他シリーズや単体機では
+        // balancePipes は空のため表示されない。
+        Object.keys(totals.balancePipes || {}).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(sz => {
+            html += `<tr><td>バランス管: φ${sz} mm</td><td style="text-align: right;">${totals.balancePipes[sz]} m</td></tr>`;
+            hasPipes = true;
+        });
 
         if (!hasPipes) {
             html += `<tr><td colspan="2" style="text-align:center; color:var(--text-muted);">配管は接続されていません</td></tr>`;
@@ -1306,7 +1481,9 @@ class RefrigerantSizerUI {
         let hasJoints = false;
         Object.keys(totals.joints).forEach(model => {
             let label = "分岐ジョイント管";
-            if (model.startsWith('CZ-P') && model.includes('HR')) {
+            if (model.includes('レデューサー')) {
+                label = "レデューサー";
+            } else if (model.startsWith('CZ-P') && model.includes('HR')) {
                 label = "電磁弁キット";
             }
             html += `<tr><td>${label}<br><strong style="font-family:var(--font-mono);">${model}</strong></td><td style="text-align: right;">${totals.joints[model]} 個</td></tr>`;
