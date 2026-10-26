@@ -187,25 +187,35 @@ class RefrigerantSizerEngine {
         }
     }
 
-    countIndoorUnitsDownstream(node) {
+    countIndoorUnitsDownstream(node, seen = null) {
+        if (!node || typeof node !== 'object') return 0;
+        if (!seen) seen = new Set();
+        if (seen.has(node)) return 0;
+        seen.add(node);
         let count = 0;
         if (node.type === 'indoor') count += 1;
-        if (node.children) {
+        if (Array.isArray(node.children)) {
             node.children.forEach(c => {
-                count += this.countIndoorUnitsDownstream(c);
+                count += this.countIndoorUnitsDownstream(c, seen);
             });
         }
         return count;
     }
 
-    getDownstreamCapacity(node) {
+    getDownstreamCapacity(node, seen = null) {
+        if (!node || typeof node !== 'object') return 0;
+        if (!seen) seen = new Set();
+        if (seen.has(node)) return 0;
+        seen.add(node);
         let sum = 0;
         if (node.type === 'indoor') {
-            sum += node.capacity;
+            // 容量が非数値・非有限の室内機は 0kW として扱う。文字列の容量が
+            // 合計に混ざると文字列連結になり、後段の選定・比率判定が壊れる。
+            sum += (typeof node.capacity === 'number' && Number.isFinite(node.capacity)) ? node.capacity : 0;
         }
-        if (node.children) {
+        if (Array.isArray(node.children)) {
             node.children.forEach(child => {
-                sum += this.getDownstreamCapacity(child);
+                sum += this.getDownstreamCapacity(child, seen);
             });
         }
         return sum;
@@ -275,6 +285,37 @@ class RefrigerantSizerEngine {
             return list[idx + 1];
         }
         return current;
+    }
+
+    /**
+     * 区間種別と容量基準を明示して管径を選定する（優先度C・実装順序2）。
+     * 現行の selectThreePipeSize / selectTwoPipeSize へ振り分けるだけで、
+     * 管径値は変更しない。旧関数は ui.js の表示と既存テストでも使うため残す。
+     * - 'upstream_three_pipe': 室外機〜電磁弁キット間の3管。現行は LA／LB／
+     *   LC〜LH／分岐管〜キットを区別しない一括区分であり、室外機容量を基準と
+     *   する。区間別の表（表4／表5／表6）への切替えはゲート C・D を通過する
+     *   まで行わない（D1 未決）。
+     * - 'downstream_two_pipe': 電磁弁キット下流の2管。下流合計容量を基準と
+     *   する。表6の形式別選定への切替えもゲート D を通過するまで行わない。
+     * 不明な区間種別や、容量基準そのものが渡されていない場合は例外とする。
+     * 黙って別基準で選定しないためである。ただし容量の値が範囲外・非有限
+     * の場合は旧関数へ委譲する（旧関数の else 分岐が最大径を返す既存の
+     * 挙動であり、calculateSystem が「UXE3対応容量外」の警告を出す）。
+     */
+    selectPipeSizeForSegment(segmentKind, basis, isManualSizeUp = false) {
+        if (segmentKind === 'upstream_three_pipe') {
+            if (!basis || basis.outdoorKw === undefined) {
+                throw new Error('upstream_three_pipe requires an outdoorKw capacity basis');
+            }
+            return this.selectThreePipeSize(basis.outdoorKw, isManualSizeUp);
+        }
+        if (segmentKind === 'downstream_two_pipe') {
+            if (!basis || basis.downstreamKw === undefined) {
+                throw new Error('downstream_two_pipe requires a downstreamKw capacity basis');
+            }
+            return this.selectTwoPipeSize(basis.downstreamKw, isManualSizeUp);
+        }
+        throw new Error(`Unknown pipe segment kind: ${String(segmentKind)}`);
     }
 
     /** 分岐ジョイント選定 (パナソニック) */
@@ -359,9 +400,18 @@ class RefrigerantSizerEngine {
             warnings.push(...segmentAudit.warnings);
         }
 
+        // UXE3経路診断を計算結果へ接続する。読み取り専用であり、管径計算・
+        // BOM・length は変更しない。pathAudit.notes は診断出力内の注記であり、
+        // UIの警告パネルへは追加しない（UIへの表示は別途の対応とする）。
+        let pathAudit = null;
+        if (seriesId === 'fsv_uxe3') {
+            pathAudit = this.auditUxE3PipePaths(rootNode);
+        }
+
         return {
             tree: rootNode,
             segmentAudit,
+            pathAudit,
             warnings: warnings,
             totals: totals
         };
@@ -555,6 +605,381 @@ class RefrigerantSizerEngine {
         };
     }
 
+    /**
+     * UXE3配管ツリーの経路を、データ変更なしで診断する（優先度C・実装順序1）。
+     * 室外機〜各室内機の経路を列挙し、L1候補（実長による最遠経路）と、
+     * 決定事項D1の規則に基づくLM候補（LA＋LB）・ΔL候補を監査出力として返す。
+     * LM候補・ΔL候補は決定事項D1の規則による区間であり、メーカーの文言に
+     * よる明示的な定義ではない。相当長は入力がないため判定不可とし、実長で
+     * 代用しない。管径選定・BOM・length・警告パネルには接続しない。
+     * 入力ツリーを変更しない。循環参照・共有ノード・深すぎるツリーでも
+     * 終了するよう、経路数と深さに上限を設ける。
+     */
+    auditUxE3PipePaths(rootNode) {
+        const RULE_D1 = '決定事項D1（2026-10-26）：L1候補経路上で最初に現れる分岐ノードを室外第一分岐、その次の分岐ノードを第一分岐、さらに次の分岐ノードを次の分岐とする。図1の室外第一分岐・第一分岐の配置に基づく規則。';
+        const MAX_PATHS = 200;
+        const MAX_DEPTH = 100;
+        const notes = [];
+        const notDeterminable = (reason) => ({
+            status: 'not_determinable',
+            reason,
+            leafId: null,
+            nodeLabels: [],
+            edgeChildIds: [],
+            lengthActualM: null,
+            lengthEquivalentM: null,
+            equivalentStatus: 'not_determinable',
+            lengthState: 'missing_or_nonfinite'
+        });
+        const emptyResult = (reason) => ({
+            seriesId: 'fsv_uxe3',
+            leafPaths: [],
+            l1Candidate: notDeterminable(reason),
+            lmCandidate: {
+                status: 'not_determinable',
+                reason,
+                rule: RULE_D1,
+                l1LeafId: null,
+                outdoorFirstBranchId: null,
+                outdoorFirstBranchLabel: null,
+                firstBranchId: null,
+                firstBranchLabel: null,
+                laEdgeChildId: null,
+                lbEdgeChildId: null,
+                lengthActualM: null,
+                lengthState: 'missing_or_nonfinite',
+                nodeLabels: []
+            },
+            deltaLCandidate: {
+                status: 'not_determinable',
+                reason,
+                rule: RULE_D1,
+                fromNodeId: null,
+                fromNodeLabel: null,
+                terminalCount: 0,
+                maxLengthM: null,
+                minLengthM: null,
+                deltaM: null,
+                lengthState: 'missing_or_nonfinite'
+            },
+            summary: {
+                totalEdges: 0,
+                totalLengthM: 0,
+                longestEdgeM: null,
+                invalidLengthEdges: 0,
+                leafPaths: 0,
+                indoorLeafPaths: 0,
+                truncated: false
+            },
+            notes
+        });
+
+        if (!rootNode || typeof rootNode !== 'object' || rootNode.type !== 'outdoor') {
+            notes.push({
+                type: 'danger',
+                message: 'UXE3経路診断には outdoor をルートとする有効なツリーが必要です。'
+            });
+            return emptyResult('有効なツリーではありません。');
+        }
+
+        const labelOf = (node, index) => {
+            if (node && typeof node.id === 'string' && node.id) return node.id;
+            return `${node && node.type ? node.type : 'node'}[${index}]`;
+        };
+        const idOf = (node) => (node && typeof node.id === 'string' && node.id ? node.id : null);
+        const lengthOf = (node) => {
+            if (!node || !Number.isFinite(node.length)) return { value: null, state: 'missing_or_nonfinite' };
+            if (node.length < 0) return { value: null, state: 'invalid_negative' };
+            return { value: node.length, state: 'valid_nonnegative' };
+        };
+
+        // 概要：各接続辺を一度だけ数える（共有ノードの配下は重複計上しない）。
+        let totalEdges = 0;
+        let totalLengthM = 0;
+        let longestEdgeM = null;
+        let invalidLengthEdges = 0;
+        const seen = new Set();
+        const stack = [rootNode];
+        while (stack.length > 0) {
+            const node = stack.pop();
+            if (!node || typeof node !== 'object' || seen.has(node)) continue;
+            seen.add(node);
+            const children = Array.isArray(node.children) ? node.children : [];
+            children.forEach((child) => {
+                totalEdges += 1;
+                const len = lengthOf(child);
+                if (len.state === 'valid_nonnegative') {
+                    totalLengthM += len.value;
+                    if (longestEdgeM === null || len.value > longestEdgeM) longestEdgeM = len.value;
+                } else {
+                    invalidLengthEdges += 1;
+                }
+                if (child && typeof child === 'object') stack.push(child);
+            });
+        }
+
+        // 経路列挙：室外機〜末端ノードの全経路（深さ優先）。末端＝子を持たないノード。
+        const leafPaths = [];
+        let truncated = false;
+        const activePath = new Set();
+        const rootLabel = rootNode.id || 'root';
+        const walk = (node, nodeLabels, nodeTypes, nodeIds, edgeChildIds, edges, depth) => {
+            if (leafPaths.length >= MAX_PATHS || depth > MAX_DEPTH) {
+                truncated = true;
+                return;
+            }
+            if (!node || typeof node !== 'object') return;
+            if (activePath.has(node)) {
+                notes.push({
+                    type: 'danger',
+                    message: `循環参照を検出したため、その接続先の経路列挙を停止しました（${nodeLabels.join('/')}）。`
+                });
+                truncated = true;
+                return;
+            }
+            const children = Array.isArray(node.children) ? node.children : [];
+            if (node.children !== undefined && !Array.isArray(node.children)) {
+                notes.push({
+                    type: 'danger',
+                    message: `UXE3経路診断：children が配列ではありません（${nodeLabels.join('/')}）。`
+                });
+            }
+            activePath.add(node);
+            if (children.length === 0) {
+                const invalid = edges.find((edge) => edge.lengthState !== 'valid_nonnegative');
+                leafPaths.push({
+                    leafId: idOf(node),
+                    leafType: node.type || null,
+                    leafName: typeof node.name === 'string' ? node.name : null,
+                    nodeLabels: [...nodeLabels],
+                    nodeTypes: [...nodeTypes],
+                    nodeIds: [...nodeIds],
+                    edgeChildIds: [...edgeChildIds],
+                    edges: edges.map((edge) => ({ ...edge })),
+                    lengthActualM: invalid
+                        ? null
+                        : edges.reduce((sum, edge) => sum + edge.lengthM, 0),
+                    lengthState: invalid ? invalid.lengthState : 'valid_nonnegative'
+                });
+            } else {
+                children.forEach((child, index) => {
+                    if (leafPaths.length >= MAX_PATHS) {
+                        truncated = true;
+                        return;
+                    }
+                    const childLabel = labelOf(child, index);
+                    const len = lengthOf(child);
+                    walk(
+                        child,
+                        [...nodeLabels, childLabel],
+                        [...nodeTypes, child && child.type ? child.type : null],
+                        [...nodeIds, idOf(child)],
+                        [...edgeChildIds, idOf(child) || childLabel],
+                        [...edges, { childId: idOf(child) || childLabel, lengthM: len.value, lengthState: len.state }],
+                        depth + 1
+                    );
+                });
+            }
+            activePath.delete(node);
+        };
+        walk(rootNode, [rootLabel], ['outdoor'], [idOf(rootNode)], [], [], 0);
+        if (truncated) {
+            notes.push({
+                type: 'danger',
+                message: 'UXE3経路診断：経路数または深さの上限に達したため、列挙を打ち切りました。結果は全経路を網羅していません。'
+            });
+        }
+
+        const indoorPaths = leafPaths.filter((path) => path.leafType === 'indoor');
+        const indoorValidPaths = indoorPaths.filter((path) => path.lengthActualM !== null);
+
+        // L1候補：実長による最遠の室内機経路。相当長は判定不可。
+        let l1Candidate;
+        if (indoorValidPaths.length === 0) {
+            const reason = indoorPaths.length === 0
+                ? '室内機までの経路がありません。'
+                : '室内機までの経路の配管長が未入力・非数値、または負数です。';
+            l1Candidate = notDeterminable(reason);
+            notes.push({ type: 'info', message: `UXE3経路診断：L1候補を特定できませんでした（${reason}）` });
+        } else {
+            const farthest = indoorValidPaths.reduce((best, path) => (
+                path.lengthActualM > best.lengthActualM ? path : best
+            ));
+            l1Candidate = {
+                status: 'candidate',
+                reason: null,
+                leafId: farthest.leafId,
+                nodeLabels: [...farthest.nodeLabels],
+                edgeChildIds: [...farthest.edgeChildIds],
+                lengthActualM: farthest.lengthActualM,
+                lengthEquivalentM: null,
+                equivalentStatus: 'not_determinable',
+                lengthState: 'valid_nonnegative'
+            };
+            notes.push({
+                type: 'info',
+                message: 'UXE3経路診断：L1候補は実長による最遠経路です。相当長は入力がないため判定不可であり、実長で代用していません。'
+            });
+        }
+
+        // LM候補：L1候補経路上の分岐ノードを決定事項D1の規則で読み替える。
+        // LA＝室外第一分岐→第一分岐の辺、LB＝第一分岐→次の分岐の辺。
+        let lmCandidate;
+        let firstBranchIndex = -1;
+        if (l1Candidate.status !== 'candidate') {
+            lmCandidate = {
+                status: 'not_determinable',
+                reason: 'L1候補が特定できないため、LM候補も特定できません。',
+                rule: RULE_D1,
+                l1LeafId: null,
+                outdoorFirstBranchId: null,
+                outdoorFirstBranchLabel: null,
+                firstBranchId: null,
+                firstBranchLabel: null,
+                laEdgeChildId: null,
+                lbEdgeChildId: null,
+                lengthActualM: null,
+                lengthState: 'missing_or_nonfinite',
+                nodeLabels: []
+            };
+        } else {
+            const farthest = indoorValidPaths.reduce((best, path) => (
+                path.lengthActualM > best.lengthActualM ? path : best
+            ));
+            const branchIndexes = [];
+            farthest.nodeTypes.forEach((type, index) => {
+                if (index > 0 && type === 'branch') branchIndexes.push(index);
+            });
+            if (branchIndexes.length < 3) {
+                lmCandidate = {
+                    status: 'not_determinable',
+                    reason: 'L1候補経路上に分岐ノードが3つありません（室外第一分岐・第一分岐・次の分岐を特定できません）。',
+                    rule: RULE_D1,
+                    l1LeafId: farthest.leafId,
+                    outdoorFirstBranchId: null,
+                    outdoorFirstBranchLabel: null,
+                    firstBranchId: null,
+                    firstBranchLabel: null,
+                    laEdgeChildId: null,
+                    lbEdgeChildId: null,
+                    lengthActualM: null,
+                    lengthState: 'missing_or_nonfinite',
+                    nodeLabels: []
+                };
+                notes.push({
+                    type: 'info',
+                    message: 'UXE3経路診断：LM候補を特定できませんでした（L1候補経路上に分岐ノードが3つありません）。'
+                });
+            } else {
+                firstBranchIndex = branchIndexes[1];
+                const laEdge = farthest.edges[branchIndexes[1] - 1];
+                const lbEdge = farthest.edges[branchIndexes[2] - 1];
+                const invalidEdge = [laEdge, lbEdge].find((edge) => edge.lengthState !== 'valid_nonnegative');
+                lmCandidate = {
+                    status: 'candidate',
+                    reason: null,
+                    rule: RULE_D1,
+                    l1LeafId: farthest.leafId,
+                    outdoorFirstBranchId: farthest.nodeIds[branchIndexes[0]],
+                    outdoorFirstBranchLabel: farthest.nodeLabels[branchIndexes[0]],
+                    firstBranchId: farthest.nodeIds[branchIndexes[1]],
+                    firstBranchLabel: farthest.nodeLabels[branchIndexes[1]],
+                    laEdgeChildId: laEdge.childId,
+                    lbEdgeChildId: lbEdge.childId,
+                    lengthActualM: invalidEdge ? null : laEdge.lengthM + lbEdge.lengthM,
+                    lengthState: invalidEdge ? invalidEdge.lengthState : 'valid_nonnegative',
+                    nodeLabels: [
+                        farthest.nodeLabels[branchIndexes[0]],
+                        farthest.nodeLabels[branchIndexes[1]],
+                        farthest.nodeLabels[branchIndexes[2]]
+                    ]
+                };
+                notes.push({
+                    type: 'info',
+                    message: 'UXE3経路診断：LM候補は決定事項D1（2026-10-26）の規則に基づきます。室外第一分岐・第一分岐の対応は図1の確認に基づく決定であり、メーカーの文言による明示的な定義ではありません。'
+                });
+            }
+        }
+
+        // ΔL候補：第一分岐（決定事項D1）から各室内機までの経路長の最大値と最小値の差。
+        let deltaLCandidate;
+        if (lmCandidate.status !== 'candidate') {
+            deltaLCandidate = {
+                status: 'not_determinable',
+                reason: '第一分岐を特定できないため、ΔL候補も特定できません。',
+                rule: RULE_D1,
+                fromNodeId: null,
+                fromNodeLabel: null,
+                terminalCount: 0,
+                maxLengthM: null,
+                minLengthM: null,
+                deltaM: null,
+                lengthState: 'missing_or_nonfinite'
+            };
+        } else {
+            const farthest = indoorValidPaths.reduce((best, path) => (
+                path.lengthActualM > best.lengthActualM ? path : best
+            ));
+            const prefixLabels = farthest.nodeLabels.slice(0, firstBranchIndex + 1);
+            const suffixes = [];
+            indoorPaths.forEach((path) => {
+                const sharesPrefix = prefixLabels.every((label, index) => path.nodeLabels[index] === label);
+                if (!sharesPrefix) return;
+                const suffixEdges = path.edges.slice(firstBranchIndex);
+                const invalid = suffixEdges.find((edge) => edge.lengthState !== 'valid_nonnegative');
+                if (invalid) return;
+                suffixes.push(suffixEdges.reduce((sum, edge) => sum + edge.lengthM, 0));
+            });
+            if (suffixes.length === 0) {
+                deltaLCandidate = {
+                    status: 'not_determinable',
+                    reason: '第一分岐から室内機までの有効な経路長がありません。',
+                    rule: RULE_D1,
+                    fromNodeId: lmCandidate.firstBranchId,
+                    fromNodeLabel: farthest.nodeLabels[firstBranchIndex],
+                    terminalCount: 0,
+                    maxLengthM: null,
+                    minLengthM: null,
+                    deltaM: null,
+                    lengthState: 'missing_or_nonfinite'
+                };
+            } else {
+                const maxLengthM = Math.max(...suffixes);
+                const minLengthM = Math.min(...suffixes);
+                deltaLCandidate = {
+                    status: 'candidate',
+                    reason: null,
+                    rule: RULE_D1,
+                    fromNodeId: lmCandidate.firstBranchId,
+                    fromNodeLabel: farthest.nodeLabels[firstBranchIndex],
+                    terminalCount: suffixes.length,
+                    maxLengthM,
+                    minLengthM,
+                    deltaM: maxLengthM - minLengthM,
+                    lengthState: 'valid_nonnegative'
+                };
+            }
+        }
+
+        return {
+            seriesId: 'fsv_uxe3',
+            leafPaths,
+            l1Candidate,
+            lmCandidate,
+            deltaLCandidate,
+            summary: {
+                totalEdges,
+                totalLengthM,
+                longestEdgeM,
+                invalidLengthEdges,
+                leafPaths: leafPaths.length,
+                indoorLeafPaths: indoorPaths.length,
+                truncated
+            },
+            notes
+        };
+    }
+
     // 旧UXE3 18HPデータのみ、公式50.4kW定格に合わせる。別シリーズや他の容量は変更しない。
     migrateLegacyOutdoorCapacity(rootNode, seriesId) {
         if (seriesId !== 'fsv_uxe3' || !rootNode || rootNode.type !== 'outdoor') return false;
@@ -563,15 +988,63 @@ class RefrigerantSizerEngine {
         return true;
     }
 
-    processNodeSizing(node, seriesId, isManualSizeUp, inSolenoidDownstream, outdoorCap, totals, warnings) {
+    processNodeSizing(node, seriesId, isManualSizeUp, inSolenoidDownstream, outdoorCap, totals, warnings, seen = null) {
+        if (!node || typeof node !== 'object') return;
+        if (!seen) seen = { active: new Set(), done: new Set() };
+        if (seen.active.has(node)) {
+            warnings.push({
+                type: 'danger',
+                message: `循環参照を検出したため、その接続先の計算を停止しました（${node.name || node.type || '名称不明'}）。`
+            });
+            return;
+        }
+        if (seen.done.has(node)) {
+            warnings.push({
+                type: 'danger',
+                message: `共有ノードを検出しました。複数の親から参照されているため、配管ツリーの一意性を確認してください（${node.name || node.type || '名称不明'}）。`
+            });
+            return;
+        }
+        seen.active.add(node);
         node.modelNumber = this.generateModelNumber(node, seriesId);
 
         if (node.children && node.children.length > 0) {
             node.children.forEach(child => {
+                if (!child || typeof child !== 'object') {
+                    warnings.push({
+                        type: 'danger',
+                        message: '配管ツリーに無効な子ノードがあります。計算から除外します。'
+                    });
+                    return;
+                }
+                if (seen.active.has(child)) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `循環参照を検出したため、その接続先の計算を停止しました（${child.name || child.type || '名称不明'}）。`
+                    });
+                    return;
+                }
+                if (seen.done.has(child)) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `共有ノードを検出しました。複数の親から参照されているため、配管ツリーの一意性を確認してください（${child.name || child.type || '名称不明'}）。`
+                    });
+                    return;
+                }
                 const childKw = this.getDownstreamCapacity(child);
                 child.capacitySum = childKw;
 
-                const len = child.length || 0;
+                // 不正な長さ（非数値・非有限・負数）は 0m として集計する。
+                // 従来は文字列の長さが集計に混ざり totalLength が文字列になった。
+                // 未入力（undefined／null）は従来どおり 0m とし、警告は区間監査に任せる。
+                const rawLen = child.length;
+                const len = (typeof rawLen === 'number' && Number.isFinite(rawLen) && rawLen >= 0) ? rawLen : 0;
+                if (rawLen !== undefined && rawLen !== null && len !== rawLen) {
+                    warnings.push({
+                        type: 'danger',
+                        message: `配管長が未入力・非数値、または負数です。計算では0mとして集計します（${child.name || child.type || '名称不明'}）。`
+                    });
+                }
                 totals.totalLength += len;
 
                 if (seriesId === 'fsv_uxe3') {
@@ -579,7 +1052,7 @@ class RefrigerantSizerEngine {
                     if (node.type === 'outdoor' || (node.type === 'branch' && !inSolenoidDownstream)) {
                         if (child.type === 'solenoid_kit' || child.type === 'branch') {
                             // 電磁弁キット上流の分岐区間も3管式として集計する
-                            const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
+                            const sizes = this.selectPipeSizeForSegment('upstream_three_pipe', { outdoorKw: outdoorCap }, isManualSizeUp);
                             child.pipeSizeText = `液管: φ${sizes.liquid} / 吐出ガス: φ${sizes.dischargeGas} / 吸入ガス: φ${sizes.suctionGas}`;
                             child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.dischargeGas, lowGas: sizes.suctionGas };
 
@@ -587,10 +1060,10 @@ class RefrigerantSizerEngine {
                             totals.highGasPipes[sizes.dischargeGas] = (totals.highGasPipes[sizes.dischargeGas] || 0) + len;
                             totals.lowGasPipes[sizes.suctionGas] = (totals.lowGasPipes[sizes.suctionGas] || 0) + len;
 
-                            this.processNodeSizing(child, seriesId, isManualSizeUp, child.type === 'solenoid_kit', outdoorCap, totals, warnings);
+                            this.processNodeSizing(child, seriesId, isManualSizeUp, child.type === 'solenoid_kit', outdoorCap, totals, warnings, seen);
                         } else {
                             // 直接接続
-                            const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
+                            const sizes = this.selectPipeSizeForSegment('upstream_three_pipe', { outdoorKw: outdoorCap }, isManualSizeUp);
                             child.pipeSizeText = `液管: φ${sizes.liquid} / 吐出ガス: φ${sizes.dischargeGas} / 吸入ガス: φ${sizes.suctionGas}`;
                             child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.dischargeGas, lowGas: sizes.suctionGas };
                             
@@ -599,22 +1072,22 @@ class RefrigerantSizerEngine {
                                 message: `UXE3（冷暖フリー）系統では、室外機と室内機の間に電磁弁キットが必要です。(${child.name})`
                             });
 
-                            this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
+                            this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings, seen);
                         }
                     } else if (inSolenoidDownstream) {
                         // 電磁弁キットから下流は2管式
-                        const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
+                        const sizes = this.selectPipeSizeForSegment('downstream_two_pipe', { downstreamKw: childKw }, isManualSizeUp);
                         child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                         child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
 
                         totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                         totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
 
-                        this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings);
+                        this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings, seen);
                     }
                 } else {
                     // 通常の2管式 (UX3, オフィスパック)
-                    const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
+                    const sizes = this.selectPipeSizeForSegment('downstream_two_pipe', { downstreamKw: childKw }, isManualSizeUp);
                     child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                     child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
 
@@ -630,7 +1103,7 @@ class RefrigerantSizerEngine {
                         });
                     }
 
-                    this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
+                    this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings, seen);
                 }
             });
         }
@@ -644,6 +1117,9 @@ class RefrigerantSizerEngine {
         if ((node.type === 'solenoid_kit') && node.modelNumber) {
             totals.joints[node.modelNumber] = (totals.joints[node.modelNumber] || 0) + 1;
         }
+
+        seen.active.delete(node);
+        seen.done.add(node);
     }
 }
 
