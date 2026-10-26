@@ -39,5 +39,13 @@ jobs:
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-path-audit.test.cjs
       - name: Run Panasonic UXE3 capacity basis regression tests
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-capacity-basis.test.cjs
+      - name: Run Panasonic UXE3 equivalent length regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-equivalent-length.test.cjs
+      - name: Run Panasonic UXE3 LM 50m split regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-lm-split.test.cjs
+      - name: Run Panasonic UXE3 long pipe conditions regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-long-pipe-conditions.test.cjs
+      - name: Run Panasonic UXE3 group nodes regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-group-nodes.test.cjs
       - name: Run Panasonic UI warning rendering tests
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/ui-warning-rendering.test.cjs
