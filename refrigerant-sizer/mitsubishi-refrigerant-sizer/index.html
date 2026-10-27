@@ -116,7 +116,7 @@
             <button class="btn" id="btn-load-sample" title="標準的な系統サンプルを読み込みます">
                 <span>📂 サンプル読込</span>
             </button>
-            <button class="btn" id="btn-force-sizeup" title="最遠配管相当長に関わらず、主管サイズアップを強制適用します">
+            <button class="btn" id="btn-force-sizeup" title="主管サイズアップを手動で適用します">
                 <span>⚡ 主管サイズUP</span>
             </button>
             <button class="btn" id="btn-reset" title="系統図を初期状態にリセットします">
@@ -234,7 +234,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,162,232,0.08); padding:10px 16px; border-radius:var(--radius-md); border:1px solid rgba(0,162,232,0.2); margin-bottom:12px;">
                     <div>
                         <div style="font-size:0.875rem; font-weight:700; color:var(--text-primary);">主配管 (主管) サイズアップ設定</div>
-                        <div style="font-size:0.75rem; color:var(--text-secondary);">最遠長90m以上または手動設定時の主管1サイズUPの有効/無効を切り替えます</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary);">主管サイズアップ（手動）の有効/無効を切り替えます。メーカーの増径条件は自動判定されません</div>
                     </div>
                     <div class="toggle-switch-container">
                         <span style="font-size:0.775rem; font-weight:600;" id="sizeup-toggle-label">標準サイズ</span>
@@ -264,7 +264,7 @@
                     <span style="font-size:1.4rem;">📑</span>
                     <div>
                         <span class="modal-title" style="color:#10b981; font-weight:700;">全部入り 冷媒配管サイズ表 (全パターン網羅一覧)</span>
-                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">三菱電機技術資料・カタログ冷媒配管接続要領に完全準拠した全系統共通マスターテーブル</div>
+                        <div style="font-size:0.75rem; color:var(--text-secondary); margin-top:2px;">BCコントローラー据付説明書・PUHY/PURY据付説明書・仕様書に基づくマスターテーブル（Mr.Slim・国内向けEM-A機種は未照合）</div>
                     </div>
                 </div>
                 <button class="modal-close" id="master-pipesize-modal-close" aria-label="閉じる">×</button>
