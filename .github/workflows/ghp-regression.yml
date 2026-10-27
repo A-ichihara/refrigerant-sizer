@@ -53,3 +53,11 @@ jobs:
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/ui-warning-rendering.test.cjs
       - name: Run Yanmar GHP verification corrections regression tests
         run: node --test refrigerant-sizer/tests/yanmar-ghp-corrections.test.cjs
+      - name: Run Panasonic UXE3 outdoor connection length regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-outdoor-connection-length.test.cjs
+      - name: Run Daikin VRV verification corrections regression tests
+        run: node --test refrigerant-sizer/daikin-refrigerant-sizer/tests/daikin-vrv-corrections.test.cjs
+      - name: Run Panasonic GHP verification corrections regression tests
+        run: node --test refrigerant-sizer/tests/panasonic-ghp-corrections.test.cjs
+      - name: Run Mitsubishi verification corrections regression tests
+        run: node --test refrigerant-sizer/tests/mitsubishi-verification-corrections.test.cjs
