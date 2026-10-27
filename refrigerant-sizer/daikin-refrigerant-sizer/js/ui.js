@@ -679,7 +679,7 @@ class RefrigerantSizerUI {
                 </div>
                 <div class="config-row">
                     <span class="config-label">接続室内機数:</span>
-                    <span class="config-value">${totals.indoorCount} 台 / 最大 ${this.activeSeriesId === 'machi_multi' ? '2〜4' : currentSeries.maxIndoorUnits}台</span>
+                    <span class="config-value">${totals.indoorCount} 台 / 最大 ${this.activeSeriesId === 'machi_multi' ? this.engine.getMachiMaxIndoorUnits(this.systemTree.capacity) : currentSeries.maxIndoorUnits}台</span>
                 </div>
                 <div class="config-row">
                     <span class="config-label">室内機合計容量:</span>
@@ -687,8 +687,8 @@ class RefrigerantSizerUI {
                 </div>
                 <div class="config-row">
                     <span class="config-label">容量接続率:</span>
-                    <span class="config-value" style="color: ${totals.connectionRatio > 130 || totals.connectionRatio < 50 ? 'var(--color-danger)' : 'var(--color-success)'}">
-                        ${totals.connectionRatio.toFixed(1)}%
+                    <span class="config-value" style="color: ${(totals.connectionRatioRange && (totals.connectionRatio > totals.connectionRatioRange.max || totals.connectionRatio < totals.connectionRatioRange.min)) ? 'var(--color-danger)' : 'var(--color-success)'}">
+                        ${totals.connectionRatio.toFixed(1)}%${totals.connectionRatioRange ? ` (推奨 ${totals.connectionRatioRange.min}%〜${totals.connectionRatioRange.max}%)` : ''}
                     </span>
                 </div>
                 <div class="config-row">
@@ -870,8 +870,9 @@ class RefrigerantSizerUI {
         let fixAction = null;
 
         if (warningText.includes("接続容量") && (warningText.includes("超過") || warningText.includes("逸脱") || warningText.includes("範囲外"))) {
-            if (this.sizerResult.totals.connectionRatio > 130) {
-                suggestion = "💡 【対処方法】: 室外機の馬力（容量）を1段階大きいサイズにアップし、接続率を推奨範囲（50%〜130%）内に調整します。";
+            const range = (this.sizerResult && this.sizerResult.totals && this.sizerResult.totals.connectionRatioRange) || { min: 50, max: 130 };
+            if (this.sizerResult.totals.connectionRatio > range.max) {
+                suggestion = `💡 【対処方法】: 室外機の馬力（容量）を1段階大きいサイズにアップし、接続率を推奨範囲（${range.min}%〜${range.max}%）内に調整します。`;
                 fixAction = () => this.changeOutdoorCapacity(1);
             } else {
                 suggestion = "💡 【対処方法】: 室外機の馬力（容量）を1段階小さいサイズにダウンし、接続率を推奨範囲内に調整します。";
@@ -1324,9 +1325,9 @@ class RefrigerantSizerUI {
         if (this.activeSeriesId === 'machi_multi') {
             this.systemTree = {
                 id: "root",
-                name: "室外機 (machiマルチ 6馬力)",
+                name: "室外機 (machiマルチ 5馬力)",
                 type: "outdoor",
-                capacity: 14.0, // 6HP
+                capacity: 14.0, // 5HP
                 length: 0,
                 children: [
                     {
@@ -1421,65 +1422,11 @@ class RefrigerantSizerUI {
                     }
                 ]
             };
-        } else if (this.activeSeriesId === 'vrv7_rx') {
-            // 高暖房VRV Hシリーズ 寒冷地仕様サンプル
-            this.systemTree = {
-                id: "root",
-                name: "室外機 (高暖房VRV H 20馬力)",
-                type: "outdoor",
-                capacity: 56.0, // 20 HP
-                length: 0,
-                children: [
-                    {
-                        id: "branch_1",
-                        name: "主分岐 A",
-                        type: "branch",
-                        length: 20,
-                        children: [
-                            {
-                                id: "indoor_1",
-                                name: "事務室 A (室内機)",
-                                type: "indoor",
-                                indoorStyle: "cassette_4way",
-                                capacity: 11.2, // 112形
-                                length: 8,
-                                children: []
-                            },
-                            {
-                                id: "branch_2",
-                                name: "廊下分岐 B",
-                                type: "branch",
-                                length: 15,
-                                children: [
-                                    {
-                                        id: "indoor_2",
-                                        name: "会議室 B (室内機)",
-                                        type: "indoor",
-                                        indoorStyle: "ducted",
-                                        capacity: 16.0, // 160形
-                                        length: 10,
-                                        children: []
-                                    },
-                                    {
-                                        id: "indoor_3",
-                                        name: "応接室 C (室内機)",
-                                        type: "indoor",
-                                        indoorStyle: "wall_mounted",
-                                        capacity: 5.6, // 56形
-                                        length: 12,
-                                        children: []
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            };
         } else if (this.activeSeriesId === 'vrv_r') {
-            // VRV 7 RX 冷暖同時 3管式＋BSユニット標準サンプル (主分岐継手およびBSユニット2系統)
+            // VRV 7 R 冷暖同時 3管式＋BSユニット標準サンプル (主分岐継手およびBSユニット2系統)
             this.systemTree = {
                 id: "root",
-                name: "室外機 (VRV 7 RX 10馬力)",
+                name: "室外機 (VRV 7 R 10馬力)",
                 type: "outdoor",
                 capacity: 28.0, // 10HP
                 length: 0,
