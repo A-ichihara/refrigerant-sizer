@@ -300,8 +300,10 @@ class RefrigerantSizerUI {
                     const nodeObj = this.findNodeById(currentTree, childId);
                     const pLiquid = nodeObj ? (nodeObj.pipeLiquid || (nodeObj.pipes && nodeObj.pipes.liquid)) : null;
                     const pGas = nodeObj ? (nodeObj.pipeGas || (nodeObj.pipes && nodeObj.pipes.gas)) : null;
+                    const pHighGas = nodeObj ? (nodeObj.pipeHighGas || nodeObj.pipeHighLowGas || (nodeObj.pipes && (nodeObj.pipes.highGas || nodeObj.pipes.highLowGas))) : null;
+                    const pLowGas = nodeObj ? (nodeObj.pipeLowGas || nodeObj.pipeSuctionGas || (nodeObj.pipes && (nodeObj.pipes.lowGas || nodeObj.pipes.suctionGas))) : null;
 
-                    if (nodeObj && (pLiquid || pGas)) {
+                    if (nodeObj && (pLiquid || pGas || pHighGas || pLowGas)) {
                         const midX = (parentX + childX) / 2;
                         const midY = (parentY + childY) / 2;
 
@@ -318,9 +320,11 @@ class RefrigerantSizerUI {
                             segmentColor = '#f59e0b';
                         }
 
-                        const labelWidth = 118;
+                        const is3Pipe = (pHighGas !== undefined && pHighGas !== null) && (pLowGas !== undefined && pLowGas !== null);
+                        const labelWidth = is3Pipe ? 130 : 118;
                         const rowH = 16;
-                        const boxH = 3 * rowH + 6;
+                        const rows = is3Pipe ? 4 : 3;
+                        const boxH = rows * rowH + 6;
                         const boxY = midY - boxH / 2;
 
                         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -351,13 +355,31 @@ class RefrigerantSizerUI {
                         tLiq.textContent = '液管: φ' + (pLiquid || '-');
                         g.appendChild(tLiq);
 
-                        const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        tGas.setAttribute('class', 'pipe-label-text');
-                        tGas.setAttribute('x', midX);
-                        tGas.setAttribute('y', boxY + rowH * 3 - 2);
-                        tGas.setAttribute('fill', '#00d2ff');
-                        tGas.textContent = 'ガス管: φ' + (pGas || '-');
-                        g.appendChild(tGas);
+                        if (is3Pipe) {
+                            const tHighGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                            tHighGas.setAttribute('class', 'pipe-label-text');
+                            tHighGas.setAttribute('x', midX);
+                            tHighGas.setAttribute('y', boxY + rowH * 3 - 2);
+                            tHighGas.setAttribute('fill', '#fbbf24');
+                            tHighGas.textContent = '高圧ガス: φ' + (pHighGas || '-');
+                            g.appendChild(tHighGas);
+
+                            const tLowGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                            tLowGas.setAttribute('class', 'pipe-label-text');
+                            tLowGas.setAttribute('x', midX);
+                            tLowGas.setAttribute('y', boxY + rowH * 4 - 2);
+                            tLowGas.setAttribute('fill', '#00d2ff');
+                            tLowGas.textContent = '低圧ガス: φ' + (pLowGas || '-');
+                            g.appendChild(tLowGas);
+                        } else {
+                            const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                            tGas.setAttribute('class', 'pipe-label-text');
+                            tGas.setAttribute('x', midX);
+                            tGas.setAttribute('y', boxY + rowH * 3 - 2);
+                            tGas.setAttribute('fill', '#00d2ff');
+                            tGas.textContent = 'ガス管: φ' + (pGas || '-');
+                            g.appendChild(tGas);
+                        }
 
                         this.svgCanvas.appendChild(g);
                     }
