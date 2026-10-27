@@ -49,5 +49,7 @@ jobs:
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-group-nodes.test.cjs
       - name: Run Panasonic UXE3 UI display regression tests
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-ui-display.test.cjs
+      - name: Run Panasonic UXE3 outdoor connection length regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-outdoor-connection-length.test.cjs
       - name: Run Panasonic UI warning rendering tests
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/ui-warning-rendering.test.cjs
