@@ -99,3 +99,24 @@ test('Carrier three-pipe tree counts upstream three-pipe and downstream two-pipe
   assert.equal(Object.values(result.totals.lowGasPipes).reduce((sum, len) => sum + len, 0), 35);
   assert.equal(Object.values(result.totals.gasPipes).reduce((sum, len) => sum + len, 0), 7);
 });
+
+test('Carrier calculateSystem always shows the unverified-model warning (GHP-style)', () => {
+const result = makeEngine().calculateSystem(makeFsTree(), 'super_multi_u_r');
+assert.equal(
+result.warnings.some(w => w.message.includes('')),
+true
+);
+assert.equal(
+result.warnings.some(w => w.message.includes('確定設計値として使用せず')),
+true
+);
+});
+
+test('Carrier master-table modal no longer claims full compliance', () => {
+const html = fs.readFileSync(
+path.join(__dirname, '..', 'carrier-refrigerant-sizer', 'index.html'),
+'utf8'
+);
+assert.equal(html.includes('完全準拠'), false);
+assert.equal(html.includes(''), true);
+});

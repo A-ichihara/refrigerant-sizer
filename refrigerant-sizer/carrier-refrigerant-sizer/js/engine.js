@@ -19,7 +19,7 @@ class RefrigerantSizerEngine {
         // ガス管サイズ一覧 (mm φ)
         this.GAS_SIZES = [9.5, 12.7, 15.9, 19.1, 22.2, 25.4, 28.6, 31.8, 38.1, 41.3];
 
-        // 全部入り冷媒サイズマスター表 (日本キャリア技術資料準拠)
+        // 全部入り冷媒サイズマスター表 (日本キャリア技術資料との一致確認は未完了)
         this.MASTER_PIPE_TABLES = {
             cooling_heating_switch: {
                 title: "日本キャリア 【冷暖切替】 冷媒管サイズ表 (全パターン網羅)",
@@ -332,6 +332,12 @@ class RefrigerantSizerEngine {
         }
 
         const warnings = [];
+        // メーカー公式資料との一致確認が未完了。計算が正常終了しても設計上の確定値とはしない。
+        warnings.push({
+            type: 'danger',
+            message: '【型式・施工基準未照合】このキャリアアプリの登録型式・冷媒・配管径テーブルは、対象メーカー公式資料との一致確認が完了していません。表示される管径・分岐部材・BOM・許容長の判定を確定設計値として使用せず、対象機種の正式な施工資料で照合してください。'
+        });
+
         const totals = {
             liquidPipes: {},
             gasPipes: {},

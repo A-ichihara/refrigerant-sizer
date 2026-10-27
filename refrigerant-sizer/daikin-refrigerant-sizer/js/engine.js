@@ -5,10 +5,9 @@
  * 1. VRV7 X (標準)
  * 2. VRV7 X 高COP (高効率)
  * 3. VRV7 A
- * 4. VRV7 RX (寒冷地仕様)
- * 5. VRV R (冷暖フリー 3管式)
- * 6. R32machiマルチ (店舗・オフィス)
- * 7. 設備用エアコンマルチ
+ * 4. VRV R (冷暖フリー 3管式)
+ * 5. R32machiマルチ (店舗・オフィス)
+ * 6. 設備用エアコンマルチ
  * 
  * 主な機能:
  * - メーカー品番（型番）の動的生成
@@ -49,9 +48,9 @@ class RefrigerantSizerEngine {
                     { code: "9", liquid: "15.9", gas: "25.4", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 33.5, 40.0kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"5\"の1サイズUPの値" },
                     { code: "10", liquid: "15.9", gas: "28.6", indoorKw: "—", branchKw: "62.0〜86.9", outdoorKw: "67.0〜85.0", notes: "配管相当長(①) : 45.0〜61.5kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"6\"の1サイズUPの値" },
                     { code: "11", liquid: "15.9", gas: "31.8", indoorKw: "—", branchKw: "87.0〜112.9", outdoorKw: "90.0〜112.0", notes: "—" },
-                    { code: "12", liquid: "19.1", gas: "31.8", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 67.0〜85.0kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"9\"の1サイズUPの値" },
+                    { code: "12", liquid: "19.1", gas: "31.8", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 67.0〜85.0kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"10\"の1サイズUPの値" },
                     { code: "13", liquid: "19.1", gas: "38.1", indoorKw: "—", branchKw: "113.0〜", outdoorKw: "118.0〜", notes: "配管相当長(①) : 90.0〜112.0kWの1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"10\"の1サイズUPの値" },
-                    { code: "14", liquid: "22.2", gas: "38.1", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 118.0kW〜の1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"12\"の1サイズUPの値 (ガス管φ38.1のサイズUPは不可)" }
+                    { code: "14", liquid: "22.2", gas: "38.1", indoorKw: "—", branchKw: "—", outdoorKw: "—", notes: "配管相当長(①) : 118.0kW〜の1サイズUPの値(サイズUP対象 : 主管) / 分岐〜最遠室内機間(②) : \"13\"の1サイズUPの値 (ガス管φ38.1のサイズUPは不可)" }
                 ]
             },
             cooling_heating_free: {
@@ -133,14 +132,12 @@ class RefrigerantSizerEngine {
                 maxPipingTotal: 1000,
                 maxLongestPath: 165,
                 outdoorCapacities: [
-                    { hp: 5, kw: 14.0 }, { hp: 6, kw: 16.0 }, { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 },
-                    { hp: 12, kw: 33.5 }, { hp: 14, kw: 40.0 }, { hp: 16, kw: 45.0 }, { hp: 18, kw: 50.0 },
-                    { hp: 20, kw: 56.0 }, { hp: 22, kw: 61.5 }, { hp: 24, kw: 68.0 }, { hp: 26, kw: 73.0 },
-                    { hp: 28, kw: 78.5 }, { hp: 30, kw: 85.0 }, { hp: 32, kw: 90.0 }, { hp: 34, kw: 96.0 },
-                    { hp: 36, kw: 101.0 }, { hp: 38, kw: 107.0 }, { hp: 40, kw: 113.0 }, { hp: 42, kw: 118.0 },
-                    { hp: 44, kw: 124.0 }, { hp: 46, kw: 130.0 }, { hp: 48, kw: 135.0 }, { hp: 50, kw: 141.0 },
-                    { hp: 52, kw: 146.0 }, { hp: 54, kw: 152.0 }, { hp: 56, kw: 157.0 }, { hp: 58, kw: 163.0 },
-                    { hp: 60, kw: 168.0 }
+                    { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 }, { hp: 12, kw: 33.5 }, { hp: 14, kw: 40.0 },
+                    { hp: 16, kw: 45.0 }, { hp: 18, kw: 50.0 }, { hp: 20, kw: 56.0 }, { hp: 22, kw: 61.5 },
+                    { hp: 24, kw: 67.0 }, { hp: 26, kw: 73.0 }, { hp: 28, kw: 77.5 }, { hp: 30, kw: 85.0 },
+                    { hp: 32, kw: 90.0 }, { hp: 34, kw: 95.0 }, { hp: 36, kw: 100.0 }, { hp: 38, kw: 106.0 },
+                    { hp: 40, kw: 112.0 }, { hp: 42, kw: 118.0 }, { hp: 44, kw: 122.0 }, { hp: 46, kw: 128.0 },
+                    { hp: 48, kw: 136.0 }
                 ],
                 indoorTypes: [
                     { type: "22形 (0.8馬力)", kw: 2.2 }, { type: "28形 (1.0馬力)", kw: 2.8 }, { type: "36形 (1.25馬力)", kw: 3.6 },
@@ -158,13 +155,10 @@ class RefrigerantSizerEngine {
                 maxPipingTotal: 1000,
                 maxLongestPath: 165,
                 outdoorCapacities: [
-                    { hp: 5, kw: 14.0 }, { hp: 6, kw: 16.0 }, { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 },
-                    { hp: 12, kw: 33.5 }, { hp: 14, kw: 40.0 }, { hp: 16, kw: 45.0 }, { hp: 18, kw: 50.0 },
-                    { hp: 20, kw: 56.0 }, { hp: 22, kw: 61.5 }, { hp: 24, kw: 68.0 }, { hp: 26, kw: 73.0 },
-                    { hp: 28, kw: 78.5 }, { hp: 30, kw: 85.0 }, { hp: 32, kw: 90.0 }, { hp: 34, kw: 96.0 },
-                    { hp: 36, kw: 101.0 }, { hp: 38, kw: 107.0 }, { hp: 40, kw: 113.0 }, { hp: 42, kw: 118.0 },
-                    { hp: 44, kw: 124.0 }, { hp: 46, kw: 130.0 }, { hp: 48, kw: 135.0 }, { hp: 50, kw: 141.0 },
-                    { hp: 52, kw: 146.0 }, { hp: 54, kw: 152.0 }
+                    { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 }, { hp: 12, kw: 33.5 }, { hp: 14, kw: 40.0 },
+                    { hp: 16, kw: 45.0 }, { hp: 18, kw: 50.0 }, { hp: 20, kw: 56.0 }, { hp: 22, kw: 61.5 },
+                    { hp: 24, kw: 67.0 }, { hp: 26, kw: 73.0 }, { hp: 28, kw: 77.5 }, { hp: 30, kw: 85.0 },
+                    { hp: 32, kw: 90.0 }, { hp: 34, kw: 95.0 }, { hp: 36, kw: 100.0 }
                 ],
                 indoorTypes: [
                     { type: "22形 (0.8馬力)", kw: 2.2 }, { type: "28形 (1.0馬力)", kw: 2.8 }, { type: "36形 (1.25馬力)", kw: 3.6 },
@@ -182,39 +176,12 @@ class RefrigerantSizerEngine {
                 maxPipingTotal: 1000,
                 maxLongestPath: 165,
                 outdoorCapacities: [
-                    { hp: 5, kw: 14.0 }, { hp: 6, kw: 16.0 }, { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 },
-                    { hp: 12, kw: 33.5 }, { hp: 14, kw: 40.0 }, { hp: 16, kw: 45.0 }, { hp: 18, kw: 50.0 },
-                    { hp: 20, kw: 56.0 }, { hp: 22, kw: 61.5 }, { hp: 24, kw: 68.0 }, { hp: 26, kw: 73.0 },
-                    { hp: 28, kw: 78.5 }, { hp: 30, kw: 85.0 }, { hp: 32, kw: 90.0 }, { hp: 34, kw: 96.0 },
-                    { hp: 36, kw: 101.0 }, { hp: 38, kw: 107.0 }, { hp: 40, kw: 113.0 }, { hp: 42, kw: 118.0 },
-                    { hp: 44, kw: 124.0 }, { hp: 46, kw: 130.0 }, { hp: 48, kw: 135.0 }, { hp: 50, kw: 141.0 },
-                    { hp: 52, kw: 146.0 }, { hp: 54, kw: 152.0 }, { hp: 56, kw: 157.0 }, { hp: 58, kw: 163.0 },
-                    { hp: 60, kw: 168.0 }
-                ],
-                indoorTypes: [
-                    { type: "22形 (0.8馬力)", kw: 2.2 }, { type: "28形 (1.0馬力)", kw: 2.8 }, { type: "36形 (1.25馬力)", kw: 3.6 },
-                    { type: "45形 (1.6馬力)", kw: 4.5 }, { type: "56形 (2.0馬力)", kw: 5.6 }, { type: "71形 (2.5馬力)", kw: 7.1 },
-                    { type: "80形 (3.0馬力)", kw: 8.0 }, { type: "90形 (3.2馬力)", kw: 9.0 }, { type: "112形 (4.0馬力)", kw: 11.2 },
-                    { type: "140形 (5.0馬力)", kw: 14.0 }, { type: "160形 (6.0馬力)", kw: 16.0 }, { type: "224形 (8.0馬力)", kw: 22.4 },
-                    { type: "280形 (10.0馬力)", kw: 28.0 }
-                ]
-            },
-            vrv7_rx: {
-                name: "高暖房VRV Hシリーズ (寒冷地仕様)",
-                refrigerant: "R32",
-                pipeSystem: "2pipe",
-                maxIndoorUnits: 64,
-                maxPipingTotal: 1000,
-                maxLongestPath: 165,
-                outdoorCapacities: [
-                    { hp: 5, kw: 14.0 }, { hp: 6, kw: 16.0 }, { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 },
-                    { hp: 12, kw: 33.5 }, { hp: 14, kw: 40.0 }, { hp: 16, kw: 45.0 }, { hp: 18, kw: 50.0 },
-                    { hp: 20, kw: 56.0 }, { hp: 22, kw: 61.5 }, { hp: 24, kw: 68.0 }, { hp: 26, kw: 73.0 },
-                    { hp: 28, kw: 78.5 }, { hp: 30, kw: 85.0 }, { hp: 32, kw: 90.0 }, { hp: 34, kw: 96.0 },
-                    { hp: 36, kw: 101.0 }, { hp: 38, kw: 107.0 }, { hp: 40, kw: 113.0 }, { hp: 42, kw: 118.0 },
-                    { hp: 44, kw: 124.0 }, { hp: 46, kw: 130.0 }, { hp: 48, kw: 135.0 }, { hp: 50, kw: 141.0 },
-                    { hp: 52, kw: 146.0 }, { hp: 54, kw: 152.0 }, { hp: 56, kw: 157.0 }, { hp: 58, kw: 163.0 },
-                    { hp: 60, kw: 168.0 }
+                    { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 }, { hp: 12, kw: 33.5 }, { hp: 14, kw: 40.0 },
+                    { hp: 16, kw: 45.0 }, { hp: 18, kw: 50.0 }, { hp: 20, kw: 56.0 }, { hp: 22, kw: 61.5 },
+                    { hp: 24, kw: 67.0 }, { hp: 26, kw: 73.0 }, { hp: 28, kw: 77.5 }, { hp: 30, kw: 85.0 },
+                    { hp: 32, kw: 90.0 }, { hp: 34, kw: 95.0 }, { hp: 36, kw: 100.0 }, { hp: 38, kw: 106.0 },
+                    { hp: 40, kw: 112.0 }, { hp: 42, kw: 118.0 }, { hp: 44, kw: 122.0 }, { hp: 46, kw: 128.0 },
+                    { hp: 48, kw: 136.0 }, { hp: 50, kw: 140.0 }, { hp: 52, kw: 145.0 }, { hp: 54, kw: 150.0 }
                 ],
                 indoorTypes: [
                     { type: "22形 (0.8馬力)", kw: 2.2 }, { type: "28形 (1.0馬力)", kw: 2.8 }, { type: "36形 (1.25馬力)", kw: 3.6 },
@@ -225,8 +192,8 @@ class RefrigerantSizerEngine {
                 ]
             },
             vrv_r: {
-                name: "VRV 7 RXシリーズ (冷暖同時・3管式)",
-                refrigerant: "R410A/R32",
+                name: "VRV 7 Rシリーズ (冷暖同時・3管式)",
+                refrigerant: "R32",
                 pipeSystem: "3pipe",   // ← 3管式フラグ
                 maxIndoorUnits: 64,
                 maxPipingTotal: 1000,
@@ -234,10 +201,10 @@ class RefrigerantSizerEngine {
                 outdoorCapacities: [
                     { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 }, { hp: 12, kw: 33.5 }, { hp: 14, kw: 40.0 },
                     { hp: 16, kw: 45.0 }, { hp: 18, kw: 50.0 }, { hp: 20, kw: 56.0 }, { hp: 22, kw: 61.5 },
-                    { hp: 24, kw: 68.0 }, { hp: 26, kw: 73.0 }, { hp: 28, kw: 78.5 }, { hp: 30, kw: 85.0 },
-                    { hp: 32, kw: 90.0 }, { hp: 34, kw: 96.0 }, { hp: 36, kw: 101.0 }, { hp: 38, kw: 107.0 },
-                    { hp: 40, kw: 113.0 }, { hp: 42, kw: 118.0 }, { hp: 44, kw: 124.0 }, { hp: 46, kw: 130.0 },
-                    { hp: 48, kw: 135.0 }, { hp: 50, kw: 141.0 }, { hp: 52, kw: 146.0 }, { hp: 54, kw: 152.0 }
+                    { hp: 24, kw: 67.0 }, { hp: 26, kw: 73.0 }, { hp: 28, kw: 77.5 }, { hp: 30, kw: 85.0 },
+                    { hp: 32, kw: 90.0 }, { hp: 34, kw: 95.0 }, { hp: 36, kw: 100.0 }, { hp: 38, kw: 106.0 },
+                    { hp: 40, kw: 112.0 }, { hp: 42, kw: 118.0 }, { hp: 44, kw: 122.0 }, { hp: 46, kw: 128.0 },
+                    { hp: 48, kw: 136.0 }, { hp: 50, kw: 140.0 }, { hp: 52, kw: 145.0 }, { hp: 54, kw: 150.0 }
                 ],
                 indoorTypes: [
                     { type: "22形 (0.8馬力)", kw: 2.2 }, { type: "28形 (1.0馬力)", kw: 2.8 }, { type: "36形 (1.25馬力)", kw: 3.6 },
@@ -251,12 +218,14 @@ class RefrigerantSizerEngine {
                 name: "machiマルチ",
                 refrigerant: "R32",
                 pipeSystem: "2pipe",
-                maxIndoorUnits: 4,
-                maxPipingTotal: 100,
-                maxLongestPath: 50,
+                // 系列最大は 33.5kW の 23台。実際の上限は室外機容量別
+                // (getMachiMaxIndoorUnits 参照: 8.0→6台 … 33.5→23台)
+                maxIndoorUnits: 23,
+                maxPipingTotal: 300,
+                maxLongestPath: 90,
                 outdoorCapacities: [
-                    { hp: 3, kw: 8.0 }, { hp: 4, kw: 10.0 }, { hp: 5, kw: 12.5 },
-                    { hp: 6, kw: 14.0 }, { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 }
+                    { hp: 3, kw: 8.0 }, { hp: 4, kw: 11.2 }, { hp: 5, kw: 14.0 },
+                    { hp: 6, kw: 16.0 }, { hp: 8, kw: 22.4 }, { hp: 10, kw: 28.0 }, { hp: 12, kw: 33.5 }
                 ],
                 indoorTypes: [
                     { type: "22形 (0.8馬力)", kw: 2.2 }, { type: "28形 (1.0馬力)", kw: 2.8 }, { type: "36形 (1.25馬力)", kw: 3.6 },
@@ -330,9 +299,8 @@ class RefrigerantSizerEngine {
             switch (seriesId) {
                 case 'vrv7_x_high_cop': return `RXHA${kwNum}A`;
                 case 'vrv7_a':          return `RXYA${kwNum}A`;
-                case 'vrv7_rx':         return `RQYHP${kwNum}A`;   // 寒冷地仕様
                 case 'vrv_r':           return `REYA${kwNum}A`;  // 冷暖フリー
-                case 'machi_multi':     return `RZYP${kwNum}F`;
+                case 'machi_multi':     return `RXTA${kwNum}F`;
                 case 'skyair':          return `RZRP${kwNum}B`;
                 case 'package_industrial': return `SZYP${kwNum}F`;
                 case 'vrv7_x':
@@ -360,15 +328,73 @@ class RefrigerantSizerEngine {
         return "-";
     }
 
+    /**
+     * BSユニット品番選定 (冷暖フリー Rシリーズ)
+     * 出典: CP24089DXX P108 (RX) / P116 (R)「室内ユニット〜BSユニット接続許容範囲」
+     * - 個別BSユニット: 直下が室内機のみの場合。Q=下流室内ユニット合計容量。
+     *   Q≦5.6・3台以下→BSVA56A、5.6＜Q≦16.0・8台以下→BSVA160A、16.0＜Q≦28.0・8台以下→BSVA280A
+     * - 集合BSユニット: 直下に分岐継手を含む場合。分岐数で選定。
+     *   4分岐以下→BS4A160A (全分岐合計Q≦44.8)、6分岐以下→BS6A160A (Q≦67.2)、
+     *   8分岐以下→BS8A160A (Q≦85.0)、10分岐以下→BS10A160A、12分岐以下→BS12A160A
+     *   (BS10A/BS12A の全分岐合計Q上限はカタログ抽出テキストにないため未検証)。
+     *   1分岐あたり Q≦16.0kW・5台以下。
+     * 選定範囲外の場合は null を返す (呼び出し側で警告する)。
+     */
     generateBSUnitModel(node) {
         const indoorCount = this.countIndoors(node);
-        if (indoorCount === 1) {
-            return node.downstreamCapacity <= 8.0 ? "BSBP80A" : "BSBP160A";
+        const q = this.computeDownstreamCapacities(node);
+        const branchChildren = (node.children || []).filter(c => c.type === 'branch');
+
+        if (branchChildren.length === 0) {
+            // 個別BSユニット
+            if (q <= 5.6 && indoorCount <= 3)  return "BSVA56A";
+            if (q <= 16.0 && indoorCount <= 8) return "BSVA160A";
+            if (q <= 28.0 && indoorCount <= 8) return "BSVA280A";
+            return null;
         }
-        if (indoorCount <= 4)  return "BSBP43A";
-        if (indoorCount <= 8)  return "BSBP83A";
-        if (indoorCount <= 12) return "BSBP123A";
-        return "BSBP163A";
+
+        // 集合BSユニット: 1分岐あたりの制限 (Q≦16.0kW・5台以下) を満たさない分岐があれば選定不可
+        for (const b of branchChildren) {
+            if (this.computeDownstreamCapacities(b) > 16.0) return null;
+            if (this.countIndoors(b) > 5) return null;
+        }
+        const n = branchChildren.length;
+        if (n <= 4 && q <= 44.8)  return "BS4A160A";
+        if (n <= 6 && q <= 67.2)  return "BS6A160A";
+        if (n <= 8 && q <= 85.0)  return "BS8A160A";
+        if (n <= 10) return "BS10A160A";
+        if (n <= 12) return "BS12A160A";
+        return null;
+    }
+
+    /**
+     * BSユニットの選定範囲チェック。範囲外の理由を文字列の配列で返す (範囲内なら [])。
+     * 出典は generateBSUnitModel と同じ (CP24089DXX P108/P116)。
+     */
+    validateBSUnit(node) {
+        const issues = [];
+        const indoorCount = this.countIndoors(node);
+        const q = this.computeDownstreamCapacities(node);
+        const branchChildren = (node.children || []).filter(c => c.type === 'branch');
+
+        if (branchChildren.length === 0) {
+            // 個別BSユニット
+            if (q > 28.0) issues.push(`下流合計容量 Q=${q.toFixed(1)}kW が個別BSユニットの上限（28.0kW）を超えています`);
+            if (indoorCount > 8) issues.push(`下流台数 ${indoorCount}台 が個別BSユニットの上限（8台）を超えています`);
+        } else {
+            // 集合BSユニット
+            // (全分岐合計Qの上限は、分岐数より大きい機種へのカスケード選定で吸収されるため、ここでは判定しない。
+            //  BS10A/BS12A の合計Q上限はカタログ抽出テキストにないため未検証)
+            const n = branchChildren.length;
+            if (n > 12) issues.push(`分岐数 ${n}分岐 が集合BSユニットの上限（12分岐）を超えています`);
+            for (const b of branchChildren) {
+                const bq = this.computeDownstreamCapacities(b);
+                const bn = this.countIndoors(b);
+                if (bq > 16.0) issues.push(`分岐「${b.name}」の合計容量 ${bq.toFixed(1)}kW が1分岐あたりの上限（16.0kW）を超えています`);
+                if (bn > 5) issues.push(`分岐「${b.name}」の台数 ${bn}台 が1分岐あたりの上限（5台）を超えています`);
+            }
+        }
+        return issues;
     }
 
     // ==================== 2管式 配管サイズ選定 ====================
@@ -386,7 +412,15 @@ class RefrigerantSizerEngine {
     }
 
     getBranchPipeSize(capacityKw, seriesId) {
-        if (seriesId === 'machi_multi' || seriesId === 'skyair') {
+        if (seriesId === 'machi_multi') {
+            // machi 分岐後配管: P098 に分岐後配管サイズ表はないため、P096 の主管サイズに帯を合わせる (未検証)。
+            // 16.0kW以下→9.5/15.9、22.4kW以下→9.5/19.1、28.0kW以下→9.5/22.2、それ以上→12.7/25.4
+            if (capacityKw <= 16.0) return { liquid: 9.5, gas: 15.9 };
+            if (capacityKw <= 22.4) return { liquid: 9.5, gas: 19.1 };
+            if (capacityKw <= 28.0) return { liquid: 9.5, gas: 22.2 };
+            return { liquid: 12.7, gas: 25.4 };
+        }
+        if (seriesId === 'skyair') {
             if (capacityKw < 16.0) return { liquid: 9.5, gas: 15.9 };
             if (capacityKw < 22.4) return { liquid: 9.5, gas: 19.1 };
             return { liquid: 9.5, gas: 22.2 };
@@ -399,7 +433,7 @@ class RefrigerantSizerEngine {
             if (capacityKw <= 101.0) return { liquid: 19.1, gas: 34.9 };
             return { liquid: 19.1, gas: 41.3 };
         }
-        // 標準VRV (vrv7_x, vrv7_x_high_cop, vrv7_a, vrv7_rx) 添付技術資料【冷暖切替】準拠
+        // 標準VRV (vrv7_x, vrv7_x_high_cop, vrv7_a) 添付技術資料【冷暖切替】準拠
         if (capacityKw <= 17.5)  return { liquid: 9.5,  gas: 15.9 }; // 記号2: 〜17.5kW
         if (capacityKw <= 22.9)  return { liquid: 9.5,  gas: 19.1 }; // 記号3: 17.6〜22.9kW
         if (capacityKw <= 28.9)  return { liquid: 9.5,  gas: 22.2 }; // 記号4: 23.0〜28.9kW
@@ -411,7 +445,15 @@ class RefrigerantSizerEngine {
     }
 
     getOutdoorMainPipeSize(outdoorKw, seriesId) {
-        if (seriesId === 'machi_multi' || seriesId === 'skyair') {
+        if (seriesId === 'machi_multi') {
+            // machi 主管 (CP24089DXX P096): 80〜160A (〜16.0kW) →液9.5/ガス15.9、
+            // 224A (22.4kW) →9.5/19.1、280A (28.0kW) →9.5/22.2、335A (33.5kW) →液12.7/ガス25.4
+            if (outdoorKw <= 16.0) return { liquid: 9.5, gas: 15.9 };
+            if (outdoorKw <= 22.4) return { liquid: 9.5, gas: 19.1 };
+            if (outdoorKw <= 28.0) return { liquid: 9.5, gas: 22.2 };
+            return { liquid: 12.7, gas: 25.4 };
+        }
+        if (seriesId === 'skyair') {
             if (outdoorKw <= 14.0) return { liquid: 9.5, gas: 15.9 };
             if (outdoorKw <= 22.4) return { liquid: 9.5, gas: 19.1 };
             return { liquid: 9.5, gas: 22.2 };
@@ -473,7 +515,31 @@ class RefrigerantSizerEngine {
 
     // ==================== 分岐継手選定 ====================
 
-    getJointModel(capacityKw, seriesId) {
+    /**
+     * REFNETジョイント選定
+     * 出典: CP22187DXX P189「REFNET配管部材」
+     * - 2管式 (VRV 7 X / X高COP / A):
+     *   第1分岐用は室外機容量による: 14.0〜18.0kW→KHR26C22T、22.4・28.0kW→KHR26C33T、
+     *   33.5〜67.0kW→KHR26C72T、73.0kW以上→KHR26C73T。
+     *   第2分岐以下は下流室内ユニット合計容量による: 22.4kW未満→KHR26C22T、
+     *   22.4以上〜33.0kW未満→KHR26C33T、33.0以上〜71.0kW未満→KHR26C72T、71.0kW以上→KHR26C73T。
+     *   (P189 に VRV 7 専用の第1分岐表はなく、第1分岐の帯は同ページの更新用VRV QX/Q/VE-upQ 表による。
+     *    第2分岐以下の帯は同ページの全表で共通)
+     * - 3管式 (VRV 7 R / 冷暖フリーVRV RX・R):
+     *   第1分岐用 (3本配管部): 22.4・28.0kW→KHR25C33T、33.5〜67.0kW→KHR25C72T、73.0kW以上→KHR25C73T。
+     *   第2分岐以下 (3本配管部): 22.4kW未満→KHR25C22T、22.4以上〜33.0kW未満→KHR25C33T、
+     *   33.0以上〜71.0kW未満→KHR25C72T、71.0kW以上→KHR25C73T。
+     *   BSユニットより下流・冷房専用系統 (2本配管部) は2管式の第2分岐以下の帯で KHR26C**T。
+     * - machi / SkyAir / 設備用は公式の選定表が報告にないため変更しない (未決)。
+     *
+     * @param {number} capacityKw 下流室内ユニット合計容量 (第1分岐用では使わない)
+     * @param {string} seriesId
+     * @param {object} [options]
+     * @param {boolean} [options.isFirstBranch] 第1分岐 (室外機直下の分岐) か
+     * @param {number} [options.outdoorKw] 室外機容量 (第1分岐用)
+     * @param {boolean} [options.isTwoPipeSection] 3管式システム内の2本配管部 (BSユニット下流等) か
+     */
+    getJointModel(capacityKw, seriesId, options = {}) {
         if (seriesId === 'machi_multi' || seriesId === 'skyair') {
             return capacityKw < 22.4 ? "KHRP26M22T" : "KHRP26M33T";
         }
@@ -483,18 +549,96 @@ class RefrigerantSizerEngine {
             if (capacityKw < 104.0) return "BHFP22P224";
                                     return "BHFP22P375";
         }
+        const isFirstBranch = !!options.isFirstBranch;
+        const outdoorKw = options.outdoorKw;
+        const isTwoPipeSection = !!options.isTwoPipeSection;
         if (seriesId === 'vrv_r') {
-            // 冷暖フリー用リフレネット
-            if (capacityKw < 29.0)  return "KHRP26M22TA";
-            if (capacityKw < 64.0)  return "KHRP26M33TA";
-            if (capacityKw < 104.0) return "KHRP26M72TA";
-                                    return "KHRP26M73TA";
+            if (isTwoPipeSection) {
+                // BSユニットより下流・冷房専用系統 (2本配管部): 2管式の第2分岐以下の帯
+                return this._jointModelSecondOrLater2Pipe(capacityKw);
+            }
+            if (isFirstBranch && outdoorKw != null) {
+                if (outdoorKw <= 28.0) return "KHR25C33T";
+                if (outdoorKw <= 67.0) return "KHR25C72T";
+                return "KHR25C73T";
+            }
+            // 第2分岐以下 (3本配管部)
+            if (capacityKw < 22.4) return "KHR25C22T";
+            if (capacityKw < 33.0) return "KHR25C33T";
+            if (capacityKw < 71.0) return "KHR25C72T";
+            return "KHR25C73T";
         }
-        // 標準VRV共通
-        if (capacityKw < 29.0)  return "KHRP26A22T";
-        if (capacityKw < 64.0)  return "KHRP26A33T";
-        if (capacityKw < 104.0) return "KHRP26A72T";
-                                 return "KHRP26A73T";
+        // 標準VRV (2管式)
+        if (isFirstBranch && outdoorKw != null) {
+            if (outdoorKw <= 18.0) return "KHR26C22T";
+            if (outdoorKw <= 28.0) return "KHR26C33T";
+            if (outdoorKw <= 67.0) return "KHR26C72T";
+            return "KHR26C73T";
+        }
+        return this._jointModelSecondOrLater2Pipe(capacityKw);
+    }
+
+    /** 2管式の第2分岐以下 (下流合計容量による) */
+    _jointModelSecondOrLater2Pipe(capacityKw) {
+        if (capacityKw < 22.4) return "KHR26C22T";
+        if (capacityKw < 33.0) return "KHR26C33T";
+        if (capacityKw < 71.0) return "KHR26C72T";
+        return "KHR26C73T";
+    }
+
+    // ==================== 接続容量比・台数制限 ====================
+
+    /**
+     * 系列ごとの接続容量比 (室内ユニット合計容量 / 室外機容量) の許容範囲を返す。
+     * 出典: CP24089DXX P082 (X)、P086 (X高COP)、P092 (A)、P116 (R)、P098 (machi)、P108 (RX)。
+     * - X: 50〜200%。ただし 118〜136kW は 50〜130%、16形・22形・28形の室内機を含む場合も最大130%。
+     *   (壁ビルトイン形・床置ダクト形を含む場合の130%上限は、室内機形式がエンジンにないため判定できない。未決)
+     * - X高COP: 75〜200%。16形・22形・28形を含む場合は最大130% (同上)。
+     * - A / R / machi: 50〜130%。
+     * - 設備用: 80〜120% (従来値。設備用カタログ CP25146A-1 は未取得のため未検証)。
+     * - SkyAir: 50〜130% (従来値。スカイエアカタログ CP26016A-1 は未取得のため未検証)。
+     * 16形=160形 (16.0kW)、22形=2.2kW、28形=2.8kW。
+     */
+    getConnectionRatioRange(seriesId, outdoorKw, tree) {
+        const hasSmallIndoor = tree ? this._treeHasIndoorCapacity(tree, [2.2, 2.8, 16.0]) : false;
+        switch (seriesId) {
+            case 'vrv7_x': {
+                const capped = outdoorKw >= 118.0 || hasSmallIndoor;
+                return { min: 50, max: capped ? 130 : 200 };
+            }
+            case 'vrv7_x_high_cop': {
+                return { min: 75, max: hasSmallIndoor ? 130 : 200 };
+            }
+            case 'vrv7_a':
+            case 'vrv_r':
+            case 'machi_multi':
+                return { min: 50, max: 130 };
+            case 'package_industrial':
+                return { min: 80, max: 120 };
+            default:
+                return { min: 50, max: 130 };
+        }
+    }
+
+    /** ツリー内に指定容量の室内機が1台でもあるか */
+    _treeHasIndoorCapacity(node, capacities) {
+        if (!node) return false;
+        if (node.type === 'indoor' && capacities.some(kw => Math.abs(node.capacity - kw) < 0.1)) return true;
+        if (node.children) return node.children.some(c => this._treeHasIndoorCapacity(c, capacities));
+        return false;
+    }
+
+    /**
+     * machiマルチの室外機容量別・接続可能室内ユニット台数。
+     * 出典: CP24089DXX P098。
+     */
+    getMachiMaxIndoorUnits(outdoorKw) {
+        const table = [
+            { kw: 8.0, max: 6 }, { kw: 11.2, max: 8 }, { kw: 14.0, max: 10 }, { kw: 16.0, max: 11 },
+            { kw: 22.4, max: 16 }, { kw: 28.0, max: 19 }, { kw: 33.5, max: 23 }
+        ];
+        const match = table.find(t => Math.abs(t.kw - outdoorKw) < 0.1);
+        return match ? match.max : 23;
     }
 
     // ==================== サイズアップ ====================
@@ -590,36 +734,42 @@ class RefrigerantSizerEngine {
         if (seriesId === 'machi_multi') {
             const match = seriesConfig.outdoorCapacities.find(o => Math.abs(o.kw - tree.capacity) < 0.1);
             const hp = match ? match.hp : 3;
-            const maxUnits = hp <= 3 ? 2 : hp <= 5 ? 3 : 4;
+            const maxUnits = this.getMachiMaxIndoorUnits(tree.capacity);
             if (indoorCount > maxUnits) {
                 warnings.push(`R32machiマルチ（室外機：${hp}馬力）における室内機の接続最大台数は【${maxUnits}台】です（現在：${indoorCount}台）。台数を削減してください。`);
             }
-            if (ratio < 80 || ratio > 120) {
-                warnings.push(`machiマルチの接続容量比が推奨範囲外です（現在の接続率：${ratio.toFixed(1)}% / 推奨：80%〜120%）。`);
+            const machiRange = this.getConnectionRatioRange(seriesId, tree.capacity, tree);
+            if (ratio < machiRange.min || ratio > machiRange.max) {
+                warnings.push(`machiマルチの接続容量比が推奨範囲外です（現在の接続率：${ratio.toFixed(1)}% / 推奨：${machiRange.min}%〜${machiRange.max}%）。`);
             }
         } else if (seriesId === 'package_industrial') {
             if (indoorCount > 1) {
                 warnings.push(`警告: 設備用エアコンはマルチ接続に対応していません。室内ユニットは1台のみ接続してください（現在：${indoorCount}台）。`);
             }
-            if (ratio < 80 || ratio > 120) {
-                warnings.push(`設備用エアコンの接続容量比が推奨範囲（80%〜120%）外です（現在の接続率：${ratio.toFixed(1)}%）。`);
+            const pkgRange = this.getConnectionRatioRange(seriesId, tree.capacity, tree);
+            if (ratio < pkgRange.min || ratio > pkgRange.max) {
+                warnings.push(`設備用エアコンの接続容量比が推奨範囲（${pkgRange.min}%〜${pkgRange.max}%）外です（現在の接続率：${ratio.toFixed(1)}%）。`);
             }
         } else {
             if (indoorCount > seriesConfig.maxIndoorUnits) {
                 warnings.push(`${seriesConfig.name}における室内機の接続最大台数は【${seriesConfig.maxIndoorUnits}台】です（現在：${indoorCount}台）。`);
             }
-            if (ratio < 50 || ratio > 130) {
-                warnings.push(`${seriesConfig.name}の推奨接続率（50%〜130%）の範囲を逸脱しています（現在の接続率：${ratio.toFixed(1)}%）。`);
+            const range = this.getConnectionRatioRange(seriesId, tree.capacity, tree);
+            if (ratio < range.min || ratio > range.max) {
+                warnings.push(`${seriesConfig.name}の推奨接続率（${range.min}%〜${range.max}%）の範囲を逸脱しています（現在の接続率：${ratio.toFixed(1)}%）。`);
             }
         }
 
-        // BSユニット台数制限チェック (冷暖フリー時)
+        // BSユニット選定範囲チェック (冷暖フリー時)
         if (is3Pipe) {
             const checkBSUnits = (node) => {
                 if (node.type === 'bs_unit') {
-                    const N = this.countIndoors(node);
-                    if (N > 16) {
-                        warnings.push(`警告: BSユニット（${node.name}）の下流接続台数が制限（16台）を超えています（現在：${N}台）。系統を分割してください。`);
+                    const issues = this.validateBSUnit(node);
+                    for (const issue of issues) {
+                        warnings.push(`警告: BSユニット（${node.name}）: ${issue}。系統を分割するか、BSユニットの構成を見直してください。`);
+                    }
+                    if (node.modelNumber === null || node.modelNumber === undefined) {
+                        warnings.push(`警告: BSユニット（${node.name}）に適合する現行品番がありません。カタログの選定範囲（個別：Q≦28.0kW・8台以下、集合：12分岐以下・1分岐あたりQ≦16.0kW・5台以下）を確認してください。`);
                     }
                 }
                 if (node.children) {
@@ -645,6 +795,7 @@ class RefrigerantSizerEngine {
             totals: {
                 totalIndoorCapacity: totalIndoorCap,
                 connectionRatio: ratio,
+                connectionRatioRange: this.getConnectionRatioRange(seriesId, tree.capacity, tree),
                 longestPath,
                 indoorCount,
                 totalPipingLength,
@@ -697,7 +848,7 @@ class RefrigerantSizerEngine {
     }
 
     // 3管/2管ハイブリッドサイズ選定 (末端室内機は必ず2管)
-    selectInitialSizesForNode(node, outdoorKw, seriesId) {
+    selectInitialSizesForNode(node, outdoorKw, seriesId, isFirstBranch = false) {
         const seriesConfig = this.SERIES_DATABASE[seriesId] || this.SERIES_DATABASE.vrv7_x;
         const is3Pipe = seriesConfig.pipeSystem === '3pipe';
 
@@ -718,7 +869,7 @@ class RefrigerantSizerEngine {
                 node.pipeLiquid = s.liquid; node.pipeHighLowGas = s.highLowGas; node.pipeSuctionGas = s.suctionGas;
             }
             if (node.type === 'branch') {
-                node.jointModel = this.getJointModel(node.downstreamCapacity, seriesId);
+                node.jointModel = this.getJointModel(node.downstreamCapacity, seriesId, { isFirstBranch, outdoorKw });
                 node.modelNumber = node.jointModel;
             } else if (node.type === 'bs_unit') {
                 node.jointModel = null;
@@ -734,7 +885,11 @@ class RefrigerantSizerEngine {
                 node.pipeLiquid = s.liquid; node.pipeGas = s.gas;
             }
             if (node.type === 'branch') {
-                node.jointModel = this.getJointModel(node.downstreamCapacity, seriesId);
+                node.jointModel = this.getJointModel(node.downstreamCapacity, seriesId, {
+                    isFirstBranch,
+                    outdoorKw,
+                    isTwoPipeSection: is3Pipe && !!node.inBSDownstream
+                });
                 node.modelNumber = node.jointModel;
             } else if (node.type === 'bs_unit') {
                 node.jointModel = null;
@@ -742,7 +897,8 @@ class RefrigerantSizerEngine {
             }
         }
 
-        if (node.children) node.children.forEach(c => this.selectInitialSizesForNode(c, outdoorKw, seriesId));
+        // 室外機の直下の分岐が第1分岐
+        if (node.children) node.children.forEach(c => this.selectInitialSizesForNode(c, outdoorKw, seriesId, node.type === 'outdoor'));
     }
 
     applyMainPipeSizeUp(rootNode, is3Pipe) {
