@@ -10,7 +10,7 @@ class RefrigerantSizerEngine {
                 name: "GHP ハイパワーエグゼ (R410A)",
                 refrigerant: "R410A",
                 maxIndoorUnits: 36,
-                maxPipingTotal: 300,
+                maxPipingTotal: 640,
                 maxFarDistance: 170,
                 outdoorCapacities: [
                     { hp: 13, kw: 35.5, model: "YG-355HP" },
@@ -25,8 +25,8 @@ class RefrigerantSizerEngine {
                 name: "GHP 標準マルチ (Jシリーズ)",
                 refrigerant: "R410A",
                 maxIndoorUnits: 30,
-                maxPipingTotal: 250,
-                maxFarDistance: 150,
+                maxPipingTotal: 640,
+                maxFarDistance: 170,
                 outdoorCapacities: [
                     { hp: 13, kw: 35.5, model: "YG-355J" },
                     { hp: 16, kw: 45.0, model: "YG-450J" },
@@ -40,8 +40,8 @@ class RefrigerantSizerEngine {
                 name: "GHP チラー / 寒冷地対応マルチ",
                 refrigerant: "R410A",
                 maxIndoorUnits: 24,
-                maxPipingTotal: 200,
-                maxFarDistance: 130,
+                maxPipingTotal: 640,
+                maxFarDistance: 170,
                 outdoorCapacities: [
                     { hp: 16, kw: 45.0, model: "YGC-450W" },
                     { hp: 20, kw: 56.0, model: "YGC-560W" },
@@ -54,7 +54,7 @@ class RefrigerantSizerEngine {
                 refrigerant: "R410A",
                 pipeSystem: "3pipe",
                 maxIndoorUnits: 36,
-                maxPipingTotal: 300,
+                maxPipingTotal: 640,
                 maxFarDistance: 170,
                 outdoorCapacities: [
                     { hp: 16, kw: 45.0, model: "YHR-450EC" },
@@ -142,6 +142,12 @@ class RefrigerantSizerEngine {
             warnings.push(`総配管実長 (${totals.totalPipingLength.toFixed(1)}m) が制限 (${series.maxPipingTotal}m) を超過しています。`);
         }
 
+        // 第一分岐後の許容長さは公式 90m 以下（2022.09 GHP総合カタログ 5-1・5-2）。
+        // totals.firstBranchToIndoorMax は第一分岐から最遠室内機までの実長。
+        if (totals.firstBranchToIndoorMax > 90) {
+            warnings.push(`第一分岐後の配管長 (${totals.firstBranchToIndoorMax.toFixed(1)}m) が制限 (90m) を超過しています。`);
+        }
+
         return { tree, totals, warnings, is3Pipe };
     }
 
@@ -175,6 +181,12 @@ class RefrigerantSizerEngine {
     }
 
     sizeNodePipes(node, forceSizeUp, is3Pipe = false) {
+        // 公式の主管は室外機定格容量で選定する（2022.09 GHP総合カタログ 5-1 (a)）。
+        // 室外機ノードでは node.capacity（定格容量）を使い、下流室内機合計容量
+        // （downstreamCapacity）で選定してはならない。定格容量が不明な場合のみ
+        // 従来どおり下流合計にフォールバックする。
+        const ratedCap = (typeof node.capacity === 'number' && Number.isFinite(node.capacity) && node.capacity > 0)
+            ? node.capacity : null;
         const cap = node.downstreamCapacity || node.capacity || 0;
 
         if (is3Pipe && !node.inBSDownstream && node.type !== 'indoor') {
@@ -184,10 +196,12 @@ class RefrigerantSizerEngine {
             let lg = "19.05";
 
             if (node.type === 'outdoor') {
-                if (cap <= 45.0) { liquid = "12.7"; hlg = "19.05"; lg = "28.58"; }
-                else if (cap <= 56.0) { liquid = "15.88"; hlg = "22.2"; lg = "28.58"; }
-                else if (cap <= 71.0) { liquid = "19.05"; hlg = "25.4"; lg = "31.75"; }
-                else { liquid = "19.05"; hlg = "28.58"; lg = "38.1"; }
+                const ocap = ratedCap !== null ? ratedCap : cap;
+                if (ocap <= 45.0) { liquid = "12.7"; hlg = "19.05"; lg = "28.58"; }
+                else if (ocap <= 56.0) { liquid = "15.88"; hlg = "22.2"; lg = "28.58"; }
+                else if (ocap <= 71.0) { liquid = "19.05"; hlg = "25.4"; lg = "31.75"; }
+                // 85.0kW: 吸入ガスは公式 φ31.8（31.75と同径表記）。旧来の 38.1 は誤り。
+                else { liquid = "19.05"; hlg = "28.58"; lg = "31.75"; }
 
                 if (forceSizeUp) {
                     if (liquid === "12.7") liquid = "15.88";
@@ -201,7 +215,8 @@ class RefrigerantSizerEngine {
                     node.isSizedUp = true;
                 }
             } else {
-                // 分岐管など
+                // 分岐管など — 5-2［冷媒配管サイズの選定］表の本体がテキスト抽出から
+                // 読めなかったため未検証。旧来値のまま変更しない。
                 if (cap <= 16.0) { liquid = "9.52"; hlg = "15.88"; lg = "19.05"; }
                 else if (cap <= 22.4) { liquid = "9.52"; hlg = "19.05"; lg = "22.2"; }
                 else if (cap <= 28.0) { liquid = "9.52"; hlg = "19.05"; lg = "22.2"; }
@@ -217,14 +232,47 @@ class RefrigerantSizerEngine {
             node.pipes = { type: '3pipe', liquid, highGas: hlg, lowGas: lg };
         } else {
             // 2管式 (標準または切換弁ユニット下流)
+            // 公式は区間ごとに表を分ける（5-1）。旧来の1表を区間別に分離する。
             let liquid = "9.52";
             let gas = "15.88";
 
             if (node.inBSDownstream && node.type === 'indoor') {
+                // 切換弁ユニット下流の室内機 — 旧来値のまま（5-2表未読のため未検証。
+                // P224のガス19.1は暫定のため適用しない）。
                 if (cap <= 5.6) { liquid = "6.35"; gas = "12.7"; }
                 else if (cap <= 16.0) { liquid = "9.52"; gas = "15.88"; }
                 else { liquid = "9.52"; gas = "22.2"; }
+            } else if (node.type === 'outdoor') {
+                // 主管（室外機〜冷媒分岐キット間）: 室外機定格容量で選定（5-1 (a)）。
+                // カタログ表記 φ15.9/19.1/28.6/31.8 はコードの 15.88/19.05/28.58/31.75 と同径。
+                const ocap = ratedCap !== null ? ratedCap : cap;
+                if (ocap <= 14.0) { liquid = "9.52"; gas = "15.88"; }
+                else if (ocap <= 22.4) { liquid = "9.52"; gas = "19.05"; }
+                else if (ocap <= 28.0) { liquid = "9.52"; gas = "22.2"; }
+                else if (ocap <= 35.5) { liquid = "12.7"; gas = "25.4"; }
+                else if (ocap <= 45.0) { liquid = "12.7"; gas = "28.58"; }
+                else if (ocap <= 56.0) { liquid = "15.88"; gas = "28.58"; }
+                else { liquid = "19.05"; gas = "31.75"; }
+            } else if (node.type === 'branch' && !node.inBSDownstream) {
+                // 枝管（冷媒分岐キット間）: 下流室内機合計容量で選定（5-1 (b)）。
+                if (cap < 22.4) { liquid = "9.52"; gas = "15.88"; }
+                else if (cap < 33.0) { liquid = "9.52"; gas = "22.2"; }
+                else if (cap < 47.0) { liquid = "12.7"; gas = "28.58"; }
+                else if (cap < 71.0) { liquid = "15.88"; gas = "28.58"; }
+                else { liquid = "19.05"; gas = "31.75"; }
+            } else if (node.type === 'indoor' && !node.inBSDownstream) {
+                // 分岐キット〜室内機間: 室内機容量で選定（5-1 (c)）。
+                if (cap <= 5.6) { liquid = "6.35"; gas = "12.7"; }
+                else if (cap <= 16.0) { liquid = "9.52"; gas = "15.88"; }
+                else if (cap <= 22.4) { liquid = "9.52"; gas = "19.05"; }
+                else if (cap <= 28.0) { liquid = "9.52"; gas = "22.2"; }
+                else if (cap <= 35.5) { liquid = "12.7"; gas = "28.58"; }
+                else if (cap <= 45.0) { liquid = "12.7"; gas = "28.58"; }
+                else if (cap <= 56.0) { liquid = "15.88"; gas = "28.58"; }
+                else { liquid = "19.05"; gas = "31.75"; }
             } else {
+                // 切換弁ユニット下流の分岐等（3管式）: 5-2表が読めないため未検証。
+                // 旧来の区分表のまま変更しない。
                 if (cap <= 5.6) { liquid = "6.35"; gas = "12.7"; }
                 else if (cap <= 14.0) { liquid = "9.52"; gas = "15.88"; }
                 else if (cap <= 22.4) { liquid = "9.52"; gas = "19.05"; }
@@ -259,7 +307,9 @@ class RefrigerantSizerEngine {
         }
     }
 
-    assignModelNumbers(node, series) {
+    // 公式の分岐管・BSユニット型番に訂正する（2022.09 GHP総合カタログ 5-1 (e)・5-2）。
+    // 室外機・室内機の型番は公式カタログに現れないため変更しない（未決事項参照）。
+    assignModelNumbers(node, series, isFirstBranch = false, outdoorKw = null) {
         if (node.type === 'outdoor') {
             const match = series.outdoorCapacities.find(c => Math.abs(c.kw - node.capacity) < 0.1);
             node.modelNumber = match ? match.model : "YG-CUSTOM";
@@ -270,22 +320,37 @@ class RefrigerantSizerEngine {
             const cap = node.downstreamCapacity || 0;
             const is3Pipe = series.pipeSystem === '3pipe';
             if (is3Pipe) {
-                if (cap <= 28.0) node.jointModel = "YJ-P28TR";
-                else if (cap <= 45.0) node.jointModel = "YJ-P45TR";
-                else node.jointModel = "YJ-P71TR";
+                // 第1分岐は室外機型式で決まる。560K1 → RBPP72FY、850K1 → RBPP104FY。
+                // 公式対応物のない室外機容量では下流合計の区分表にフォールバックする。
+                if (isFirstBranch && outdoorKw !== null && Math.abs(outdoorKw - 56.0) < 0.1) node.jointModel = "RBPP72FY";
+                else if (isFirstBranch && outdoorKw !== null && Math.abs(outdoorKw - 85.0) < 0.1) node.jointModel = "RBPP104FY";
+                else if (cap < 22.4) node.jointModel = "RBPP22FY";
+                else if (cap < 33.0) node.jointModel = "RBPP33FY";
+                else if (cap < 71.0) node.jointModel = "RBPP72FY";
+                else node.jointModel = "RBPP104FY";
             } else {
-                if (cap <= 22.4) node.jointModel = "YJ-P22T";
-                else if (cap <= 45.0) node.jointModel = "YJ-P45T";
-                else node.jointModel = "YJ-P71T";
+                // Y分岐管。第1分岐と第2分岐以降は 104.0kW 以上でのみ異なる
+                // （第1分岐 RBPP218Y、第2分岐以降 RBPP104Y）。
+                if (cap < 22.4) node.jointModel = "RBPP22Y";
+                else if (cap < 33.0) node.jointModel = "RBPP33Y";
+                else if (cap < 71.0) node.jointModel = "RBPP72Y";
+                else if (isFirstBranch && cap >= 104.0) node.jointModel = "RBPP218Y";
+                else node.jointModel = "RBPP104Y";
             }
             node.modelNumber = node.jointModel;
         } else if (node.type === 'bs_unit') {
+            // BSユニットは下流合計Qと台数で選定する。Q > 28.0 は公式のBS範囲を超える
+            // （最大の YBSVP280C を選ぶ。未決事項参照）。
             const cap = node.downstreamCapacity || 0;
-            node.modelNumber = cap <= 8.0 ? "YS-P80" : "YS-P160";
+            const units = this.countIndoors(node);
+            if (cap <= 11.2 && units <= 5) node.modelNumber = "YBSVP112C";
+            else if (cap <= 18.0 && units <= 8) node.modelNumber = "YBSVP180C";
+            else node.modelNumber = "YBSVP280C";
         }
 
         if (node.children) {
-            for (const child of node.children) this.assignModelNumbers(child, series);
+            const childOutdoorKw = node.type === 'outdoor' ? node.capacity : outdoorKw;
+            for (const child of node.children) this.assignModelNumbers(child, series, node.type === 'outdoor', childOutdoorKw);
         }
     }
 
