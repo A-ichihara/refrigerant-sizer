@@ -522,6 +522,26 @@ class RefrigerantSizerEngine {
             }
         }
 
+        // UXE3室外機接続配管 ℓA の長さ判定（表1：各室外ユニットから室外第一分岐
+        // まで ≦10m、決定事項D1）。経路診断の outdoorConnectionCandidate
+        // （L1候補経路上の最初の分岐ノード＝室外第一分岐までの長さ）を読む
+        // だけであり、管径・BOM・totals は変更しない。10m を超える場合は
+        // 表1の上限違反として危険警告を出す（本エンジンに LM／L1／ΔL など
+        // 他の表1長さ上限の判定は存在しないため、直接の類推対象はない。
+        // 室内機台数制限・対応容量外などの上限違反と同じ危険警告とする）。
+        // 判定できない場合（L1候補なし・分岐なし）は警告を出さない（未入力の
+        // 長さに警告を出さない既定と同じ）。
+        let outdoorConnection = null;
+        if (seriesId === 'fsv_uxe3') {
+            outdoorConnection = this.evaluateUxE3OutdoorConnectionLength(pathAudit, outdoorGroups);
+            if (outdoorConnection.status === 'exceeded') {
+                warnings.push({
+                    type: 'danger',
+                    message: `【室外機接続配管 ℓA】室外機から室外第一分岐までの配管長 ${outdoorConnection.lengthActualM}m が表1の上限 ${outdoorConnection.thresholdM}m を超えています（室外第一分岐：${outdoorConnection.outdoorFirstBranchLabel || '名称不明'}）。室外機と室外第一分岐の配置を見直してください。`
+                });
+            }
+        }
+
         return {
             tree: rootNode,
             segmentAudit,
@@ -530,6 +550,7 @@ class RefrigerantSizerEngine {
             longPipe,
             kitGroups,
             outdoorGroups,
+            outdoorConnection,
             warnings: warnings,
             totals: totals
         };
@@ -761,6 +782,8 @@ class RefrigerantSizerEngine {
         const RULE_D1 = '決定事項D1（2026-10-26）：L1候補経路上で最初に現れる分岐ノードを室外第一分岐、その次の分岐ノードを第一分岐、さらに次の分岐ノードを次の分岐とする。図1の室外第一分岐・第一分岐の配置に基づく規則。';
         const MAX_PATHS = 200;
         const MAX_DEPTH = 100;
+        // 表1（PA-P900UXE3 印刷 -4-、図1）：各室外ユニットから室外第一分岐まで ≦10m。
+        const OUTDOOR_CONNECTION_LIMIT_M = 10;
         const notes = [];
         const notDeterminable = (reason) => ({
             status: 'not_determinable',
@@ -793,6 +816,18 @@ class RefrigerantSizerEngine {
                 lengthEquivalentM: null,
                 equivalentStatus: 'not_determinable',
                 lengthState: 'missing_or_nonfinite',
+                nodeLabels: []
+            },
+            outdoorConnectionCandidate: {
+                status: 'not_determinable',
+                reason,
+                rule: RULE_D1,
+                outdoorFirstBranchId: null,
+                outdoorFirstBranchLabel: null,
+                edgeChildIds: [],
+                lengthActualM: null,
+                lengthState: 'missing_or_nonfinite',
+                thresholdM: OUTDOOR_CONNECTION_LIMIT_M,
                 nodeLabels: []
             },
             deltaLCandidate: {
@@ -1043,6 +1078,7 @@ class RefrigerantSizerEngine {
         // LM候補：L1候補経路上の分岐ノードを決定事項D1の規則で読み替える。
         // LA＝室外第一分岐→第一分岐の辺、LB＝第一分岐→次の分岐の辺。
         let lmCandidate;
+        let outdoorConnectionCandidate;
         let firstBranchIndex = -1;
         if (l1Candidate.status !== 'candidate') {
             lmCandidate = {
@@ -1062,6 +1098,18 @@ class RefrigerantSizerEngine {
                 lengthState: 'missing_or_nonfinite',
                 nodeLabels: []
             };
+            outdoorConnectionCandidate = {
+                status: 'not_determinable',
+                reason: 'L1候補が特定できないため、室外機接続配管 ℓA も特定できません。',
+                rule: RULE_D1,
+                outdoorFirstBranchId: null,
+                outdoorFirstBranchLabel: null,
+                edgeChildIds: [],
+                lengthActualM: null,
+                lengthState: 'missing_or_nonfinite',
+                thresholdM: OUTDOOR_CONNECTION_LIMIT_M,
+                nodeLabels: []
+            };
         } else {
             const farthest = indoorValidPaths.reduce((best, path) => (
                 path.lengthActualM > best.lengthActualM ? path : best
@@ -1070,6 +1118,40 @@ class RefrigerantSizerEngine {
             farthest.nodeTypes.forEach((type, index) => {
                 if (index > 0 && type === 'branch') branchIndexes.push(index);
             });
+            // 室外機接続配管 ℓA：室外機〜室外第一分岐（L1候補経路上の最初の
+            // 分岐ノード）までの配管長。表1「各室外ユニットから室外第一分岐
+            // まで ≦10m」。通常は室外機の直下の辺1本だが、途中に分岐以外の
+            // ノードがある場合は室外機から室外第一分岐までの全辺の合計である
+            // （距離の定義が「室外機から室外第一分岐まで」であるため）。
+            // LM候補と異なり、分岐が1つあれば特定できる。
+            if (branchIndexes.length === 0) {
+                outdoorConnectionCandidate = {
+                    status: 'not_determinable',
+                    reason: 'L1候補経路上に分岐ノードがありません（室外第一分岐を特定できません）。',
+                    rule: RULE_D1,
+                    outdoorFirstBranchId: null,
+                    outdoorFirstBranchLabel: null,
+                    edgeChildIds: [],
+                    lengthActualM: null,
+                    lengthState: 'missing_or_nonfinite',
+                    thresholdM: OUTDOOR_CONNECTION_LIMIT_M,
+                    nodeLabels: []
+                };
+            } else {
+                const outdoorConnectionEdges = farthest.edges.slice(0, branchIndexes[0]);
+                outdoorConnectionCandidate = {
+                    status: 'candidate',
+                    reason: null,
+                    rule: RULE_D1,
+                    outdoorFirstBranchId: farthest.nodeIds[branchIndexes[0]],
+                    outdoorFirstBranchLabel: farthest.nodeLabels[branchIndexes[0]],
+                    edgeChildIds: outdoorConnectionEdges.map((edge) => edge.childId),
+                    lengthActualM: outdoorConnectionEdges.reduce((sum, edge) => sum + edge.lengthM, 0),
+                    lengthState: 'valid_nonnegative',
+                    thresholdM: OUTDOOR_CONNECTION_LIMIT_M,
+                    nodeLabels: farthest.nodeLabels.slice(0, branchIndexes[0] + 1)
+                };
+            }
             if (branchIndexes.length < 3) {
                 lmCandidate = {
                     status: 'not_determinable',
@@ -1223,6 +1305,7 @@ class RefrigerantSizerEngine {
             l1Candidate,
             l1EquivalentCandidate,
             lmCandidate,
+            outdoorConnectionCandidate,
             deltaLCandidate,
             summary: {
                 totalEdges,
@@ -1791,6 +1874,58 @@ class RefrigerantSizerEngine {
         addBucket('lowGasPipes', adjust.lowGasPipes);
         addBucket('balancePipes', adjust.balancePipes);
         return true;
+    }
+
+    /**
+     * UXE3室外機接続配管 ℓA の長さ判定（表1：各室外ユニットから室外第一分岐
+     * まで ≦10m、決定事項D1）。
+     * 経路診断の outdoorConnectionCandidate（L1候補経路上の最初の分岐ノード
+     * ＝室外第一分岐までの長さ）を読むだけの純粋な判定であり、totals を
+     * 変更しない。10m を超える場合は 'exceeded'、以下の場合は 'ok'、
+     * 特定できない場合は 'not_determinable' とする。境界ちょうど 10m は
+     * 上限内（≦10m）である。
+     * 組合せ室外機の場合、本判定はグループ全体から室外第一分岐までの ℓA
+     * を対象とする。各構成ユニットから室外第一分岐までの長さ（ℓB＋LP、
+     * ℓC＋LO＋LP、ℓD＋LO＋LP）は、構成ユニットごとの接続長がツリーに
+     * 入力されておらず、D6（室外第一分岐の位置）も未決のため判定して
+     * いない（notes に記録する）。
+     */
+    evaluateUxE3OutdoorConnectionLength(pathAudit, outdoorGroups) {
+        const RULE_TABLE1 = '表1（PA-P900UXE3 印刷 -4-、図1）：各室外ユニットから室外第一分岐まで ≦10m。室外機側接続配管 ℓA、ℓB＋LP、ℓC＋LO＋LP、ℓD＋LO＋LP は各 ≦10m。';
+        const baseRecord = (status, reason) => ({
+            status,
+            reason,
+            rule: RULE_TABLE1,
+            thresholdM: 10,
+            lengthActualM: null,
+            outdoorFirstBranchId: null,
+            outdoorFirstBranchLabel: null,
+            edgeChildIds: [],
+            notes: []
+        });
+        const candidate = pathAudit && pathAudit.outdoorConnectionCandidate;
+        if (!candidate) {
+            return baseRecord('not_determinable', '室外機接続配管 ℓA の経路診断がありません。');
+        }
+        if (candidate.status !== 'candidate') {
+            return baseRecord('not_determinable', candidate.reason || '室外機接続配管 ℓA を特定できません。');
+        }
+        const exceeded = candidate.lengthActualM > candidate.thresholdM;
+        const record = baseRecord(
+            exceeded ? 'exceeded' : 'ok',
+            exceeded
+                ? `室外機から室外第一分岐までの配管長 ${candidate.lengthActualM}m が表1の上限 ${candidate.thresholdM}m を超えています。`
+                : null
+        );
+        record.thresholdM = candidate.thresholdM;
+        record.lengthActualM = candidate.lengthActualM;
+        record.outdoorFirstBranchId = candidate.outdoorFirstBranchId;
+        record.outdoorFirstBranchLabel = candidate.outdoorFirstBranchLabel;
+        record.edgeChildIds = [...candidate.edgeChildIds];
+        if (outdoorGroups && outdoorGroups.status !== 'not_applicable') {
+            record.notes.push('組合せ室外機の場合、本判定はグループ全体から室外第一分岐までの ℓA を対象とする。各構成ユニットから室外第一分岐までの長さ（ℓB＋LP、ℓC＋LO＋LP、ℓD＋LO＋LP）は、構成ユニットごとの接続長がツリーに入力されておらず、D6（室外第一分岐の位置）も未決のため判定していない。');
+        }
+        return record;
     }
 
     // 旧UXE3 18HPデータのみ、公式50.4kW定格に合わせる。別シリーズや他の容量は変更しない。
