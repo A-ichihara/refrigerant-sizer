@@ -53,3 +53,5 @@ jobs:
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-outdoor-connection-length.test.cjs
       - name: Run Panasonic UI warning rendering tests
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/ui-warning-rendering.test.cjs
+      - name: Run Daikin VRV verification corrections regression tests
+        run: node --test refrigerant-sizer/daikin-refrigerant-sizer/tests/daikin-vrv-corrections.test.cjs
