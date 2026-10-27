@@ -370,11 +370,15 @@ class RefrigerantSizerUI {
                         segmentColor = '#10b981';
                     }
 
+                    // 行数：見出し + 液管行（液管がある区間のみ）+ ガス行
+                    // 室外機〜親BC間は高圧・低圧ガス管のみで液管がないため、液管行を表示しない。
                     const labelWidth = is3Pipe ? 130 : 118;
                     const rowH = 16;
-                    const rows = is3Pipe ? 4 : 3;
+                    const hasLiquid = pLiquid != null;
+                    const rows = 1 + (hasLiquid ? 1 : 0) + (is3Pipe ? 2 : 1);
                     const boxH = rows * rowH + 6;
                     const boxY = midY - boxH / 2;
+                    let rowNo = 1;
 
                     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
@@ -391,40 +395,46 @@ class RefrigerantSizerUI {
                     const tHeader = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                     tHeader.setAttribute('class', 'pipe-label-header');
                     tHeader.setAttribute('x', midX);
-                    tHeader.setAttribute('y', boxY + rowH - 2);
+                    tHeader.setAttribute('y', boxY + rowH * rowNo - 2);
                     tHeader.setAttribute('fill', segmentColor);
                     tHeader.textContent = segmentLabel;
                     g.appendChild(tHeader);
+                    rowNo++;
 
-                    const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    tLiq.setAttribute('class', 'pipe-label-text');
-                    tLiq.setAttribute('x', midX);
-                    tLiq.setAttribute('y', boxY + rowH * 2 - 2);
-                    tLiq.setAttribute('fill', '#e0f2fe');
-                    tLiq.textContent = '液管: φ' + (pLiquid || '-');
-                    g.appendChild(tLiq);
+                    if (hasLiquid) {
+                        const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        tLiq.setAttribute('class', 'pipe-label-text');
+                        tLiq.setAttribute('x', midX);
+                        tLiq.setAttribute('y', boxY + rowH * rowNo - 2);
+                        tLiq.setAttribute('fill', '#e0f2fe');
+                        tLiq.textContent = '液管: φ' + pLiquid;
+                        g.appendChild(tLiq);
+                        rowNo++;
+                    }
 
                     if (is3Pipe) {
                         const tHLG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         tHLG.setAttribute('class', 'pipe-label-text');
                         tHLG.setAttribute('x', midX);
-                        tHLG.setAttribute('y', boxY + rowH * 3 - 2);
+                        tHLG.setAttribute('y', boxY + rowH * rowNo - 2);
                         tHLG.setAttribute('fill', '#fbbf24');
                         tHLG.textContent = '高圧ガス: φ' + (pHighGas || '-');
                         g.appendChild(tHLG);
+                        rowNo++;
 
                         const tSG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         tSG.setAttribute('class', 'pipe-label-text');
                         tSG.setAttribute('x', midX);
-                        tSG.setAttribute('y', boxY + rowH * 4 - 2);
+                        tSG.setAttribute('y', boxY + rowH * rowNo - 2);
                         tSG.setAttribute('fill', '#00d2ff');
                         tSG.textContent = '低圧ガス: φ' + (pLowGas || '-');
                         g.appendChild(tSG);
+                        rowNo++;
                     } else {
                         const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         tGas.setAttribute('class', 'pipe-label-text');
                         tGas.setAttribute('x', midX);
-                        tGas.setAttribute('y', boxY + rowH * 3 - 2);
+                        tGas.setAttribute('y', boxY + rowH * rowNo - 2);
                         tGas.setAttribute('fill', '#00d2ff');
                         tGas.textContent = 'ガス管: φ' + (pGas || '-');
                         g.appendChild(tGas);
@@ -844,10 +854,13 @@ class RefrigerantSizerUI {
             const modelStr = node.modelNumber || node.jointModel || "-";
             const sizedUpTag = node.isSizedUp ? ' <span style="color:var(--color-secondary); font-weight:700;">(サイズUP)</span>' : '';
 
-            let pipeLiquidStr = node.pipeLiquid ? `φ${node.pipeLiquid}` : "-";
-            let pipeGasStr = node.pipeGas ? `φ${node.pipeGas}` : "-";
-            let pipeHLGStr = node.pipeHighGas ? `φ${node.pipeHighGas}` : "-";
-            let pipeSGStr = node.pipeLowGas ? `φ${node.pipeLowGas}` : "-";
+            // エンジンは node.pipes（{liquid, gas} / {liquid, highGas, lowGas} /
+            // {highGas, lowGas}）に選定結果を入れる。旧フィールド（node.pipeLiquid 等）は
+            // エンジンが設定しないため、従来この表は全て「-」表示になっていた。
+            let pipeLiquidStr = node.pipeLiquid ? `φ${node.pipeLiquid}` : (node.pipes && node.pipes.liquid != null ? `φ${node.pipes.liquid}` : "-");
+            let pipeGasStr = node.pipeGas ? `φ${node.pipeGas}` : (node.pipes && node.pipes.gas != null ? `φ${node.pipes.gas}` : "-");
+            let pipeHLGStr = node.pipeHighGas ? `φ${node.pipeHighGas}` : (node.pipes && node.pipes.highGas != null ? `φ${node.pipes.highGas}` : "-");
+            let pipeSGStr = node.pipeLowGas ? `φ${node.pipeLowGas}` : (node.pipes && node.pipes.lowGas != null ? `φ${node.pipes.lowGas}` : "-");
 
             html += `
                 <tr>
@@ -1437,84 +1450,145 @@ class RefrigerantSizerUI {
 
         if (mode === 'switch') {
             // シティマルチ Yシリーズ 冷暖切換 (2管式) - 三菱電機技術資料準拠
+            // 公式表は区間別に3表ある（Pipe A / Pipe B・C・D / Pipe a〜d）。D2・D5 準拠。
             container.innerHTML = `
                 <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px; padding:10px 14px; background:rgba(230,0,18,0.06); border-radius:var(--radius-sm); border:1px solid rgba(230,0,18,0.15);">
                     <strong>シティマルチ Yシリーズ (冷暖切換・2管式)</strong><br>
-                    室外機〜分岐継手(CMY)間、分岐継手〜分岐継手間は下流容量合計で選定。分岐継手〜室内機は室内機単体容量で選定。
+                    室外機〜第一分岐間は室外機形番で選定（Pipe A）。分岐継手〜分岐継手間は下流容量合計で選定（Pipe B・C・D）。分岐継手〜室内機は室内機単体容量で選定（Pipe a〜d）。
                 </div>
+                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:12px 0 8px;">① 室外機 〜 第一分岐 (Pipe A)</h4>
+                <table class="pipe-detail-table">
+                    <thead>
+                        <tr>
+                            <th>室外機形番</th>
+                            <th>室外機容量 (kW)</th>
+                            <th>液管サイズ (φmm)</th>
+                            <th>ガス管サイズ (φmm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>P200</td><td>22.4 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td></tr>
+                        <tr><td>P250 〜 P300</td><td>28.0 〜 33.5 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td></tr>
+                        <tr><td>P350 〜 P400</td><td>40.0 〜 45.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td style="color:var(--color-secondary); font-weight:700;">φ28.58</td></tr>
+                        <tr><td>P450 〜 P650</td><td>50.0 〜 73.5 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td style="color:var(--color-secondary); font-weight:700;">φ28.58</td></tr>
+                        <tr><td>P700 〜 P800</td><td>80.0 〜 90.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:var(--color-secondary); font-weight:700;">φ34.93</td></tr>
+                        <tr><td>P850 〜 P1350</td><td>95.0 〜 135.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:var(--color-secondary); font-weight:700;">φ41.28</td></tr>
+                    </tbody>
+                </table>
+                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:16px 0 8px;">② 分岐継手 〜 分岐継手 (Pipe B・C・D)</h4>
                 <table class="pipe-detail-table">
                     <thead>
                         <tr>
                             <th>下流容量合計 (kW)</th>
-                            <th>相当馬力</th>
                             <th>液管サイズ (φmm)</th>
                             <th>ガス管サイズ (φmm)</th>
-                            <th>備考</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>〜 7.1 kW</td><td>〜2.5馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td>室内機単独・少容量分岐</td></tr>
-                        <tr><td>〜 16.0 kW</td><td>〜6馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td></td></tr>
-                        <tr><td>〜 22.4 kW</td><td>〜8馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td></td></tr>
-                        <tr><td>〜 28.0 kW</td><td>〜10馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td>条件によりφ28.58</td></tr>
-                        <tr><td>〜 45.0 kW</td><td>〜16馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td style="color:var(--color-secondary); font-weight:700;">φ28.58</td><td></td></tr>
-                        <tr><td>〜 56.0 kW</td><td>〜20馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td style="color:var(--color-secondary); font-weight:700;">φ28.58</td><td></td></tr>
-                        <tr><td>〜 101.2 kW</td><td>〜36馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:var(--color-secondary); font-weight:700;">φ34.93</td><td>主管サイズUP時：液φ22.2/ガスφ41.28</td></tr>
-                        <tr><td>101.2 kW 超</td><td>40馬力〜</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td style="color:var(--color-secondary); font-weight:700;">φ41.28</td><td></td></tr>
+                        <tr><td>〜 14.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td></tr>
+                        <tr><td>14.1 〜 20.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td></tr>
+                        <tr><td>20.1 〜 30.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td></tr>
+                        <tr><td>30.1 〜 40.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td style="color:var(--color-secondary); font-weight:700;">φ28.58</td></tr>
+                        <tr><td>40.1 〜 65.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td style="color:var(--color-secondary); font-weight:700;">φ28.58</td></tr>
+                        <tr><td>65.1 〜 80.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:var(--color-secondary); font-weight:700;">φ34.93</td></tr>
+                        <tr><td>80.1 kW 〜</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:var(--color-secondary); font-weight:700;">φ41.28</td></tr>
+                    </tbody>
+                </table>
+                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:16px 0 8px;">③ 分岐継手 〜 室内機 (Pipe a〜d)</h4>
+                <table class="pipe-detail-table">
+                    <thead>
+                        <tr>
+                            <th>室内機形番</th>
+                            <th>室内機容量 (kW)</th>
+                            <th>液管サイズ (φmm)</th>
+                            <th>ガス管サイズ (φmm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>P10 〜 P50</td><td>〜 5.6 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ6.35</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td></tr>
+                        <tr><td>P63 〜 P140</td><td>6.3 〜 14.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td></tr>
+                        <tr><td>P200</td><td>22.4 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td></tr>
+                        <tr><td>P250</td><td>28.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td></tr>
                     </tbody>
                 </table>
                 <div style="margin-top:1rem; padding:10px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm); border:1px solid var(--border-color); font-size:0.75rem; color:var(--text-secondary);">
-                    ※ 主管サイズUP条件: 最遠配管相当長が90m以上の場合、液管・ガス管共に1サイズアップ<br>
-                    ※ 分岐継手型番例: CMY-Y102SS-G2 (〜28kW)、CMY-Y102LS-G2 (〜56kW)、CMY-Y202S-G2 (〜101.2kW)
+                    ※ 第一分岐ジョイント (First Joint): P200〜P400 CMY-Y102LS-G2、P450〜P650 CMY-Y202S-G2、P700〜P1350 CMY-Y302S-G2<br>
+                    ※ 分岐ジョイント (Branch Joint): 〜20.0 kW CMY-Y102SS-G2、20.1〜40.0 kW CMY-Y102LS-G2、40.1〜65.0 kW CMY-Y202S-G2、65.1 kW〜 CMY-Y302S-G2<br>
+                    ※ 公式の増径は液管のみの条件付き（P250 は L1＞90m、P300 は L1＞40m で液管 12.7 など）。「最遠配管相当長90m以上で主管1サイズアップ」という則は公式資料にない。手動サイズアップは手動設定のみで、公式の増径条件は自動判定されない。<br>
+                    ※ 実装の PUHY-P1360EM-A（136.0 kW）は公式 YNW-A の最大 P1350（135.0 kW）を超えるが、同じ帯域で選定される。
                 </div>
             `;
         } else {
             // シティマルチ R2シリーズ 冷暖同時 (3管式) - 三菱電機技術資料準拠
+            // D1・D3・D4 準拠。室外機〜親BC間は高圧・低圧ガス管の2管（液管なし）。
             container.innerHTML = `
                 <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:12px; padding:10px 14px; background:rgba(230,0,18,0.06); border-radius:var(--radius-sm); border:1px solid rgba(230,0,18,0.15);">
                     <strong>シティマルチ R2シリーズ (冷暖同時・3管式)</strong><br>
-                    室外機〜親BCコントローラー(CMB)間は3管式。親BCコントローラー〜室内機間は2管式。
+                    室外機〜親BCコントローラー(CMB)間は高圧ガス管・低圧ガス管の2管（液管なし）。主管〜子BCコントローラー間は3管式。親BC・子BCコントローラー〜室内機間は2管式。
                 </div>
-                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:12px 0 8px;">① 室外機 〜 親BCコントローラー(CMB) (3管式)</h4>
+                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:12px 0 8px;">① 室外機 〜 親BCコントローラー(CMB) (高圧・低圧ガス管のみ)</h4>
                 <table class="pipe-detail-table">
                     <thead>
                         <tr>
                             <th>室外機容量 (kW)</th>
                             <th>馬力</th>
+                            <th>高圧ガス管 (φmm)</th>
+                            <th>低圧ガス管 (φmm)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>22.4 kW</td><td>8馬力</td><td style="color:#f59e0b; font-weight:700;">φ15.88</td><td style="color:#a78bfa; font-weight:700;">φ19.05</td></tr>
+                        <tr><td>28.0 〜 33.5 kW</td><td>10〜12馬力</td><td style="color:#f59e0b; font-weight:700;">φ19.05</td><td style="color:#a78bfa; font-weight:700;">φ22.2</td></tr>
+                        <tr><td>40.0 kW</td><td>14馬力</td><td style="color:#f59e0b; font-weight:700;">φ19.05</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
+                        <tr><td>45.0 〜 67.0 kW</td><td>16〜24馬力</td><td style="color:#f59e0b; font-weight:700;">φ22.2</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
+                        <tr><td>80.0 〜 90.0 kW</td><td>28〜32馬力</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ34.93</td></tr>
+                        <tr><td>101.2 kW 〜</td><td>36馬力〜</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ41.28</td></tr>
+                    </tbody>
+                </table>
+                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:16px 0 8px;">② 主管 〜 子BCコントローラー (3管式)</h4>
+                <table class="pipe-detail-table">
+                    <thead>
+                        <tr>
+                            <th>下流容量合計 (kW)</th>
                             <th>液管 (φmm)</th>
                             <th>高圧ガス管 (φmm)</th>
                             <th>低圧ガス管 (φmm)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>22.4 kW</td><td>8馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:#f59e0b; font-weight:700;">φ15.88</td><td style="color:#a78bfa; font-weight:700;">φ19.05</td></tr>
-                        <tr><td>28.0 kW</td><td>10馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:#f59e0b; font-weight:700;">φ19.05</td><td style="color:#a78bfa; font-weight:700;">φ22.2</td></tr>
-                        <tr><td>33.5 kW</td><td>12馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td style="color:#f59e0b; font-weight:700;">φ19.05</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
-                        <tr><td>40.0 〜 56.0 kW</td><td>14〜20馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td style="color:#f59e0b; font-weight:700;">φ22.2</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
-                        <tr><td>67.0 kW</td><td>24馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ34.93</td></tr>
-                        <tr><td>80.0 〜 101.2 kW</td><td>28〜36馬力</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ41.28</td></tr>
+                        <tr><td>〜 20.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:#f59e0b; font-weight:700;">φ15.88</td><td style="color:#a78bfa; font-weight:700;">φ19.05</td></tr>
+                        <tr><td>20.1 〜 30.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:#f59e0b; font-weight:700;">φ19.05</td><td style="color:#a78bfa; font-weight:700;">φ22.2</td></tr>
+                        <tr><td>30.1 〜 35.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td style="color:#f59e0b; font-weight:700;">φ19.05</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
+                        <tr><td>35.1 〜 40.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td style="color:#f59e0b; font-weight:700;">φ22.2</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
+                        <tr><td>40.1 〜 60.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td style="color:#f59e0b; font-weight:700;">φ22.2</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
+                        <tr><td>60.1 〜 65.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ28.58</td></tr>
+                        <tr><td>65.1 〜 80.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ34.93</td></tr>
+                        <tr><td>80.1 〜 100.0 kW</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:#f59e0b; font-weight:700;">φ28.58</td><td style="color:#a78bfa; font-weight:700;">φ41.28</td></tr>
+                        <tr><td>100.1 kW 〜</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td style="color:#f59e0b; font-weight:700;">φ34.93</td><td style="color:#a78bfa; font-weight:700;">φ41.28</td></tr>
                     </tbody>
                 </table>
-                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:16px 0 8px;">② 親BCコントローラー(CMB) 〜 室内機 (2管式)</h4>
+                <h4 style="font-size:0.85rem; color:var(--color-secondary); margin:16px 0 8px;">③ 親BC・子BCコントローラー(CMB) 〜 室内機 (2管式)</h4>
                 <table class="pipe-detail-table">
                     <thead>
                         <tr>
-                            <th>下流容量合計 (kW)</th>
+                            <th>室内機容量 (kW)</th>
                             <th>液管サイズ (φmm)</th>
                             <th>ガス管サイズ (φmm)</th>
                             <th>備考</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>〜 5.6 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ6.35</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td>BC〜室内機直結</td></tr>
-                        <tr><td>〜 9.0 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td>BC〜室内機直結</td></tr>
-                        <tr><td>〜 16.0 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td>BC〜室内機直結</td></tr>
-                        <tr><td>16.0 kW 超 (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td>BC〜室内機直結</td></tr>
+                        <tr><td>〜 5.0 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ6.35</td><td style="color:var(--color-secondary); font-weight:700;">φ12.7</td><td>BC〜室内機直結</td></tr>
+                        <tr><td>5.1 〜 14.0 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ15.88</td><td>BC〜室内機直結</td></tr>
+                        <tr><td>22.4 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ19.05</td><td>BC〜室内機直結</td></tr>
+                        <tr><td>28.0 kW (室内機単体)</td><td style="color:var(--color-secondary); font-weight:700;">φ9.52</td><td style="color:var(--color-secondary); font-weight:700;">φ22.2</td><td>BC〜室内機直結</td></tr>
                     </tbody>
                 </table>
                 <div style="margin-top:1rem; padding:10px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm); border:1px solid var(--border-color); font-size:0.75rem; color:var(--text-secondary);">
-                    ※ 親BCコントローラー型番: CMB-P104V-J (〜4台)、CMB-P108V-J (〜8台)、CMB-P1016V-J (〜16台)<br>
-                    ※ 子BCコントローラー型番: CMB-P104V-KB (〜4台)、CMB-P108V-KB (5〜8台)
+                    ※ 親BCコントローラー型番: 室外機 40.0 kW 以下は CMB-P104V-J (〜4台)、CMB-P108V-J (〜8台)、CMB-P1016V-J (〜16台)。室外機 40.1〜101.2 kW は CMB-P108V-JA (〜8台)、CMB-P1012V-JA (〜12台)、CMB-P1016V-JA (〜16台)。室外機 101.2 kW 超は CMB-P1016V-KA のみ。<br>
+                    ※ 子BCコントローラー型番: CMB-P104V-KB のみ<br>
+                    ※ R2 の 2分岐ジョイント: 〜20.0 kW CMY-Y102SS-G2、20.1〜25.0 kW CMY-Y102LS-G2（1ポートの最大下流が P250 のため、25.0 kW 超の表はない）<br>
+                    ※ R2 の増径則: 高圧ガス管Aが65mを超える場合、65m以降の全配管をφ28.58とする（自動判定なし）。P100以上の室内機を1ポートに接続するには集合キット CMY-R160-J1 が必要（2ポート使用。本アプリでは未対応）。
                 </div>
             `;
         }
