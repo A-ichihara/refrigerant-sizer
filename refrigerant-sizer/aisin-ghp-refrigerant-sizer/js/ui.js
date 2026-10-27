@@ -186,8 +186,8 @@ class RefrigerantSizerUI {
                 pipeHtml = `
                     <div class="pipe-result-badge">
                         <div>液管: φ${node.pipeLiquid}</div>
-                        <div style="color:var(--color-warning);">高圧ガス: φ${node.pipeHighGas}</div>
-                        <div style="color:var(--color-secondary);">低圧ガス: φ${node.pipeLowGas}</div>
+                        <div style="color:var(--color-warning);">高低圧ガス: φ${node.pipeHighGas}</div>
+                        <div style="color:var(--color-secondary);">吸入ガス: φ${node.pipeLowGas}</div>
                     </div>
                 `;
             } else {
@@ -203,8 +203,8 @@ class RefrigerantSizerUI {
                 pipeHtml = `
                     <div class="pipe-result-badge" style="color: var(--text-muted);">
                         <div>液管: φ${node.pipeLiquid} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
-                        <div style="color:var(--color-warning);">高圧ガス: φ${node.pipeHighGas} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
-                        <div style="color:var(--color-secondary);">低圧ガス: φ${node.pipeLowGas} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
+                        <div style="color:var(--color-warning);">高低圧ガス: φ${node.pipeHighGas} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
+                        <div style="color:var(--color-secondary);">吸入ガス: φ${node.pipeLowGas} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
                     </div>
                 `;
             } else {
@@ -559,7 +559,7 @@ class RefrigerantSizerUI {
                 <div class="config-row"><span class="config-label">接続室内機数:</span><span class="config-value">${totals.indoorCount} 台 / 最大 ${currentSeries.maxIndoorUnits}台</span></div>
                 <div class="config-row"><span class="config-label">室内機合計容量:</span><span class="config-value">${totals.totalIndoorCapacity.toFixed(1)} kW</span></div>
                 <div class="config-row"><span class="config-label">容量接続率:</span><span class="config-value" style="color: ${totals.connectionRatio > 130 || totals.connectionRatio < 50 ? 'var(--color-danger)' : 'var(--color-success)'}">${totals.connectionRatio.toFixed(1)}%</span></div>
-                <div class="config-row"><span class="config-label">最遠配管相当長:</span><span class="config-value">${totals.longestPath.toFixed(1)} m</span></div>
+                <div class="config-row"><span class="config-label">最遠配管実長:</span><span class="config-value">${totals.longestPath.toFixed(1)} m</span></div>
                 <div class="config-row" style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><span class="config-label">総配管実長:</span><span class="config-value">${totals.totalPipingLength.toFixed(1)} m / 制限 ${currentSeries.maxPipingTotal}m</span></div>
             </div>
             <div style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:8px;">GHP配管部材集計 (BOM)</div>
@@ -570,10 +570,10 @@ class RefrigerantSizerUI {
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label">φ${size} (液管)</span><span class="pipe-length-badge">${totals.liquidPipes[size].toFixed(1)} m</span></div>`;
         }
         for (const size of Object.keys(totals.highGasPipes || {}).sort()) {
-            totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--color-warning);">φ${size} (高圧ガス管)</span><span class="pipe-length-badge" style="background:rgba(245,158,11,0.15); color:var(--color-warning);">${totals.highGasPipes[size].toFixed(1)} m</span></div>`;
+            totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--color-warning);">φ${size} (高低圧ガス管)</span><span class="pipe-length-badge" style="background:rgba(245,158,11,0.15); color:var(--color-warning);">${totals.highGasPipes[size].toFixed(1)} m</span></div>`;
         }
         for (const size of Object.keys(totals.lowGasPipes || {}).sort()) {
-            totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--color-secondary);">φ${size} (低圧ガス管)</span><span class="pipe-length-badge" style="background:rgba(56,189,248,0.15); color:var(--color-secondary);">${totals.lowGasPipes[size].toFixed(1)} m</span></div>`;
+            totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--color-secondary);">φ${size} (吸入ガス管)</span><span class="pipe-length-badge" style="background:rgba(56,189,248,0.15); color:var(--color-secondary);">${totals.lowGasPipes[size].toFixed(1)} m</span></div>`;
         }
         for (const size of Object.keys(totals.gasPipes || {}).sort()) {
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label">φ${size} (ガス管)</span><span class="pipe-length-badge">${totals.gasPipes[size].toFixed(1)} m</span></div>`;
@@ -583,7 +583,7 @@ class RefrigerantSizerUI {
         }
         totalsHtml += `
             <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
-                <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:6px;">冷媒配管サイズ標準選定目安表 (GHP凡例)</div>
+                <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:6px;">冷媒配管サイズ標準選定目安表（分岐〜分岐・2管式）</div>
                 <table style="width:100%; font-size:0.7rem; border-collapse:collapse; text-align:left; color:var(--text-secondary);">
                     <thead>
                         <tr style="border-bottom:1px solid var(--border-color); color:var(--text-primary);">
@@ -593,13 +593,12 @@ class RefrigerantSizerUI {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td style="padding:2px 0;">〜 5.6 (2馬力)</td><td>φ6.35</td><td>φ12.70</td></tr>
-                        <tr><td style="padding:2px 0;">〜 14.0 (5馬力)</td><td>φ9.52</td><td>φ15.88</td></tr>
-                        <tr><td style="padding:2px 0;">〜 22.4 (8馬力)</td><td>φ9.52</td><td>φ19.05</td></tr>
-                        <tr><td style="padding:2px 0;">〜 28.0 (10馬力)</td><td>φ9.52</td><td>φ22.20</td></tr>
-                        <tr><td style="padding:2px 0;">〜 45.0 (16馬力)</td><td>φ12.70</td><td>φ28.58</td></tr>
-                        <tr><td style="padding:2px 0;">〜 71.0 (25馬力)</td><td>φ15.88</td><td>φ31.75</td></tr>
-                        <tr><td style="padding:2px 0;">71.0 超 (30馬力〜)</td><td>φ19.05</td><td>φ38.10</td></tr>
+                        <tr><td style="padding:2px 0;">22.4kW 未満</td><td>φ9.52</td><td>φ15.88</td></tr>
+                        <tr><td style="padding:2px 0;">22.4 〜 33.0kW 未満</td><td>φ9.52</td><td>φ22.20</td></tr>
+                        <tr><td style="padding:2px 0;">33.0 〜 47.0kW 未満</td><td>φ12.70</td><td>φ28.58</td></tr>
+                        <tr><td style="padding:2px 0;">47.0 〜 71.0kW 未満</td><td>φ15.88</td><td>φ28.58</td></tr>
+                        <tr><td style="padding:2px 0;">71.0 〜 104.0kW 未満</td><td>φ19.05</td><td>φ31.75</td></tr>
+                        <tr><td style="padding:2px 0;">104.0kW 以上</td><td>φ19.05</td><td>φ38.10</td></tr>
                     </tbody>
                 </table>
             </div>
