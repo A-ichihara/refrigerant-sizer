@@ -558,8 +558,10 @@ class RefrigerantSizerUI {
                 <div class="config-row"><span class="config-label">使用燃料:</span><span class="config-value" style="color: var(--color-primary);">${this.activeGasType === 'lpg' ? 'LPガス' : '都市ガス 13A'}</span></div>
                 <div class="config-row"><span class="config-label">接続室内機数:</span><span class="config-value">${totals.indoorCount} 台 / 最大 ${currentSeries.maxIndoorUnits}台</span></div>
                 <div class="config-row"><span class="config-label">室内機合計容量:</span><span class="config-value">${totals.totalIndoorCapacity.toFixed(1)} kW</span></div>
-                <div class="config-row"><span class="config-label">容量接続率:</span><span class="config-value" style="color: ${totals.connectionRatio > 130 || totals.connectionRatio < 50 ? 'var(--color-danger)' : 'var(--color-success)'}">${totals.connectionRatio.toFixed(1)}%</span></div>
-                <div class="config-row"><span class="config-label">最遠配管相当長:</span><span class="config-value">${totals.longestPath.toFixed(1)} m</span></div>
+                <div class="config-row"><span class="config-label">容量接続率:</span><span class="config-value" style="color: ${totals.connectionRatio > 200 || totals.connectionRatio < 50 ? 'var(--color-danger)' : 'var(--color-success)'}">${totals.connectionRatio.toFixed(1)}%</span></div>
+                <div class="config-row"><span class="config-label">最遠配管実長:</span><span class="config-value">${totals.longestPath.toFixed(1)} m / 制限 ${currentSeries.maxFarDistance}m</span></div>
+                <div class="config-row"><span class="config-label">第一分岐後配管長差 ΔL:</span><span class="config-value">${totals.deltaL !== null && totals.deltaL !== undefined ? totals.deltaL.toFixed(1) + ' m / 制限 70m' : '判定不可'}</span></div>
+                <div class="config-row"><span class="config-label">分岐配管最大長:</span><span class="config-value">${totals.branchPipeMaxLength !== null && totals.branchPipeMaxLength !== undefined ? totals.branchPipeMaxLength.toFixed(1) + ' m / 制限 30m' : '判定不可'}</span></div>
                 <div class="config-row" style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><span class="config-label">総配管実長:</span><span class="config-value">${totals.totalPipingLength.toFixed(1)} m / 制限 ${currentSeries.maxPipingTotal}m</span></div>
             </div>
             <div style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:8px;">GHP配管部材集計 (BOM)</div>
@@ -583,7 +585,7 @@ class RefrigerantSizerUI {
         }
         totalsHtml += `
             <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
-                <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:6px;">冷媒配管サイズ標準選定目安表 (GHP凡例)</div>
+                <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:6px;">冷媒配管サイズ標準選定目安表 (GHP凡例・450～710形2管式・標準値)</div>
                 <table style="width:100%; font-size:0.7rem; border-collapse:collapse; text-align:left; color:var(--text-secondary);">
                     <thead>
                         <tr style="border-bottom:1px solid var(--border-color); color:var(--text-primary);">
@@ -593,15 +595,15 @@ class RefrigerantSizerUI {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td style="padding:2px 0;">〜 5.6 (2馬力)</td><td>φ6.35</td><td>φ12.70</td></tr>
-                        <tr><td style="padding:2px 0;">〜 14.0 (5馬力)</td><td>φ9.52</td><td>φ15.88</td></tr>
-                        <tr><td style="padding:2px 0;">〜 22.4 (8馬力)</td><td>φ9.52</td><td>φ19.05</td></tr>
-                        <tr><td style="padding:2px 0;">〜 28.0 (10馬力)</td><td>φ9.52</td><td>φ22.20</td></tr>
-                        <tr><td style="padding:2px 0;">〜 45.0 (16馬力)</td><td>φ12.70</td><td>φ28.58</td></tr>
-                        <tr><td style="padding:2px 0;">〜 71.0 (25馬力)</td><td>φ15.88</td><td>φ31.75</td></tr>
-                        <tr><td style="padding:2px 0;">71.0 超 (30馬力〜)</td><td>φ19.05</td><td>φ38.10</td></tr>
+                        <tr><td style="padding:2px 0;">〜 16.0</td><td>φ9.52</td><td>φ15.88</td></tr>
+                        <tr><td style="padding:2px 0;">16.1 〜 28.0</td><td>φ9.52</td><td>φ15.88</td></tr>
+                        <tr><td style="padding:2px 0;">28.1 〜 35.5</td><td>φ9.52</td><td>φ22.22</td></tr>
+                        <tr><td style="padding:2px 0;">35.6 〜 45.0</td><td>φ12.70</td><td>φ25.40</td></tr>
+                        <tr><td style="padding:2px 0;">45.1 〜 56.0</td><td>φ12.70 / φ15.88※</td><td>φ28.58</td></tr>
+                        <tr><td style="padding:2px 0;">56.1 〜 142.0</td><td>φ12.70 / φ15.88※</td><td>φ28.58</td></tr>
                     </tbody>
                 </table>
+                <div style="font-size:0.65rem; color:var(--text-secondary); margin-top:4px;">※45.1kW超の液管：450形はφ12.70、560・710形はφ15.88。出典：U-GZ710S1DRE p2。355形・850形は同資料の対象外。</div>
             </div>
         `;
         totalsHtml += `</div>`;
@@ -655,8 +657,8 @@ class RefrigerantSizerUI {
         let fixAction = null;
 
         if (warningText.includes("接続容量") && (warningText.includes("超過") || warningText.includes("未満"))) {
-            if (this.sizerResult.totals.connectionRatio > 130) {
-                suggestion = "💡 【対処方法】: GHP室外機の馬力（容量）を1段階大きいサイズにアップし、接続率を推奨範囲（50%〜130%）内に調整します。";
+            if (this.sizerResult.totals.connectionRatio > 200) {
+                suggestion = "💡 【対処方法】: GHP室外機の馬力（容量）を1段階大きいサイズにアップし、接続率を推奨範囲（50%〜200%）内に調整します。";
                 fixAction = () => this.changeOutdoorCapacity(1);
             } else {
                 suggestion = "💡 【対処方法】: GHP室外機の馬力（容量）を1段階小さいサイズにダウンし、接続率を推奨範囲内に調整します。";
