@@ -193,7 +193,7 @@ class RefrigerantSizerUI {
         } else {
             specHtml = `
                 <div class="spec-item"><span class="spec-lbl">下流合計:</span><span class="spec-val">${(node.capacitySum || 0).toFixed(1)} kW</span></div>
-                <div class="spec-item"><span class="spec-lbl">分配管型名:</span><span class="spec-val" style="color:var(--color-warning);">${node.modelNumber || '-'}</span></div>
+                <div class="spec-item"><span class="spec-lbl">分配管型名:</span><span class="spec-val" style="color:var(--color-warning);">${node.modelNumber || node.jointModel || '-'}</span></div>
                 <div class="spec-item"><span class="spec-lbl">配管長:</span><span class="spec-val">${node.length} m</span></div>
             `;
         }
@@ -249,7 +249,7 @@ class RefrigerantSizerUI {
             </div>
             <div class="node-title" title="${node.name}">${node.name}</div>
             <div style="font-size: 0.725rem; font-family: var(--font-mono); color: var(--color-secondary); margin-bottom: 8px; padding: 2px 6px; background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.08); border-radius: 4px; display: inline-block;">
-                形名: ${node.modelNumber || '-'}
+                形名: ${node.modelNumber || node.jointModel || '-'}
             </div>
             <div class="node-specs">${specHtml}</div>
             ${pipeHtml}
@@ -489,7 +489,7 @@ class RefrigerantSizerUI {
             <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:var(--radius-sm); border:1px dashed var(--border-color); margin-bottom:1.25rem;">
                 <label style="color:var(--color-secondary); font-size:0.7rem; text-transform:uppercase; font-weight:700;">メーカー品番 (自動決定)</label>
                 <div style="font-family:var(--font-mono); font-size:1.05rem; font-weight:700; color:var(--text-primary); margin-top:3px;">
-                    ${node.modelNumber || '-'}
+                    ${node.modelNumber || node.jointModel || '-'}
                 </div>
             </div>
         `;
