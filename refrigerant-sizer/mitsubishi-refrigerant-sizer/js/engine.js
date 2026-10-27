@@ -148,7 +148,7 @@ class RefrigerantSizerEngine {
     }
 
     /** 機器型番の動的生成 */
-    generateModelNumber(node, seriesId) {
+    generateModelNumber(node, seriesId, outdoorKw) {
         const db = this.SERIES_DATABASE[seriesId];
         if (!db) return '-';
 
@@ -173,7 +173,7 @@ class RefrigerantSizerEngine {
         }
 
         if (node.type === 'bc_controller') {
-            return this.generateBCUnitModel(node);
+            return this.generateBCUnitModel(node, outdoorKw);
         }
 
         if (node.type === 'sub_bc_controller') {
@@ -183,20 +183,34 @@ class RefrigerantSizerEngine {
         return '';
     }
 
-    /** BCコントローラー(親機)の型番生成 */
-    generateBCUnitModel(node) {
+    /** BCコントローラー(親機)の型番生成
+     * 公式の適用可否（D1 p.14 available-connection 表、D4 §10-4）:
+     * (E)P200〜350（室外機 40.0 kW 以下）は全機種可、(E)P351〜900（40.1〜101.2 kW）は
+     * JA/KA のみ（無印 -J は使用不可）、(E)P901〜1100（101.2 kW 超）は CMB-P1016V-KA のみ。
+     * JA 機種は P108V-JA（8ポート）/ P1012V-JA（12ポート）/ P1016V-JA（16ポート）のみ
+     * 存在するため、4ポート以下の系統でも最小の JA 機種（P108V-JA）を選定する。 */
+    generateBCUnitModel(node, outdoorKw) {
         const count = this.countIndoorUnitsDownstream(node);
+        if (outdoorKw != null && outdoorKw > 101.2) {
+            return count <= 16 ? "CMB-P1016V-KA" : "CMB-P1016V-KA (子機接続要)";
+        }
+        if (outdoorKw != null && outdoorKw > 40.0) {
+            if (count <= 8) return "CMB-P108V-JA";
+            if (count <= 12) return "CMB-P1012V-JA";
+            if (count <= 16) return "CMB-P1016V-JA";
+            return "CMB-P1016V-JA (子機接続要)";
+        }
         if (count <= 4) return "CMB-P104V-J";
         if (count <= 8) return "CMB-P108V-J";
         if (count <= 16) return "CMB-P1016V-J";
         return "CMB-P1016V-J (子機接続要)";
     }
 
-    /** 子BCコントローラーの型番生成 */
+    /** 子BCコントローラーの型番生成
+     * 公式のサブ BC は CMB-P104V-KB のみ（D1 p.14、D4 §10-4）。
+     * 旧コードの CMB-P108V-KB は取得した BC マニュアルに存在しない。 */
     generateSubBCUnitModel(node) {
-        const count = this.countIndoorUnitsDownstream(node);
-        if (count <= 4) return "CMB-P104V-KB";
-        return "CMB-P108V-KB";
+        return "CMB-P104V-KB";
     }
 
     /** 下流の室内機台数をカウント */
@@ -225,27 +239,30 @@ class RefrigerantSizerEngine {
         return sum;
     }
 
-    /** 2管式(YシリーズおよびBC下流)配管サイズ選定 */
+    /** 2管式(Yシリーズ 分岐〜分岐)配管サイズ選定
+     * 公式 Pipe B, C, D 表（D2・D5 GB-27）。下流室内機合計形番（P/M）別。
+     * 帯域境界は公式どおり（14.0 / 20.0 / 30.0 / 40.0 / 65.0 / 80.0 kW）。
+     * R2 の BC 下流の分岐〜分岐区間および Mr.Slim にも同じ関数を用いる
+     * （R2 BC 下流の専用表は報告書になく、Mr.Slim は未検証のため、Y の B/C/D 表を
+     * 流用している。CORRECTIONS.md 参照）。 */
     selectTwoPipeSize(kw, isManualSizeUp = false) {
         let liquid = 9.52;
         let gas = 15.88;
 
-        if (kw <= 7.1) {
+        if (kw <= 14.0) { // P/M140 未満
             liquid = 9.52; gas = 15.88;
-        } else if (kw <= 16.0) {
+        } else if (kw <= 20.0) { // P/M141〜200
             liquid = 9.52; gas = 19.05;
-        } else if (kw <= 22.4) {
+        } else if (kw <= 30.0) { // P/M201〜300
             liquid = 9.52; gas = 22.2;
-        } else if (kw <= 28.0) {
-            liquid = 9.52; gas = 22.2; // 条件により28.58だが基本は22.2
-        } else if (kw <= 45.0) {
+        } else if (kw <= 40.0) { // P/M301〜400
             liquid = 12.7; gas = 28.58;
-        } else if (kw <= 56.0) {
+        } else if (kw <= 65.0) { // P/M401〜650
             liquid = 15.88; gas = 28.58;
-        } else if (kw <= 101.2) {
+        } else if (kw <= 80.0) { // P/M651〜800
             liquid = 19.05; gas = 34.93;
-        } else {
-            liquid = 22.2; gas = 41.28;
+        } else { // P/M801〜
+            liquid = 19.05; gas = 41.28;
         }
 
         // 手動強制サイズアップ
@@ -257,41 +274,128 @@ class RefrigerantSizerEngine {
         return { liquid, gas };
     }
 
-    /** BCコントローラー直後の室内機単独用配管サイズ選定 (2管) */
-    selectBCBranchToIndoorSize(kw) {
-        // BC親・子から室内機単体への接続管
+    /** Yシリーズ 室外機〜第一分岐（Pipe A）配管サイズ選定
+     * 公式 Pipe A 表（D2・D5 GB-25）。選定キーは室外機形番（容量）であり
+     * 下流合計容量ではない。P250 は L1＞90m、P300 は L1＞40m で液管 12.7 になる
+     * 条件付き増径は、長さ入力がないため適用していない（CORRECTIONS.md 参照）。 */
+    selectYPipeASize(outdoorKw, isManualSizeUp = false) {
+        let liquid = 9.52;
+        let gas = 22.2;
+
+        if (outdoorKw <= 33.5) { // P200〜P300
+            liquid = 9.52; gas = 22.2;
+        } else if (outdoorKw <= 45.0) { // P350〜P400
+            liquid = 12.7; gas = 28.58;
+        } else if (outdoorKw <= 73.5) { // P450〜P650
+            liquid = 15.88; gas = 28.58;
+        } else if (outdoorKw <= 90.0) { // P700〜P800
+            liquid = 19.05; gas = 34.93;
+        } else { // P850〜P1350
+            liquid = 19.05; gas = 41.28;
+        }
+
+        if (isManualSizeUp) {
+            liquid = this.sizeUpPipe(liquid, this.LIQUID_SIZES);
+            gas = this.sizeUpPipe(gas, this.GAS_SIZES);
+        }
+
+        return { liquid, gas };
+    }
+
+    /** Yシリーズ 分岐〜室内機（Pipe a〜d）配管サイズ選定
+     * 公式 a〜d 表（D2・D5 GB-27）。室内機形番別。
+     * P56（5.6 kW）は a〜d 表に P56 の行がないが、室内機接続口径（22〜56 形
+     * φ6.35/φ12.7）により 6.35/12.7 とする（REPORT.md D-YB-1）。
+     * P160（16.0 kW）は公式表の対象外のため旧コード値（9.52/19.05）のままとする。 */
+    selectYBranchToIndoorSize(kw) {
         if (kw <= 5.6) {
             return { liquid: 6.35, gas: 12.7 };
-        } else if (kw <= 9.0) {
+        } else if (kw <= 14.0) {
             return { liquid: 9.52, gas: 15.88 };
-        } else if (kw <= 16.0) {
+        } else if (kw <= 22.4) {
             return { liquid: 9.52, gas: 19.05 };
         } else {
             return { liquid: 9.52, gas: 22.2 };
         }
     }
 
-    /** R2シリーズ(3管式) 室外機〜親BCコントローラー間サイズ選定 */
-    selectThreePipeSize(outdoorKw, isManualSizeUp = false) {
+    /** BCコントローラー直後の室内機単独用配管サイズ選定 (2管)
+     * 公式 a〜h 表（D4 §9-4 GB-27）。室内機形番別。
+     * 境界は公式どおり（P50 / P140 / P200 / P250 ＝ 5.0 / 14.0 / 22.4 / 28.0 kW）。
+     * P160（16.0 kW）は公式表の対象外のため旧コード値（9.52/19.05）のままとする。 */
+    selectBCBranchToIndoorSize(kw) {
+        // BC親・子から室内機単体への接続管
+        if (kw <= 5.0) {
+            return { liquid: 6.35, gas: 12.7 };
+        } else if (kw <= 14.0) {
+            return { liquid: 9.52, gas: 15.88 };
+        } else if (kw <= 22.4) {
+            return { liquid: 9.52, gas: 19.05 };
+        } else {
+            return { liquid: 9.52, gas: 22.2 };
+        }
+    }
+
+    /** R2シリーズ 室外機〜親BCコントローラー間サイズ選定
+     * 公式 Pipe A 表（D1 p.14 Fig. 4.1.2、D4 §9-4 GB-25、D3 仕様書）。
+     * 当該区間は高圧ガス管・低圧ガス管の 2 管のみであり、液管は存在しない。
+     * 旧コードが返していた液管列（D-R2-LIQ）は削除した。BOM にも計上しない。
+     * 室外機容量 (kW) に基づく。P550（63.0 kW）は 22.2/28.58、P650（73.5 kW）は
+     * 28.58/28.58 だが実装ラインアップにないため到達範囲外（参考記録）。 */
+    selectR2OutdoorToBCSize(outdoorKw, isManualSizeUp = false) {
+        let highGas = 15.88;
+        let lowGas = 19.05;
+
+        if (outdoorKw <= 22.4) { // P200
+            highGas = 15.88; lowGas = 19.05;
+        } else if (outdoorKw <= 33.5) { // P250, P300
+            highGas = 19.05; lowGas = 22.2;
+        } else if (outdoorKw <= 40.0) { // P350（空冷 PURY。PQRY-P350 水冷式は 22.2）
+            highGas = 19.05; lowGas = 28.58;
+        } else if (outdoorKw <= 67.0) { // P400〜P600
+            highGas = 22.2; lowGas = 28.58;
+        } else if (outdoorKw <= 90.0) { // P700〜P800
+            highGas = 28.58; lowGas = 34.93;
+        } else { // P850〜
+            highGas = 28.58; lowGas = 41.28;
+        }
+
+        if (isManualSizeUp) {
+            highGas = this.sizeUpPipe(highGas, this.GAS_SIZES);
+            lowGas = this.sizeUpPipe(lowGas, this.GAS_SIZES);
+        }
+
+        return { highGas, lowGas };
+    }
+
+    /** R2シリーズ 主管〜サブBCコントローラー間サイズ選定（3管式）
+     * 公式 Pipes C〜I 表（D4 §9-4 GB-27、D1 p.14 サブ BC 表）。
+     * 下流室内機合計形番（P/M）別。液管・高圧ガス管・低圧ガス管の 3 管。
+     * 601〜650 帯の低圧ガス管は D1（34.93）と D4（28.58）で食い違っており、
+     * 本実装は D4（据付説明書）の 28.58 を採用する（CORRECTIONS.md 参照）。 */
+    selectSubBCFeedSize(kw, isManualSizeUp = false) {
         let liquid = 9.52;
         let highGas = 15.88;
         let lowGas = 19.05;
 
-        // 室外機容量 (kW) に基づく
-        if (outdoorKw <= 22.4) { // 8HP
+        if (kw <= 20.0) { // 〜200
             liquid = 9.52; highGas = 15.88; lowGas = 19.05;
-        } else if (outdoorKw <= 28.0) { // 10HP
+        } else if (kw <= 30.0) { // 201〜300
             liquid = 9.52; highGas = 19.05; lowGas = 22.2;
-        } else if (outdoorKw <= 33.5) { // 12HP
+        } else if (kw <= 35.0) { // 301〜350
             liquid = 12.7; highGas = 19.05; lowGas = 28.58;
-        } else if (outdoorKw <= 45.0) { // 14-16HP
+        } else if (kw <= 40.0) { // 351〜400
+            liquid = 12.7; highGas = 22.2; lowGas = 28.58;
+        } else if (kw <= 60.0) { // 401〜600
             liquid = 15.88; highGas = 22.2; lowGas = 28.58;
-        } else if (outdoorKw <= 56.0) { // 18-20HP
-            liquid = 15.88; highGas = 22.2; lowGas = 28.58;
-        } else if (outdoorKw <= 67.0) { // 24HP
+        } else if (kw <= 65.0) { // 601〜650
+            liquid = 15.88; highGas = 28.58; lowGas = 28.58;
+        } else if (kw <= 80.0) { // 651〜800
             liquid = 19.05; highGas = 28.58; lowGas = 34.93;
-        } else { // 28HP-
+        } else if (kw <= 100.0) { // 801〜1000
             liquid = 19.05; highGas = 28.58; lowGas = 41.28;
+        } else { // 1001〜
+            liquid = 19.05; highGas = 34.93; lowGas = 41.28;
         }
 
         if (isManualSizeUp) {
@@ -311,12 +415,33 @@ class RefrigerantSizerEngine {
         return current;
     }
 
-    /** 2管式分岐ジョイント型番選定 */
+    /** 2管式分岐ジョイント型番選定（Branch Joint）
+     * 公式 Branch Joint 表（D2・D5 GB-25/27）。下流室内機合計形番（P/M）別。
+     * 帯域境界は公式どおり（20.0 / 40.0 / 65.0 kW）。 */
     selectJointModel(kw) {
-        if (kw <= 28.0) return "CMY-Y102SS-G2";
-        if (kw <= 56.0) return "CMY-Y102LS-G2";
-        if (kw <= 101.2) return "CMY-Y202S-G2";
+        if (kw <= 20.0) return "CMY-Y102SS-G2";
+        if (kw <= 40.0) return "CMY-Y102LS-G2";
+        if (kw <= 65.0) return "CMY-Y202S-G2";
         return "CMY-Y302S-G2";
+    }
+
+    /** Yシリーズ 第一分岐ジョイント型番選定（First Joint）
+     * 公式 First Joint 表（D2・D5 GB-25）。室外機形番別。 */
+    selectFirstJointModel(outdoorKw) {
+        if (outdoorKw <= 45.0) return "CMY-Y102LS-G2"; // P200〜P400
+        if (outdoorKw <= 73.5) return "CMY-Y202S-G2"; // P450〜P650
+        return "CMY-Y302S-G2"; // P700〜P1350
+    }
+
+    /** R2シリーズ 2分岐ジョイント型番選定
+     * 公式 2-Branch Joint Pipe 表（D4 §9-3-1）。下流室内機合計形番別。
+     * 公式表は P250（25.0 kW）までしかない（1 ポートの最大下流が P250 のため）。
+     * 下流合計が 25.0 kW を超える系統は公式上 2 分岐ジョイントの適用範囲外であり、
+     * ツリーには BC ポート数の概念がないため、LS-G2（同表の最大機種）を返す。
+     * CORRECTIONS.md 参照。 */
+    selectR2BranchJointModel(kw) {
+        if (kw <= 20.0) return "CMY-Y102SS-G2";
+        return "CMY-Y102LS-G2";
     }
 
     /** 全体計算メイン処理 */
@@ -352,11 +477,15 @@ class RefrigerantSizerEngine {
                 });
             }
 
-            // 接続容量比警告 (一般的に 50% 〜 130%)
-            if (ratio < 50 || ratio > 130) {
+            // 接続容量比警告。公式の適正範囲はシリーズ別。
+            // Y シリーズ 50%〜130%（PUHY 仕様書）、R2 シリーズ 50%〜150%
+            // （D4 仕様表「Total capacity 50% to 150%」、D3 仕様書も「50~150%」）。
+            // Mr.Slim は公式資料が得られていないため Y と同じ 50%〜130% とする。
+            const ratioMax = seriesId === 'city_multi_r2' ? 150 : 130;
+            if (ratio < 50 || ratio > ratioMax) {
                 warnings.push({
                     type: 'info',
-                    message: `室外機容量に対する接続室内機合計比率が適正範囲(50%〜130%)を外れています。現在: ${ratio.toFixed(1)}% (${totalIndoorKw.toFixed(1)} kW / 室外機: ${outdoorCap.toFixed(1)} kW)`
+                    message: `室外機容量に対する接続室内機合計比率が適正範囲(50%〜${ratioMax}%)を外れています。現在: ${ratio.toFixed(1)}% (${totalIndoorKw.toFixed(1)} kW / 室外機: ${outdoorCap.toFixed(1)} kW)`
                 });
             }
         }
@@ -374,7 +503,7 @@ class RefrigerantSizerEngine {
     /** 再帰的選定・集計ロジック */
     processNodeSizing(node, seriesId, isManualSizeUp, inBCDownstream, outdoorCap, totals, warnings) {
         // 1. ノード自身の型番決定
-        node.modelNumber = this.generateModelNumber(node, seriesId);
+        node.modelNumber = this.generateModelNumber(node, seriesId, outdoorCap);
 
         // 2. 子供たちがいる場合、配管サイズと下流機器の選定
         if (node.children && node.children.length > 0) {
@@ -389,15 +518,15 @@ class RefrigerantSizerEngine {
                 // 3管/2管の切り替え判定 (R2シリーズの場合)
                 if (seriesId === 'city_multi_r2') {
                     if (node.type === 'outdoor' || node.type === 'branch') {
-                        // 親BCコントローラーに突入するまでは3管式
+                        // 親BCコントローラーに突入するまでは高圧・低圧ガス管の2管
+                        // （室外機〜親BC間に液管は存在しない。D1・D3・D4。D-R2-LIQ）
                         if (child.type === 'bc_controller') {
-                            // 室外機〜親BC間は3管式
-                            const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
-                            child.pipeSizeText = `液管: φ${sizes.liquid} / 高圧ガス: φ${sizes.highGas} / 低圧ガス: φ${sizes.lowGas}`;
-                            child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.highGas, lowGas: sizes.lowGas };
+                            // 室外機〜親BC間は高圧・低圧ガス管のみ
+                            const sizes = this.selectR2OutdoorToBCSize(outdoorCap, isManualSizeUp);
+                            child.pipeSizeText = `高圧ガス: φ${sizes.highGas} / 低圧ガス: φ${sizes.lowGas}`;
+                            child.pipes = { type: '3pipe', highGas: sizes.highGas, lowGas: sizes.lowGas };
 
-                            // BOM集計
-                            totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
+                            // BOM集計（液管なし）
                             totals.highGasPipes[sizes.highGas] = (totals.highGasPipes[sizes.highGas] || 0) + len;
                             totals.lowGasPipes[sizes.lowGas] = (totals.lowGasPipes[sizes.lowGas] || 0) + len;
 
@@ -405,10 +534,10 @@ class RefrigerantSizerEngine {
                             this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings);
                         } else {
                             // BCコントローラーを経由しない接続がある場合 (R2では設計エラー)
-                            const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
-                            child.pipeSizeText = `液管: φ${sizes.liquid} / 高圧ガス: φ${sizes.highGas} / 低圧ガス: φ${sizes.lowGas}`;
-                            child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.highGas, lowGas: sizes.lowGas };
-                            
+                            const sizes = this.selectR2OutdoorToBCSize(outdoorCap, isManualSizeUp);
+                            child.pipeSizeText = `高圧ガス: φ${sizes.highGas} / 低圧ガス: φ${sizes.lowGas}`;
+                            child.pipes = { type: '3pipe', highGas: sizes.highGas, lowGas: sizes.lowGas };
+
                             warnings.push({
                                 type: 'danger',
                                 message: `冷暖同時(R2)系統では、室外機と室内機の間にBCコントローラーが必要です。(${child.name})`
@@ -417,20 +546,33 @@ class RefrigerantSizerEngine {
                             this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
                         }
                     } else if (inBCDownstream) {
-                        // BCコントローラー下流はすべて2管式
-                        let sizes;
+                        // BCコントローラー下流
                         if (child.type === 'indoor') {
                             // BC親または子から室内機単体への接続
-                            sizes = this.selectBCBranchToIndoorSize(childKw);
-                        } else {
-                            // 分岐間または子BCへの接続
-                            sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
-                        }
-                        child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
-                        child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+                            const sizes = this.selectBCBranchToIndoorSize(childKw);
+                            child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
+                            child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
 
-                        totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
-                        totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
+                            totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
+                            totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
+                        } else if (child.type === 'sub_bc_controller') {
+                            // 主管〜子BC間は3管式（液管・高圧ガス管・低圧ガス管。D1 p.14、D4 §9-4 Pipes C〜I）
+                            const sizes = this.selectSubBCFeedSize(childKw, isManualSizeUp);
+                            child.pipeSizeText = `液管: φ${sizes.liquid} / 高圧ガス: φ${sizes.highGas} / 低圧ガス: φ${sizes.lowGas}`;
+                            child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.highGas, lowGas: sizes.lowGas };
+
+                            totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
+                            totals.highGasPipes[sizes.highGas] = (totals.highGasPipes[sizes.highGas] || 0) + len;
+                            totals.lowGasPipes[sizes.lowGas] = (totals.lowGasPipes[sizes.lowGas] || 0) + len;
+                        } else {
+                            // 分岐間（2分岐ジョイントへの接続）
+                            const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
+                            child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
+                            child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+
+                            totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
+                            totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
+                        }
 
                         // 子BC容量警告 (子BC下流の上限容量判定)
                         if (child.type === 'sub_bc_controller') {
@@ -446,7 +588,21 @@ class RefrigerantSizerEngine {
                     }
                 } else {
                     // 通常の2管式 (Yシリーズ、Mr.Slim)
-                    const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
+                    // Yシリーズは区間ごとに選定表が異なる（Pipe A / B・C・D / a〜d）。
+                    // Mr.Slim は公式資料が得られていないため、従来どおり selectTwoPipeSize を
+                    // 全区間に用いる（訂正後の B/C/D 帯。未検証のため CORRECTIONS.md 参照）。
+                    let sizes;
+                    if (seriesId === 'city_multi_y' && child.type === 'indoor') {
+                        // 分岐〜室内機（Pipe a〜d）。室外機直下の室内機も同じ室内機接続サイズ。
+                        sizes = this.selectYBranchToIndoorSize(childKw);
+                    } else if (seriesId === 'city_multi_y' && node.type === 'outdoor' && child.type === 'branch') {
+                        // 室外機〜第一分岐（Pipe A）。選定キーは室外機形番。
+                        sizes = this.selectYPipeASize(outdoorCap, isManualSizeUp);
+                        child.isFirstBranch = true;
+                    } else {
+                        // 分岐〜分岐（Pipe B・C・D）
+                        sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
+                    }
                     child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                     child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
 
@@ -469,8 +625,16 @@ class RefrigerantSizerEngine {
         }
 
         // 分岐ジョイントは、分岐ノードの下流合計容量から型番を決めて1個だけ集計する。
-        if (node.type === 'branch' && seriesId !== 'city_multi_r2') {
-            node.jointModel = this.selectJointModel(this.getDownstreamCapacity(node));
+        if (node.type === 'branch') {
+            if (seriesId === 'city_multi_r2') {
+                // R2 の 2 分岐ジョイント（D4 §9-3-1）
+                node.jointModel = this.selectR2BranchJointModel(this.getDownstreamCapacity(node));
+            } else if (seriesId === 'city_multi_y' && node.isFirstBranch) {
+                // Y の第一分岐は First Joint 表（室外機形番別）
+                node.jointModel = this.selectFirstJointModel(outdoorCap);
+            } else {
+                node.jointModel = this.selectJointModel(this.getDownstreamCapacity(node));
+            }
             totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
         }
         if ((node.type === 'bc_controller' || node.type === 'sub_bc_controller') && node.modelNumber) {
