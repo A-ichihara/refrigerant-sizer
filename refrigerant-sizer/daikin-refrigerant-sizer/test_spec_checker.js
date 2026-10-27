@@ -121,7 +121,9 @@ if (typeof require !== 'undefined') {
     
     // グローバルスコープに定義
     const vm = require('vm');
-    const context = { window: {}, console };
+    // SpecChecker は localStorage を使うため、vm コンテキストにもモックを渡す
+    // （global.localStorage だけでは vm 内のコードから参照できない）
+    const context = { window: {}, console, localStorage: mockLocalStorage };
     vm.createContext(context);
     vm.runInContext(engineCode, context);
     
