@@ -348,3 +348,57 @@ test('変更しないもの: 手動サイズアップは R2 室外機〜親BCの
   deepEqual(engine.selectR2OutdoorToBCSize(22.4, true), { highGas: 19.05, lowGas: 22.2 });
   deepEqual(engine.selectYPipeASize(22.4, true), { liquid: 12.7, gas: 25.4 });
 });
+
+// ---------------------------------------------------------------- 未検証範囲の警告表示（2026-11-03 追加）
+// 管径値・選定ロジックは変更せず、未検証範囲であることを計算結果の警告で
+// 明示するための回帰テスト。根拠は review-20261102/mitsubishi/FINDINGS.md。
+test('未検証警告: Mr.Slim 計算で配管サイズの Y 表流用・未確認の警告が出る', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 14.0, [branch('b', [indoor('i1', 5.6, 6)], 8)]);
+  const r = engine.calculateSystem(tree, 'mr_slim_multi');
+  assert.equal(r.warnings.some((w) => w.type === 'info' && w.message.includes('Mr.Slim の配管サイズはシティマルチ Yシリーズの配管表を流用') && w.message.includes('未確認')), true);
+});
+
+test('未検証警告: Mr.Slim 計算で接続容量比 50%〜130% の適用根拠が未確認という警告が出る', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 14.0, [branch('b', [indoor('i1', 5.6, 6)], 8)]);
+  const r = engine.calculateSystem(tree, 'mr_slim_multi');
+  assert.equal(r.warnings.some((w) => w.type === 'info' && w.message.includes('Mr.Slim の接続容量比') && w.message.includes('適用根拠は未確認')), true);
+});
+
+test('未検証警告: R2 計算で分岐〜分岐区間の Y 表流用・未確認の警告が出る', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 45.0, [bc('bc', [indoor('i1', 5.6, 6)], 12)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.some((w) => w.type === 'info' && w.message.includes('分岐〜分岐区間') && w.message.includes('流用') && w.message.includes('未確認')), true);
+});
+
+test('未検証警告: Y 計算では Mr.Slim・R2 の流用警告は出ない', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 22.4, [branch('b', [indoor('i1', 5.6, 5)], 10)]);
+  const r = engine.calculateSystem(tree, 'city_multi_y');
+  assert.equal(r.warnings.some((w) => w.message.includes('流用')), false);
+});
+
+test('未検証警告: マスターテーブルに Mr.Slim と R2 分岐間区間の注記がある', () => {
+  const ui = fs.readFileSync(UI, 'utf8');
+  assert.equal(ui.includes('Mr.Slim はメーカー公式資料が未入手のため、全区間に Y シリーズの Pipe B・C・D 表を流用している'), true);
+  assert.equal(ui.includes('BC 下流で分岐ジョイント同士をつなぐ区間（分岐〜分岐）の配管サイズは、Y シリーズの Pipe B・C・D 表を流用している'), true);
+});
+
+// ---------------------------------------------------------------- 境界テスト（2026-11-03 追加）
+test('境界: R2 の接続容量比ちょうど 150% では容量比警告が出ない', () => {
+  const engine = loadEngine();
+  // 室内機合計 42.0kW / 室外機 28.0kW = 150.0% ちょうど
+  const tree = outdoor('o', 28.0, [bc('bc', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5), indoor('i3', 14.0, 5)], 10)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.some((w) => w.message.includes('接続室内機合計比率')), false);
+});
+
+test('境界: R2 の接続容量比が 150% をわずかに超えると容量比警告が出る', () => {
+  const engine = loadEngine();
+  // 室内機合計 42.1kW / 室外機 28.0kW ≒ 150.4%
+  const tree = outdoor('o', 28.0, [bc('bc', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5), indoor('i3', 14.1, 5)], 10)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.some((w) => w.message.includes('接続室内機合計比率') && w.message.includes('50%〜150%')), true);
+});

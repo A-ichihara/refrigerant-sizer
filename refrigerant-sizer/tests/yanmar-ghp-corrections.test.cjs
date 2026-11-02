@@ -270,6 +270,55 @@ test('第一分岐後91mでは警告する', () => {
   assert.ok(result.warnings.some(w => w.includes('第一分岐後')));
 });
 
+test('総配管長640mちょうどでは警告しない', () => {
+  const engine = loadEngine();
+  const result = engine.calculateSystem(twoPipeTree(45.0, [22.4], 630, 10), 'yanmar_ghp_highpower', false);
+  assert.equal(result.totals.totalPipingLength, 640);
+  assert.ok(!result.warnings.some(w => w.includes('総配管実長')));
+});
+
+test('最遠配管長170mちょうどでは警告しない', () => {
+  const engine = loadEngine();
+  const result = engine.calculateSystem(twoPipeTree(45.0, [22.4], 160, 10), 'yanmar_ghp_highpower', false);
+  assert.equal(result.totals.longestPath, 170);
+  assert.ok(!result.warnings.some(w => w.includes('最遠配管実長')));
+});
+
+test('最遠配管長171mでは警告する', () => {
+  const engine = loadEngine();
+  const result = engine.calculateSystem(twoPipeTree(45.0, [22.4], 161, 10), 'yanmar_ghp_highpower', false);
+  assert.equal(result.totals.longestPath, 171);
+  assert.ok(result.warnings.some(w => w.includes('最遠配管実長') && w.includes('170')));
+});
+
+test('最遠配管長は最も遠い分岐側の経路で判定する', () => {
+  const engine = loadEngine();
+  const tree = node('outdoor', { capacity: 45.0, length: 0 }, [
+    node('branch', { length: 100 }, [node('indoor', { capacity: 11.2, length: 10 })]),
+    node('branch', { length: 165 }, [node('indoor', { capacity: 11.2, length: 10 })]),
+  ]);
+  const result = engine.calculateSystem(tree, 'yanmar_ghp_highpower', false);
+  assert.equal(result.totals.longestPath, 175);
+  assert.ok(result.warnings.some(w => w.includes('最遠配管実長')));
+});
+
+// 集計表示の0m行ガード（変更は表示処理のみ）。既存テストにDOMハーネスがないため、
+// ghp-sizeup-ui-safety.test.cjs と同じソース確認方式で固定する。
+test('集計表示: GHP系4アプリのrenderTotalsは長さ0の径を表示しない', () => {
+  const apps = [
+    'yanmar-ghp-refrigerant-sizer',
+    'panasonic-ghp-refrigerant-sizer',
+    'aisin-ghp-refrigerant-sizer',
+    'daikin-ghp-refrigerant-sizer',
+  ];
+  for (const app of apps) {
+    const ui = fs.readFileSync(path.join(__dirname, '..', app, 'js', 'ui.js'), 'utf8');
+    for (const bucket of ['liquidPipes', 'highGasPipes', 'lowGasPipes', 'gasPipes']) {
+      assert.ok(ui.includes(`if (!(totals.${bucket}[size] > 0)) continue;`), `${app}: ${bucket}`);
+    }
+  }
+});
+
 test('接続容量率136.9%では警告する（上限130%は変更なし）', () => {
   const engine = loadEngine();
   const result = engine.calculateSystem(twoPipeTree(45.0, [28.0, 28.0, 5.6]), 'yanmar_ghp_highpower', false);

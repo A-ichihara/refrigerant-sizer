@@ -142,6 +142,14 @@ class RefrigerantSizerEngine {
             warnings.push(`総配管実長 (${totals.totalPipingLength.toFixed(1)}m) が制限 (${series.maxPipingTotal}m) を超過しています。`);
         }
 
+        // 最遠配管長は公式 実長170m以下（2022.09 GHP総合カタログ 5-1 pp.240-241・5-2 p.247）。
+        // totals.longestPath は室外機から最遠室内機までの経路の実長合計であり、
+        // 公式の「最遠室内機までの配管実長」と対応する。上限ちょうどは警告しない。
+        // 公式には相当長200m以下の制限もあるが、相当長計算が未実装のため判定しない。
+        if (totals.longestPath > series.maxFarDistance) {
+            warnings.push(`最遠配管実長 (${totals.longestPath.toFixed(1)}m) が制限 (${series.maxFarDistance}m) を超過しています。`);
+        }
+
         // 第一分岐後の許容長さは公式 90m 以下（2022.09 GHP総合カタログ 5-1・5-2）。
         // totals.firstBranchToIndoorMax は第一分岐から最遠室内機までの実長。
         if (totals.firstBranchToIndoorMax > 90) {

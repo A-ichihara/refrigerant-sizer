@@ -488,6 +488,29 @@ class RefrigerantSizerEngine {
                     message: `室外機容量に対する接続室内機合計比率が適正範囲(50%〜${ratioMax}%)を外れています。現在: ${ratio.toFixed(1)}% (${totalIndoorKw.toFixed(1)} kW / 室外機: ${outdoorCap.toFixed(1)} kW)`
                 });
             }
+
+            // 未検証範囲の明示（管径値・選定ロジックは変更しない。表示のみ）。
+            // Mr.Slim は公式資料が得られておらず、全区間に Y シリーズの配管表を
+            // 流用している。また接続容量比 50%〜130% も Y の値の流用であり、
+            // Mr.Slim への適用根拠は未確認である。
+            if (seriesId === 'mr_slim_multi') {
+                warnings.push({
+                    type: 'info',
+                    message: 'Mr.Slim の配管サイズはシティマルチ Yシリーズの配管表を流用しています。Mr.Slim のメーカー公式資料での裏付けは未確認のため、実設計では Mr.Slim の技術資料で確認してください。'
+                });
+                warnings.push({
+                    type: 'info',
+                    message: 'Mr.Slim の接続容量比の適正範囲（50%〜130%）は Yシリーズの値を流用したもので、Mr.Slim への適用根拠は未確認です。'
+                });
+            }
+            // R2 の BC 下流の分岐〜分岐区間は Y シリーズの配管表を流用しており、
+            // その区間のメーカー根拠は未確認である（R2 専用表の確認は別途）。
+            if (seriesId === 'city_multi_r2') {
+                warnings.push({
+                    type: 'info',
+                    message: 'R2 の BC下流で分岐ジョイント同士をつなぐ区間（分岐〜分岐区間）の配管サイズは、Yシリーズの配管表を流用しています。その区間のメーカー根拠は未確認のため、実設計では R2 の技術資料で確認してください。'
+                });
+            }
         }
 
         // ツリーを再帰計算して配管サイズと部材型番をセット

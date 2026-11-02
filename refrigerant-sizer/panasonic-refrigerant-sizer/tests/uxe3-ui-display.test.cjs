@@ -355,3 +355,171 @@ test('renderPipeSizeTable marks LM edges with the applied long-pipe rule', () =>
     global.document = originalDocument;
   }
 });
+
+// --- 長配管サマリの理由表示・＊3時の＊2未判定併記・集計0mガード（2026-11-03） ---
+// ＊2 判定不可の理由は longPipe.star2.reason に応じて表示する（理由に
+// よらず「長さ情報が不足」と決め打ちしない）。＊3 適用時で ＊2 が判定
+// できていない場合は、結果エリアのサマリにもその旨を併記する（警告
+// パネルには追加しない）。集計表示は長さ 0 の径エントリを表示しない
+// （totals の中身は変更しない）。
+
+function renderSummaryHtml(result) {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  ui.totalsPanel = { innerHTML: '' };
+  ui.renderLongPipeSummary(result);
+  return ui.totalsPanel.innerHTML;
+}
+
+// 分岐が2つだけの系統（LM候補は分岐3つ必要なため特定できない）。
+// 相当長は全辺入力し、L1相当長は 5＋40＋45＋5＝95m（＊2の条件自体は成立）。
+function makeTwoBranchTree() {
+  return {
+    id: 'root', name: 'Outdoor', type: 'outdoor', capacity: 45, length: 0,
+    children: [{
+      id: 'tb-b1', name: 'Outdoor first branch', type: 'branch', length: 5, lengthEquivalent: 5,
+      children: [{
+        id: 'tb-b2', name: 'First branch', type: 'branch', length: 30, lengthEquivalent: 40,
+        children: [{
+          id: 'tb-kit', name: 'Kit', type: 'solenoid_kit', length: 8, lengthEquivalent: 45,
+          children: [{
+            id: 'tb-indoor', name: 'Indoor', type: 'indoor', capacity: 5.6, length: 3, lengthEquivalent: 5, children: []
+          }]
+        }]
+      }]
+    }]
+  };
+}
+
+test('renderLongPipeSummary shows the missing-length reason when *2 is undeterminable for unentered lengths', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeLongPipeTree({ laLen: 25, lbLen: 25 }), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'not_determinable');
+  assert.match(result.longPipe.star2.reason, /未入力・非数値、または負数/);
+
+  const html = renderSummaryHtml(result);
+  assert.match(html, /＊2の判定ができませんでした/);
+  assert.match(html, /L1の長さ情報が不足しているため、＊2の判定は行っていません/);
+  assert.match(html, /＊3も適用されませんでした/);
+  assert.doesNotMatch(html, /相当長/);
+});
+
+test('renderLongPipeSummary shows the LM-not-identifiable reason, not a length shortage, when branches are too few', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeTwoBranchTree(), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'not_determinable');
+  assert.equal(result.longPipe.star2.conditionMet, true);
+  assert.match(result.longPipe.star2.reason, /LM候補が特定できない/);
+
+  const html = renderSummaryHtml(result);
+  assert.match(html, /＊2の判定ができませんでした/);
+  assert.match(html, /LM（主管）の経路が特定できないため、＊2の増径を集計へ反映できません/);
+  // 長さ情報は不足していないので、その旨の文言は出ない。
+  assert.doesNotMatch(html, /長さ情報が不足/);
+  assert.doesNotMatch(html, /相当長/);
+});
+
+test('renderLongPipeSummary falls back to a neutral reason when star2.reason is missing or unexpected', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  const htmlMissing = ui.buildUxE3LongPipeSummaryHtml({
+    longPipe: { appliedRule: 'not_determinable', star2: { status: 'not_determinable', reason: null } },
+    lmSplit: null
+  });
+  assert.match(htmlMissing, /判定に必要な情報がそろっていないため、＊2の判定は行っていません/);
+  assert.doesNotMatch(htmlMissing, /長さ情報が不足/);
+
+  const htmlUnexpected = ui.buildUxE3LongPipeSummaryHtml({
+    longPipe: { appliedRule: 'not_determinable', star2: { status: 'not_determinable', reason: '想定外の理由テキスト' } },
+    lmSplit: null
+  });
+  assert.match(htmlUnexpected, /判定に必要な情報がそろっていないため/);
+  assert.doesNotMatch(htmlUnexpected, /長さ情報が不足/);
+});
+
+test('renderLongPipeSummary notes the undeterminable *2 alongside an applied *3', () => {
+  const engine = new RefrigerantSizerEngine();
+  // 相当長未入力・LM実長 60m：＊3 が適用され、＊2 は判定不能。
+  const result = engine.calculateSystem(makeLongPipeTree(), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'star3');
+  assert.equal(result.longPipe.star2.status, 'not_determinable');
+
+  const html = renderSummaryHtml(result);
+  assert.match(html, /＊3を適用しました/);
+  assert.match(html, /＊2は判定ができていないため、適用していません/);
+  // 警告パネルには従来どおり ＊3 の情報警告のみ（判定不能の注記は足さない）。
+  assert.ok(result.warnings.every((w) => !w.message.includes('＊2の判定ができませんでした')));
+});
+
+test('renderLongPipeSummary does not note an undeterminable *2 when *2 was judged and *3 applied', () => {
+  const engine = new RefrigerantSizerEngine();
+  // L1相当長 = 5＋40＋37＋5＋3 = 90m ちょうど（＊2は判定のうえ不適用）。
+  // LM実長は 60m で ＊3 が適用される。
+  const result = engine.calculateSystem(makeLongPipeTree({
+    lAEq: 5, laEq: 40, lbEq: 37, kitEq: 5, indoorEq: 3
+  }), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'star3');
+  assert.equal(result.longPipe.star2.status, 'not_applied');
+
+  const html = renderSummaryHtml(result);
+  assert.match(html, /＊3を適用しました/);
+  assert.doesNotMatch(html, /判定ができていない/);
+});
+
+test('renderLongPipeSummary for an applied *2 keeps the conventional wording', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeLongPipeTree({
+    laLen: 20, lbLen: 20, lAEq: 5, laEq: 40, lbEq: 40, kitEq: 8, indoorEq: 3
+  }), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'star2');
+
+  const html = renderSummaryHtml(result);
+  assert.match(html, /＊2を適用しました。LM全体を1ランク増径しました/);
+  assert.match(html, /＊3 は適用しません/);
+  assert.doesNotMatch(html, /判定ができませんでした/);
+  assert.doesNotMatch(html, /判定ができていない/);
+});
+
+test('renderTotals omits zero-length rows left in the base buckets when *2 is applied', () => {
+  const engine = new RefrigerantSizerEngine();
+  // ℓA 辺とキット辺の実長を 0 にすると、LM の全長が増径後の径へ移り、
+  // 基準径の集計キーに値 0 が残る（totals の中身はそのまま）。
+  const result = engine.calculateSystem(makeLongPipeTree({
+    lALen: 0, laLen: 20, lbLen: 20, kitLen: 0,
+    lAEq: 5, laEq: 40, lbEq: 40, kitEq: 8, indoorEq: 3
+  }), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'star2');
+  assert.equal(result.totals.liquidPipes['12.7'], 0);
+  assert.equal(result.totals.lowGasPipes['28.58'], 0);
+
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  ui.totalsPanel = { innerHTML: '' };
+  ui.renderTotals(result.totals);
+  const html = ui.totalsPanel.innerHTML;
+  assert.doesNotMatch(html, />0 m</);
+  assert.doesNotMatch(html, /液管: φ12\.7 mm/);
+  assert.doesNotMatch(html, /吸入ガス管: φ28\.58 mm/);
+  // 増径後の径の行は表示される。
+  assert.match(html, /液管: φ15\.88 mm/);
+  assert.match(html, /吸入ガス管: φ31\.8 mm/);
+  assert.match(html, /吐出ガス管: φ22\.22 mm/);
+});
+
+test('renderTotals omits zero-length gas and balance rows but keeps positive rows', () => {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  ui.totalsPanel = { innerHTML: '' };
+  ui.renderTotals({
+    liquidPipes: { 12.7: 0, 15.88: 40 },
+    gasPipes: { 22.22: 0, 19.05: 12 },
+    highGasPipes: {},
+    lowGasPipes: {},
+    balancePipes: { 9.52: 0 },
+    joints: {},
+    totalLength: 52
+  });
+  const html = ui.totalsPanel.innerHTML;
+  assert.doesNotMatch(html, />0 m</);
+  assert.doesNotMatch(html, /液管: φ12\.7 mm/);
+  assert.doesNotMatch(html, /ガス管: φ22\.22 mm/);
+  assert.doesNotMatch(html, /バランス管/);
+  assert.match(html, /液管: φ15\.88 mm/);
+  assert.match(html, /ガス管: φ19\.05 mm/);
+});

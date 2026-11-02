@@ -692,7 +692,7 @@ class RefrigerantSizerUI {
                     </span>
                 </div>
                 <div class="config-row">
-                    <span class="config-label">最遠配管相当長:</span>
+                    <span class="config-label">最遠配管実長:</span>
                     <span class="config-value">${totals.longestPath.toFixed(1)} m</span>
                 </div>
                 
