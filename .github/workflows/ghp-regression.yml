@@ -63,3 +63,5 @@ jobs:
         run: node --test refrigerant-sizer/daikin-refrigerant-sizer/tests/daikin-vrv-corrections.test.cjs
       - name: Run Panasonic GHP verification corrections regression tests
         run: node --test refrigerant-sizer/tests/panasonic-ghp-corrections.test.cjs
+      - name: Run Panasonic UXE3 max indoor units regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-max-indoor-units.test.cjs
