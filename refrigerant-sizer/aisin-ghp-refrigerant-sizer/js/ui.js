@@ -589,15 +589,19 @@ class RefrigerantSizerUI {
         `;
 
         for (const size of Object.keys(totals.liquidPipes || {}).sort()) {
+            if (!(totals.liquidPipes[size] > 0)) continue;
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label">φ${size} (液管)</span><span class="pipe-length-badge">${totals.liquidPipes[size].toFixed(1)} m</span></div>`;
         }
         for (const size of Object.keys(totals.highGasPipes || {}).sort()) {
+            if (!(totals.highGasPipes[size] > 0)) continue;
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--color-warning);">φ${size} (高低圧ガス管)</span><span class="pipe-length-badge" style="background:rgba(245,158,11,0.15); color:var(--color-warning);">${totals.highGasPipes[size].toFixed(1)} m</span></div>`;
         }
         for (const size of Object.keys(totals.lowGasPipes || {}).sort()) {
+            if (!(totals.lowGasPipes[size] > 0)) continue;
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label" style="color:var(--color-secondary);">φ${size} (吸入ガス管)</span><span class="pipe-length-badge" style="background:rgba(56,189,248,0.15); color:var(--color-secondary);">${totals.lowGasPipes[size].toFixed(1)} m</span></div>`;
         }
         for (const size of Object.keys(totals.gasPipes || {}).sort()) {
+            if (!(totals.gasPipes[size] > 0)) continue;
             totalsHtml += `<div class="pipe-summary-item"><span class="pipe-size-label">φ${size} (ガス管)</span><span class="pipe-length-badge">${totals.gasPipes[size].toFixed(1)} m</span></div>`;
         }
         for (const model of Object.keys(totals.joints || {})) {

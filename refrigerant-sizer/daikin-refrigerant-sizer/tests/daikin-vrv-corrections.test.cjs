@@ -498,3 +498,90 @@ describe('変更しないもの (未決)', () => {
         assert.deepEqual(engine.getOutdoorMainPipeSize3(118.0), { liquid: 19.1, highLowGas: 28.6, suctionGas: 38.1 });
     });
 });
+
+// ==================== 90m自動サイズアップ (文言是正・案A、第三者レビュー対応 2026-11-02) ====================
+// 挙動 (実長 >= 90.0 で発動・増径内容) は変更せず、現行挙動を固定する。
+// 公式条件は配管相当長90m以上 (カタログ脚注※3) だが、本アプリの判定は実長ベースであり、
+// 相当長への換算方法と増径の具体的な適用条件はメーカー技術資料で未確認。
+// 調査記録: ~/workspace/refrigerant-sizer-verification/review-20261102/daikin-vrv-90m/FINDINGS.md
+describe('90m自動サイズアップ (実長判定・文言是正)', () => {
+    // 室外機 → 分岐 (farthest-5 m) → 室内機 (5m) で最遠長を farthest にそろえた系統
+    function treeWithFarthest(kw, farthest) {
+        return outdoor(kw, [branch('b1', [indoor('i1', 28.0, 5)], farthest - 5)]);
+    }
+    function sizeUpWarning(result) {
+        return result.warnings.find(w => w.includes('1サイズアップしました'));
+    }
+
+    test('最遠実長 89.9m では増径しない (vrv7_x 45kW: 液12.7/ガス25.4 のまま)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 89.9), 'vrv7_x');
+        assert.equal(result.tree.pipeLiquid, 12.7);
+        assert.equal(result.tree.pipeGas, 25.4);
+        assert.equal(sizeUpWarning(result), undefined);
+    });
+
+    test('最遠実長 90.0m ちょうどで増径する (公式の「以上」と同じ境界。液12.7→15.9/ガス25.4→28.6)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv7_x');
+        assert.equal(result.tree.pipeLiquid, 15.9);
+        assert.equal(result.tree.pipeGas, 28.6);
+        assert.ok(sizeUpWarning(result));
+    });
+
+    test('最遠実長 90.1m で増径する (液15.9/ガス28.6)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 90.1), 'vrv7_x');
+        assert.equal(result.tree.pipeLiquid, 15.9);
+        assert.equal(result.tree.pipeGas, 28.6);
+        assert.ok(sizeUpWarning(result));
+    });
+
+    test('警告文は 90.0m ちょうどでも「超えている」と言わず「90m以上」と表現する', () => {
+        const engine = makeEngine();
+        const w = sizeUpWarning(engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv7_x'));
+        assert.ok(w.includes('最遠配管実長が90m以上'));
+        assert.ok(!w.includes('超えている'), '警告文に「超えている」が残っている');
+    });
+
+    test('警告文に、実長判定である旨・相当長ベースの公式条件から漏れる可能性・技術資料で未確認である旨が含まれる', () => {
+        const engine = makeEngine();
+        const w = sizeUpWarning(engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv7_x'));
+        assert.ok(w.includes('実長で行っています'));
+        assert.ok(w.includes('配管相当長90m以上'));
+        assert.ok(w.includes('漏れて増径されない場合があります'));
+        assert.ok(w.includes('メーカー技術資料で未確認'));
+        assert.ok(w.includes('完全に満たすものではありません'));
+    });
+
+    test('2管式と3管式Rで増径内容が違う (R は液管のみ。高低圧・吸入ガス管は変わらない)', () => {
+        const engine = makeEngine();
+        const base = engine.calculateSystem(treeWithFarthest(45.0, 35.0), 'vrv_r');
+        assert.equal(base.tree.pipeLiquid, 12.7);
+        assert.equal(base.tree.pipeHighLowGas, 19.1);
+        assert.equal(base.tree.pipeSuctionGas, 25.4);
+        const up = engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv_r');
+        assert.equal(up.tree.pipeLiquid, 15.9);
+        assert.equal(up.tree.pipeHighLowGas, 19.1);
+        assert.equal(up.tree.pipeSuctionGas, 25.4);
+    });
+
+    test('ガス管 φ38.1 は据え置き (vrv7_x 118kW・最遠95m: 液19.1→22.2、ガス38.1 のまま)', () => {
+        const engine = makeEngine();
+        const tree = outdoor(118.0, [branch('b1', [indoor('i1', 28.0, 5)], 90)]);
+        const result = engine.calculateSystem(tree, 'vrv7_x');
+        assert.equal(result.tree.pipeLiquid, 22.2);
+        assert.equal(result.tree.pipeGas, 38.1);
+    });
+
+    test('除外シリーズ (machi_multi / skyair) では最遠実長 90.1m でも増径しない', () => {
+        const engine = makeEngine();
+        for (const seriesId of ['machi_multi', 'skyair']) {
+            const short = engine.calculateSystem(treeWithFarthest(45.0, 30.0), seriesId);
+            const long = engine.calculateSystem(treeWithFarthest(45.0, 90.1), seriesId);
+            assert.equal(long.tree.pipeLiquid, short.tree.pipeLiquid, `${seriesId} の液管が増径されている`);
+            assert.equal(long.tree.pipeGas, short.tree.pipeGas, `${seriesId} のガス管が増径されている`);
+            assert.equal(sizeUpWarning(long), undefined);
+        }
+    });
+});

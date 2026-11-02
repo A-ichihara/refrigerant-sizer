@@ -1388,6 +1388,8 @@ class RefrigerantSizerUI {
      * UXE3 長配管条件（＊2・＊3）の適用結果を、集計パネル（結果表示）に
      * 示す。警告パネルには追加しない。＊2 が判定不可の場合の注記もここに
      * 出す（警告パネルには出さない。実装順序3の既定と同じ）。
+     * ＊2 が判定不可の理由は、エンジンの longPipe.star2.reason に応じて
+     * 表示する（理由によらず長さ不足と決め打ちしない）。
      * 文言には「相当長」の語を使わない。
      */
     renderLongPipeSummary(results) {
@@ -1410,6 +1412,30 @@ class RefrigerantSizerUI {
                 .filter(({ key }) => adjust[key] && adjust[key].to !== adjust[key].from)
                 .map(({ label, key }) => `${label} φ${adjust[key].from}→φ${adjust[key].to}`);
         };
+        // ＊2 が判定不可の場合の理由文。エンジンの理由（star2.reason）の
+        // 種類に応じて選ぶ。LM が特定できない等、長さ以外の理由もあるため
+        // 「長さ情報が不足」とは決め打ちしない。理由が空・想定外の場合は
+        // 中立な文言に落とす。このパネルの文言には「相当長」の語を使わ
+        // ない既定は維持する。
+        const star2ReasonClause = (star2) => {
+            const reason = star2 && typeof star2.reason === 'string' ? star2.reason : '';
+            if (reason.includes('LM候補が特定できない')) {
+                return 'LM（主管）の経路が特定できないため、＊2の増径を集計へ反映できません。';
+            }
+            if (reason.includes('室内機までの経路がありません')) {
+                return '室内機までの経路がないため、＊2の判定は行っていません。';
+            }
+            if (reason.includes('経路診断がありません')) {
+                return '経路診断ができていないため、＊2の判定は行っていません。';
+            }
+            if (reason.includes('打ち切られた')) {
+                return '経路の列挙が上限で打ち切られたため、＊2の判定は行っていません。';
+            }
+            if (reason.includes('未入力・非数値、または負数')) {
+                return 'L1の長さ情報が不足しているため、＊2の判定は行っていません。';
+            }
+            return '判定に必要な情報がそろっていないため、＊2の判定は行っていません。';
+        };
         let body = '';
         if (longPipe.appliedRule === 'star2') {
             const detail = changedPipes(longPipe.star2 && longPipe.star2.totalsAdjust).join('、');
@@ -1419,8 +1445,14 @@ class RefrigerantSizerUI {
             const detail = changedPipes(lmSplit && lmSplit.totalsAdjust).join('、');
             const lm = lmSplit && Number.isFinite(lmSplit.lmLengthActualM) ? lmSplit.lmLengthActualM : null;
             body = `＊3を適用しました。${lm !== null ? `LM実長 ${lm}m が50mを超えるため、` : ''}最初の50mの吸込管・吐出管を1ランク増径しました${detail ? `（${detail}）` : ''}。液管は増径しません。`;
+            // ＊2 が判定自体できていない場合は、結果エリアにもその旨を
+            // 併記する（警告パネル側の ＊3 警告文には既に明記がある。
+            // 警告パネルには何も追加しない）。
+            if (longPipe.star2 && longPipe.star2.status === 'not_determinable') {
+                body += 'なお、＊2は判定ができていないため、適用していません。';
+            }
         } else if (longPipe.appliedRule === 'not_determinable') {
-            body = '＊2の判定ができませんでした。L1の長さ情報が不足しているため、＊2の判定は行っていません。＊3も適用されませんでした。';
+            body = `＊2の判定ができませんでした。${star2ReasonClause(longPipe.star2)}＊3も適用されませんでした。`;
         } else {
             body = '＊2・＊3とも適用されませんでした。';
         }
@@ -1470,17 +1502,24 @@ class RefrigerantSizerUI {
             }
         });
 
+        // 長さ 0 の径エントリは表示しない（表示のみのガード。totals の
+        // 中身は変更しない）。＊2 適用時は基準径の集計キーに値 0 が
+        // 残る場合があり、そのまま描画すると「0 m」の行が出てしまう。
+        // 吸入・吐出ガス管のループは元々 truthy チェックで 0 を除外済み。
         Object.keys(totals.liquidPipes).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(sz => {
+            if (!(totals.liquidPipes[sz] > 0)) return;
             html += `<tr><td>液管: φ${sz} mm</td><td style="text-align: right;">${totals.liquidPipes[sz]} m</td></tr>`;
             hasPipes = true;
         });
         Object.keys(totals.gasPipes).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(sz => {
+            if (!(totals.gasPipes[sz] > 0)) return;
             html += `<tr><td>ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.gasPipes[sz]} m</td></tr>`;
             hasPipes = true;
         });
         // 室外機グループのバランス管（UXE3・C6）。他シリーズや単体機では
         // balancePipes は空のため表示されない。
         Object.keys(totals.balancePipes || {}).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(sz => {
+            if (!(totals.balancePipes[sz] > 0)) return;
             html += `<tr><td>バランス管: φ${sz} mm</td><td style="text-align: right;">${totals.balancePipes[sz]} m</td></tr>`;
             hasPipes = true;
         });
