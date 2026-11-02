@@ -570,6 +570,21 @@ class RefrigerantSizerUI {
         }
 
         if (this.activeSeriesId === 'fsv_uxe3' && node.type !== 'outdoor') {
+            // 相当長は手入力のみ。PA-P900UXE3 に換算表はないため自動計算せず、実長で代用しない。
+            const eqLen = (node.lengthEquivalent !== undefined && node.lengthEquivalent !== null
+                && Number.isFinite(node.lengthEquivalent)) ? node.lengthEquivalent : '';
+            editorHtml += `
+                <div class="form-group">
+                    <label>相当長 (m) — 手入力のみ</label>
+                    <input type="number" class="form-input" id="edit-length-equivalent" min="0" value="${eqLen}">
+                    <div style="font-size:0.75rem;color:var(--color-secondary);margin-top:4px;">
+                        PA-P900UXE3に相当長換算表はないため、自動計算しません。空欄は未入力扱いです。長配管条件＊2（L1相当長＞90m）の判定に使います。
+                    </div>
+                </div>
+            `;
+        }
+
+        if (this.activeSeriesId === 'fsv_uxe3' && node.type !== 'outdoor') {
             // 選択した区間は監査専用。公式資料との照合や管径の自動変更は行わない。
             const segmentOptions = [
                 ['unclassified', '未分類（指定なし）'],
@@ -649,6 +664,24 @@ class RefrigerantSizerUI {
         if (editLen) {
             editLen.addEventListener('change', (e) => {
                 node.length = Math.max(0, parseFloat(e.target.value) || 0);
+                this.update();
+            });
+        }
+
+        const editEqLen = document.getElementById('edit-length-equivalent');
+        if (editEqLen && this.activeSeriesId === 'fsv_uxe3' && node.type !== 'outdoor') {
+            editEqLen.addEventListener('change', (e) => {
+                const raw = (e.target.value ?? '').toString().trim();
+                if (raw === '') {
+                    delete node.lengthEquivalent;
+                } else {
+                    const v = parseFloat(raw);
+                    if (!Number.isFinite(v) || v < 0) {
+                        delete node.lengthEquivalent;
+                    } else {
+                        node.lengthEquivalent = v;
+                    }
+                }
                 this.update();
             });
         }
