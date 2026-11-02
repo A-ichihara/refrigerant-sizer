@@ -1284,9 +1284,13 @@ class RefrigerantSizerUI {
 
         let hasPipes = false;
 
-        Object.keys(totals.highGasPipes).forEach(sz => {
-            html += `<tr><td>吸入ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.lowGasPipes[sz] || 0} m</td></tr>`;
-            html += `<tr><td>吐出ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.highGasPipes[sz] || 0} m</td></tr>`;
+        // 各管種は自分の集計キーで回す。他方のキーで回すと存在しない径に 0m の行が出る。
+        Object.keys(totals.lowGasPipes).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(sz => {
+            html += `<tr><td>吸入ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.lowGasPipes[sz]} m</td></tr>`;
+            hasPipes = true;
+        });
+        Object.keys(totals.highGasPipes).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(sz => {
+            html += `<tr><td>吐出ガス管: φ${sz} mm</td><td style="text-align: right;">${totals.highGasPipes[sz]} m</td></tr>`;
             hasPipes = true;
         });
 

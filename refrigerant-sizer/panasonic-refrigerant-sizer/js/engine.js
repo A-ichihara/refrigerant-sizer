@@ -102,7 +102,10 @@ class RefrigerantSizerEngine {
             },
             fsv_uxe3: {
                 name: "冷暖フリービル用マルチ UXE3シリーズ（3管式）",
-                maxIndoorUnits: 52,
+                // 室内ユニット最多接続台数は PA-P900UXE3 p3「9 システム制限」の40台。
+                // 旧値52台は海外向け MF3 シリーズの値であり UXE3 の公式値ではない
+                // （2026-10-28 資料調査 REMAINING-ITEMS-RESEARCH-20261028.md トラック5）。
+                maxIndoorUnits: 40,
                 outdoorCapacities: [
                     { hp: "8", kw: 22.4, model: "CU-P224UXE3" },
                     { hp: "10", kw: 28.0, model: "CU-P280UXE3" },
