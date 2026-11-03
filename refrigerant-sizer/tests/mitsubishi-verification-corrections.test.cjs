@@ -470,3 +470,24 @@ test('範囲外警告: Y・Mr.Slim では分岐区間の下流合計が 25.0kW �
   const rm = engine.calculateSystem(ms, 'mr_slim_multi');
   assert.equal(rm.warnings.filter(isR2Over25Warning).length, 0);
 });
+
+// ---------------------------------------------------------------- Stage 1a 表示・文言是正（2026-11-04）
+// 表示層のみの変更。選定ロジック・管径・警告判定は変更しない。
+test('Stage1a表示: BC→分岐ジョイント区間の見出しは「BC→分岐」（従来の「分岐→分岐」誤表示を是正）', () => {
+  const ui = fs.readFileSync(UI, 'utf8');
+  assert.equal(ui.includes("segmentLabel = 'BC→分岐'"), true);
+  // BC 判定は汎用の child.type === 'branch' 判定より前に来ること（優先順位の固定）
+  const bcBranchIdx = ui.indexOf("child.type === 'branch') {\n                        segmentLabel = 'BC→分岐'");
+  const genericIdx = ui.indexOf("segmentLabel = '分岐→分岐'");
+  assert.ok(bcBranchIdx !== -1 && genericIdx !== -1 && bcBranchIdx < genericIdx);
+});
+
+test('Stage1a表示: R2 マスター表注記に専用表の多段適用が未確認である旨の留保がある', () => {
+  const ui = fs.readFileSync(UI, 'utf8');
+  assert.equal(ui.includes('専用表は BC の1つの分岐口からツイニング管'), true);
+  assert.equal(ui.includes('最大3台・合計容量指数250（25.0kW）まで'), true);
+  assert.equal(ui.includes('分岐ジョイント同士を多段につなぐ区間への適用はメーカーに確認できていません'), true);
+  assert.equal(ui.includes('多段構成への適用根拠ではありません'), true);
+  // 既存の 25.0kW 超・範囲外の注記と矛盾しないこと（従来文言が残っていること）
+  assert.equal(ui.includes('25.0kW を超える区間はメーカーの構成範囲外であり、表示値は代用となる（計算時に警告が出る）'), true);
+});

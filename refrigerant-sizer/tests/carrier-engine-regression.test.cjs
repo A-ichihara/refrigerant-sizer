@@ -120,3 +120,13 @@ path.join(__dirname, '..', 'carrier-refrigerant-sizer', 'index.html'),
 assert.equal(html.includes('完全準拠'), false);
 assert.equal(html.includes(''), true);
 });
+
+// Stage 1a 表示是正: サイズアップ判定は実長ベースのため、ツールチップも実長と表示する。
+test('Carrier size-up tooltip labels the judgment length as actual length', () => {
+const html = fs.readFileSync(
+path.join(__dirname, '..', 'carrier-refrigerant-sizer', 'index.html'),
+'utf8'
+);
+assert.equal(html.includes('最遠配管実長に関わらず、主管サイズアップを強制適用します'), true);
+assert.equal(html.includes('最遠配管相当長に関わらず'), false);
+});
