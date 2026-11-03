@@ -242,9 +242,11 @@ class RefrigerantSizerEngine {
     /** 2管式(Yシリーズ 分岐〜分岐)配管サイズ選定
      * 公式 Pipe B, C, D 表（D2・D5 GB-27）。下流室内機合計形番（P/M）別。
      * 帯域境界は公式どおり（14.0 / 20.0 / 30.0 / 40.0 / 65.0 / 80.0 kW）。
-     * R2 の BC 下流の分岐〜分岐区間および Mr.Slim にも同じ関数を用いる
-     * （R2 BC 下流の専用表は報告書になく、Mr.Slim は未検証のため、Y の B/C/D 表を
-     * 流用している。CORRECTIONS.md 参照）。 */
+     * R2 の BC 下流の分岐〜分岐区間にも同じ関数を用いる。その値は BC コントローラ
+     * 据付説明書の専用表と下流合計 25.0kW 以下では一致することを目視確認済み
+     * （review-20261102/mitsubishi/R2-TABLE-VISUAL-CHECK.md）。25.0kW 超は
+     * メーカーの構成範囲外であり、計算時に範囲外の警告を出す（値は変更しない）。
+     * Mr.Slim は未検証のため、Y の B/C/D 表を流用している。CORRECTIONS.md 参照。 */
     selectTwoPipeSize(kw, isManualSizeUp = false) {
         let liquid = 9.52;
         let gas = 15.88;
@@ -503,18 +505,31 @@ class RefrigerantSizerEngine {
                     message: 'Mr.Slim の接続容量比の適正範囲（50%〜130%）は Yシリーズの値を流用したもので、Mr.Slim への適用根拠は未確認です。'
                 });
             }
-            // R2 の BC 下流の分岐〜分岐区間は Y シリーズの配管表を流用しており、
-            // その区間のメーカー根拠は未確認である（R2 専用表の確認は別途）。
+            // R2 の BC 下流の分岐〜分岐区間は Y シリーズの配管表で選定している。
+            // その値は BC コントローラ据付説明書の専用表と下流合計 25.0kW 以下では
+            // 一致することを目視確認済みである（R2-TABLE-VISUAL-CHECK.md）。
+            // 25.0kW 超はメーカーの構成範囲外であり、該当区間がある場合は
+            // processNodeSizing の結果を受けて別途、範囲外の警告を出す。
             if (seriesId === 'city_multi_r2') {
                 warnings.push({
                     type: 'info',
-                    message: 'R2 の BC下流で分岐ジョイント同士をつなぐ区間（分岐〜分岐区間）の配管サイズは、Yシリーズの配管表を流用しています。その区間のメーカー根拠は未確認のため、実設計では R2 の技術資料で確認してください。'
+                    message: 'R2 の BC下流で分岐ジョイント同士をつなぐ区間（分岐〜分岐区間）の配管サイズは、Yシリーズの配管表で選定しています。その値は BCコントローラ据付説明書の専用表と下流合計25.0kW以下では一致することを確認済みです。25.0kWを超える区間はメーカーの構成範囲外です。'
                 });
             }
         }
 
         // ツリーを再帰計算して配管サイズと部材型番をセット
-        this.processNodeSizing(rootNode, seriesId, isManualSizeUp, false, rootNode.capacity, totals, warnings);
+        const hasR2BranchSectionOver25 = this.processNodeSizing(rootNode, seriesId, isManualSizeUp, false, rootNode.capacity, totals, warnings);
+
+        // R2 の分岐〜分岐区間に下流合計 25.0kW 超の区間がある場合の範囲外警告。
+        // 管径値は変更せず（Y シリーズ表による代用値のまま）、メーカーの構成
+        // 範囲外であることだけを明示する。系統内に超過区間が複数あっても1回だけ出す。
+        if (seriesId === 'city_multi_r2' && hasR2BranchSectionOver25) {
+            warnings.push({
+                type: 'info',
+                message: 'R2 の分岐〜分岐区間で下流合計が25.0kWを超える区間があります。メーカー資料ではこの区間の構成は下流合計25.0kW（容量指数250）までしか示されておらず、範囲外です。表示している配管サイズはYシリーズ表による代用値です。BCの分岐口を分けて負荷を分散する構成を検討してください。'
+            });
+        }
 
         return {
             tree: rootNode,
@@ -523,8 +538,12 @@ class RefrigerantSizerEngine {
         };
     }
 
-    /** 再帰的選定・集計ロジック */
+    /** 再帰的選定・集計ロジック
+     * 戻り値: R2 の BC 下流の分岐〜分岐区間（selectTwoPipeSize で選定する辺）に
+     * 下流合計 25.0kW 超の区間が1つでもあれば true（範囲外警告の判定用）。 */
     processNodeSizing(node, seriesId, isManualSizeUp, inBCDownstream, outdoorCap, totals, warnings) {
+        let hasR2BranchSectionOver25 = false;
+
         // 1. ノード自身の型番決定
         node.modelNumber = this.generateModelNumber(node, seriesId, outdoorCap);
 
@@ -554,7 +573,9 @@ class RefrigerantSizerEngine {
                             totals.lowGasPipes[sizes.lowGas] = (totals.lowGasPipes[sizes.lowGas] || 0) + len;
 
                             // 子ノード処理 (親BC下流に入るため inBCDownstream = true)
-                            this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings);
+                            if (this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings)) {
+                                hasR2BranchSectionOver25 = true;
+                            }
                         } else {
                             // BCコントローラーを経由しない接続がある場合 (R2では設計エラー)
                             const sizes = this.selectR2OutdoorToBCSize(outdoorCap, isManualSizeUp);
@@ -566,7 +587,9 @@ class RefrigerantSizerEngine {
                                 message: `冷暖同時(R2)系統では、室外機と室内機の間にBCコントローラーが必要です。(${child.name})`
                             });
 
-                            this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
+                            if (this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings)) {
+                                hasR2BranchSectionOver25 = true;
+                            }
                         }
                     } else if (inBCDownstream) {
                         // BCコントローラー下流
@@ -589,6 +612,12 @@ class RefrigerantSizerEngine {
                             totals.lowGasPipes[sizes.lowGas] = (totals.lowGasPipes[sizes.lowGas] || 0) + len;
                         } else {
                             // 分岐間（2分岐ジョイントへの接続）
+                            // この区間だけが R2 の BC 下流で selectTwoPipeSize を使う辺。
+                            // 下流合計 25.0kW 超はメーカーの構成範囲外（値は変更せず、
+                            // calculateSystem 側で範囲外警告を出すための検出のみ行う）。
+                            if (childKw > 25.0) {
+                                hasR2BranchSectionOver25 = true;
+                            }
                             const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
                             child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                             child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
@@ -607,7 +636,9 @@ class RefrigerantSizerEngine {
                             }
                         }
 
-                        this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings);
+                        if (this.processNodeSizing(child, seriesId, isManualSizeUp, true, outdoorCap, totals, warnings)) {
+                            hasR2BranchSectionOver25 = true;
+                        }
                     }
                 } else {
                     // 通常の2管式 (Yシリーズ、Mr.Slim)
@@ -642,7 +673,9 @@ class RefrigerantSizerEngine {
                         });
                     }
 
-                    this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings);
+                    if (this.processNodeSizing(child, seriesId, isManualSizeUp, false, outdoorCap, totals, warnings)) {
+                        hasR2BranchSectionOver25 = true;
+                    }
                 }
             });
         }
@@ -663,6 +696,8 @@ class RefrigerantSizerEngine {
         if ((node.type === 'bc_controller' || node.type === 'sub_bc_controller') && node.modelNumber) {
             totals.joints[node.modelNumber] = (totals.joints[node.modelNumber] || 0) + 1;
         }
+
+        return hasR2BranchSectionOver25;
     }
 }
 
