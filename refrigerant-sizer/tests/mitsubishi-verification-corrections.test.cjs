@@ -414,63 +414,6 @@ test('境界: R2 の接続容量比が 150% をわずかに超えると容量比
 // 根拠は review-20261102/mitsubishi/R2-TABLE-VISUAL-CHECK.md。
 const isR2Over25Warning = (w) => w.type === 'info' && w.message.includes('分岐〜分岐区間で下流合計が25.0kWを超える区間があります');
 
-test('範囲外警告: R2 で分岐〜分岐区間の下流合計が 25.0kW を超えると警告が出て、管径は代用値のまま', () => {
-  const engine = loadEngine();
-  // BC直下の分岐ジョイントの下流合計 14.0+14.0 = 28.0kW
-  const tree = outdoor('o', 45.0, [bc('bc', [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)], 10)]);
-  const r = engine.calculateSystem(tree, 'city_multi_r2');
-  assert.equal(r.warnings.filter(isR2Over25Warning).length, 1);
-  const msg = r.warnings.find(isR2Over25Warning).message;
-  assert.equal(msg.includes('容量指数250'), true);
-  assert.equal(msg.includes('代用値'), true);
-  assert.equal(msg.includes('分岐口を分けて'), true);
-  // 管径値は変更しない（selectTwoPipeSize(28.0) の値のまま）
-  deepEqual(r.tree.children[0].children[0].pipes, { type: '2pipe', liquid: 9.52, gas: 22.2 });
-});
-
-test('範囲外警告: 超過区間が複数あっても警告は1回だけ', () => {
-  const engine = loadEngine();
-  // BC直下に下流合計 28.0kW の分岐ジョイントが2つ
-  const tree = outdoor('o', 45.0, [bc('bc', [
-    branch('b1', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8),
-    branch('b2', [indoor('i3', 14.0, 5), indoor('i4', 14.0, 5)], 8),
-  ], 10)]);
-  const r = engine.calculateSystem(tree, 'city_multi_r2');
-  assert.equal(r.warnings.filter(isR2Over25Warning).length, 1);
-});
-
-test('範囲外警告: 子BC配下の分岐〜分岐区間が 25.0kW を超えても警告が出る', () => {
-  const engine = loadEngine();
-  const tree = outdoor('o', 45.0, [bc('bc', [subBc('sbc', [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)], 10)], 12)]);
-  const r = engine.calculateSystem(tree, 'city_multi_r2');
-  assert.equal(r.warnings.filter(isR2Over25Warning).length, 1);
-});
-
-test('範囲外警告: R2 で分岐〜分岐区間がすべて 25.0kW 以下なら警告は出ない', () => {
-  const engine = loadEngine();
-  const tree = outdoor('o', 45.0, [bc('bc', [branch('b', [indoor('i1', 5.6, 5), indoor('i2', 5.6, 5)], 8)], 10)]);
-  const r = engine.calculateSystem(tree, 'city_multi_r2');
-  assert.equal(r.warnings.filter(isR2Over25Warning).length, 0);
-});
-
-test('範囲外警告: 分岐〜分岐区間の下流合計がちょうど 25.0kW では警告は出ない（境界）', () => {
-  const engine = loadEngine();
-  // 12.5 + 12.5 = 25.0kW ちょうど
-  const tree = outdoor('o', 45.0, [bc('bc', [branch('b', [indoor('i1', 12.5, 5), indoor('i2', 12.5, 5)], 8)], 10)]);
-  const r = engine.calculateSystem(tree, 'city_multi_r2');
-  assert.equal(r.warnings.filter(isR2Over25Warning).length, 0);
-});
-
-test('範囲外警告: Y・Mr.Slim では分岐区間の下流合計が 25.0kW を超えても R2 の範囲外警告は出ない', () => {
-  const engine = loadEngine();
-  const y = outdoor('o', 45.0, [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)]);
-  const ry = engine.calculateSystem(y, 'city_multi_y');
-  assert.equal(ry.warnings.filter(isR2Over25Warning).length, 0);
-  const ms = outdoor('o', 28.0, [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)]);
-  const rm = engine.calculateSystem(ms, 'mr_slim_multi');
-  assert.equal(rm.warnings.filter(isR2Over25Warning).length, 0);
-});
-
 // ---------------------------------------------------------------- Stage 1c: BC配下の分岐継手の誤判定修正
 // processNodeSizing で室外機/分岐判定が BC下流判定より先に評価されていたため、
 // BC→分岐継手→室内機（ボタンの操作では作れず JSON 読込でのみ生じる構成）で
@@ -551,4 +494,82 @@ test('Stage1c: BCを経由しない分岐（室外機→分岐→室内機）は
   const r = engine.calculateSystem(tree, 'city_multi_r2');
   assert.equal(r.warnings.some((w) => w.type === 'danger' && w.message.includes('BCコントローラーが必要です')), true);
   assert.equal(r.tree.children[0].children[0].pipes.type, '3pipe');
+});
+
+test('範囲外警告: R2 で分岐〜分岐区間の下流合計が 25.0kW を超えると警告が出て、管径は代用値のまま', () => {
+  const engine = loadEngine();
+  // BC直下の分岐ジョイントの下流合計 14.0+14.0 = 28.0kW
+  const tree = outdoor('o', 45.0, [bc('bc', [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)], 10)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.filter(isR2Over25Warning).length, 1);
+  const msg = r.warnings.find(isR2Over25Warning).message;
+  assert.equal(msg.includes('容量指数250'), true);
+  assert.equal(msg.includes('代用値'), true);
+  assert.equal(msg.includes('分岐口を分けて'), true);
+  // 管径値は変更しない（selectTwoPipeSize(28.0) の値のまま）
+  deepEqual(r.tree.children[0].children[0].pipes, { type: '2pipe', liquid: 9.52, gas: 22.2 });
+});
+
+test('範囲外警告: 超過区間が複数あっても警告は1回だけ', () => {
+  const engine = loadEngine();
+  // BC直下に下流合計 28.0kW の分岐ジョイントが2つ
+  const tree = outdoor('o', 45.0, [bc('bc', [
+    branch('b1', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8),
+    branch('b2', [indoor('i3', 14.0, 5), indoor('i4', 14.0, 5)], 8),
+  ], 10)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.filter(isR2Over25Warning).length, 1);
+});
+
+test('範囲外警告: 子BC配下の分岐〜分岐区間が 25.0kW を超えても警告が出る', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 45.0, [bc('bc', [subBc('sbc', [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)], 10)], 12)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.filter(isR2Over25Warning).length, 1);
+});
+
+test('範囲外警告: R2 で分岐〜分岐区間がすべて 25.0kW 以下なら警告は出ない', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 45.0, [bc('bc', [branch('b', [indoor('i1', 5.6, 5), indoor('i2', 5.6, 5)], 8)], 10)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.filter(isR2Over25Warning).length, 0);
+});
+
+test('範囲外警告: 分岐〜分岐区間の下流合計がちょうど 25.0kW では警告は出ない（境界）', () => {
+  const engine = loadEngine();
+  // 12.5 + 12.5 = 25.0kW ちょうど
+  const tree = outdoor('o', 45.0, [bc('bc', [branch('b', [indoor('i1', 12.5, 5), indoor('i2', 12.5, 5)], 8)], 10)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.filter(isR2Over25Warning).length, 0);
+});
+
+test('範囲外警告: Y・Mr.Slim では分岐区間の下流合計が 25.0kW を超えても R2 の範囲外警告は出ない', () => {
+  const engine = loadEngine();
+  const y = outdoor('o', 45.0, [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)]);
+  const ry = engine.calculateSystem(y, 'city_multi_y');
+  assert.equal(ry.warnings.filter(isR2Over25Warning).length, 0);
+  const ms = outdoor('o', 28.0, [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)]);
+  const rm = engine.calculateSystem(ms, 'mr_slim_multi');
+  assert.equal(rm.warnings.filter(isR2Over25Warning).length, 0);
+});
+
+// ---------------------------------------------------------------- Stage 1a 表示・文言是正（2026-11-04）
+// 表示層のみの変更。選定ロジック・管径・警告判定は変更しない。
+test('Stage1a表示: BC→分岐ジョイント区間の見出しは「BC→分岐」（従来の「分岐→分岐」誤表示を是正）', () => {
+  const ui = fs.readFileSync(UI, 'utf8');
+  assert.equal(ui.includes("segmentLabel = 'BC→分岐'"), true);
+  // BC 判定は汎用の child.type === 'branch' 判定より前に来ること（優先順位の固定）
+  const bcBranchIdx = ui.indexOf("child.type === 'branch') {\n                        segmentLabel = 'BC→分岐'");
+  const genericIdx = ui.indexOf("segmentLabel = '分岐→分岐'");
+  assert.ok(bcBranchIdx !== -1 && genericIdx !== -1 && bcBranchIdx < genericIdx);
+});
+
+test('Stage1a表示: R2 マスター表注記に専用表の多段適用が未確認である旨の留保がある', () => {
+  const ui = fs.readFileSync(UI, 'utf8');
+  assert.equal(ui.includes('専用表は BC の1つの分岐口からツイニング管'), true);
+  assert.equal(ui.includes('最大3台・合計容量指数250（25.0kW）まで'), true);
+  assert.equal(ui.includes('分岐ジョイント同士を多段につなぐ区間への適用はメーカーに確認できていません'), true);
+  assert.equal(ui.includes('多段構成への適用根拠ではありません'), true);
+  // 既存の 25.0kW 超・範囲外の注記と矛盾しないこと（従来文言が残っていること）
+  assert.equal(ui.includes('25.0kW を超える区間はメーカーの構成範囲外であり、表示値は代用となる（計算時に警告が出る）'), true);
 });
