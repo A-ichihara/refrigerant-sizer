@@ -401,7 +401,19 @@ class RefrigerantSizerEngine {
     computeFirstBranchMaxDistance(node) {
         if (node.type === 'outdoor' && node.children && node.children.length > 0) {
             let maxDist = 0;
-            for (const child of node.children) maxDist = Math.max(maxDist, this.findLongestPath(child));
+            for (const child of node.children) {
+                // 第一分岐後の配管長は第一分岐ノードより下流だけを測る。
+                // 第一分岐ノード自身の length（室外機→第一分岐の区間）は含めない。
+                // ダイキンVRVの calculateFirstBranchToIndoorMax が第一分岐の
+                // 長さを経路長から差し引くのと同じ定義。
+                let downstream = 0;
+                if (child.children && child.children.length > 0) {
+                    for (const grandchild of child.children) {
+                        downstream = Math.max(downstream, this.findLongestPath(grandchild));
+                    }
+                }
+                maxDist = Math.max(maxDist, downstream);
+            }
             return maxDist;
         }
         return this.findLongestPath(node);
