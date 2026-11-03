@@ -911,7 +911,7 @@ class RefrigerantSizerEngine {
                 rootNode.pipeGas = this.getNextSize(rootNode.pipeGas, 'gas');
             }
         }
-        // ※3管式（冷暖フリー）では技術資料に基づき「液管のみ」サイズアップ（高低圧・吸入ガス管はサイズアップしない）
+        // ※3管式（冷暖フリー）では「液管のみ」サイズアップとする（高低圧・吸入ガス管はサイズアップしない）。ただし、この条件は未検証でありメーカー根拠は未確認である（Rシリーズのカタログに90mの注記はなく、技術資料に基づく確定条件ではない）。
         rootNode.isSizedUp = true;
     }
 

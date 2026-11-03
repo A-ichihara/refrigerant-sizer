@@ -189,3 +189,13 @@ for (const [manufacturer, seriesId] of Object.entries(manufacturers)) {
     // 計算結果の長さとBOM長の不一致を記録。根拠なく仕様変更しない。
   });
 }
+
+// Stage 1a 表示是正: 最遠長は実長の合計のみ（相当長への換算入力はない）ため、
+// 4社ともラベルは「最遠配管実長:」であり「最遠配管相当長:」と表示しない。
+test('GHP 4社: 最遠長のラベルは「最遠配管実長:」（実長のみの集計を相当長と表示しない）', () => {
+  for (const manufacturer of Object.keys(manufacturers)) {
+    const ui = fs.readFileSync(path.join(__dirname, '..', manufacturer + '-ghp-refrigerant-sizer', 'js', 'ui.js'), 'utf8');
+    assert.ok(ui.includes('最遠配管実長:'), manufacturer);
+    assert.ok(!ui.includes('最遠配管相当長:'), manufacturer);
+  }
+});

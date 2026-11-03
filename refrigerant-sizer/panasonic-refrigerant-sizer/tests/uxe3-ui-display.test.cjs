@@ -523,3 +523,12 @@ test('renderTotals omits zero-length gas and balance rows but keeps positive row
   assert.match(html, /液管: φ15\.88 mm/);
   assert.match(html, /ガス管: φ19\.05 mm/);
 });
+
+// Stage 1a 表示是正: 手動サイズアップ判定は実長ベースのため、ツールチップも実長と表示する。
+test('size-up button tooltip labels the judgment length as actual length', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  assert.ok(html.includes('最遠配管実長に関わらず、主管サイズアップを強制適用します'));
+  assert.ok(!html.includes('最遠配管相当長に関わらず'));
+});

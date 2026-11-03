@@ -581,7 +581,7 @@ class RefrigerantSizerUI {
                 <div class="config-row"><span class="config-label">接続室内機数:</span><span class="config-value">${totals.indoorCount} 台 / 最大 ${currentSeries.maxIndoorUnits}台</span></div>
                 <div class="config-row"><span class="config-label">室内機合計容量:</span><span class="config-value">${totals.totalIndoorCapacity.toFixed(1)} kW</span></div>
                 <div class="config-row"><span class="config-label">容量接続率:</span><span class="config-value" style="color: ${totals.connectionRatio > 130 || totals.connectionRatio < 50 ? 'var(--color-danger)' : 'var(--color-success)'}">${totals.connectionRatio.toFixed(1)}%</span></div>
-                <div class="config-row"><span class="config-label">最遠配管相当長:</span><span class="config-value">${totals.longestPath.toFixed(1)} m</span></div>
+                <div class="config-row"><span class="config-label">最遠配管実長:</span><span class="config-value">${totals.longestPath.toFixed(1)} m</span></div>
                 <div class="config-row" style="border-top:1px solid rgba(255,255,255,0.05); padding-top:4px; margin-top:4px;"><span class="config-label">総配管実長:</span><span class="config-value">${totals.totalPipingLength.toFixed(1)} m / 制限 ${currentSeries.maxPipingTotal}m</span></div>
             </div>
             <div style="font-size:0.8rem; font-weight:600; text-transform:uppercase; color:var(--text-secondary); margin-bottom:8px;">GHP配管部材集計 (BOM)</div>
