@@ -401,6 +401,57 @@ main {
     filter: drop-shadow(0 0 4px rgba(120, 169, 255, 0.3));
 }
 
+/* UXE3 増径強調表示（Stage 2 試作・表示層のみ） */
+.connection-path.sizeup-overlay {
+    stroke: #ff6a00;
+    stroke-width: 5;
+    fill: none;
+    pointer-events: none;
+}
+
+.pipe-label-text.sizeup-text {
+    fill: #ff8c42;
+    font-weight: 700;
+}
+
+.sizeup-badge-row {
+    color: #ff8c42;
+    font-weight: 700;
+}
+
+.sizeup-legend {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    z-index: 6;
+    max-width: 440px;
+    background: rgba(8, 12, 22, 0.94);
+    border: 1.5px solid #ff6a00;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    pointer-events: none;
+}
+
+.sizeup-legend-title {
+    color: #ff8c42;
+    font-weight: 700;
+    font-size: 0.78rem;
+    margin-bottom: 4px;
+}
+
+.sizeup-legend-swatch {
+    display: inline-block;
+    width: 22px;
+    height: 5px;
+    background: #ff6a00;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
 /* Node Elements Structure */
 .tree-wrapper {
     display: flex;

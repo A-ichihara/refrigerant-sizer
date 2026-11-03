@@ -532,3 +532,176 @@ test('size-up button tooltip labels the judgment length as actual length', () =>
   assert.ok(html.includes('最遠配管実長に関わらず、主管サイズアップを強制適用します'));
   assert.ok(!html.includes('最遠配管相当長に関わらず'));
 });
+// --- Stage 2: UXE3 増径強調表示（表示層のみ） ---
+// 強調モード ON のときだけ、LM 辺の増径した管について基準径 → 増径後の径を
+// 示す。OFF のときは従来表示と完全に同じ（上の既存テストが担保する）。
+// エンジンの計算結果・合計・警告は変更しない。
+
+function findResultNode(tree, id) {
+  if (!tree) return null;
+  if (tree.id === id) return tree;
+  for (const child of tree.children || []) {
+    const found = findResultNode(child, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function renderCardsWithHighlight(result) {
+  const ui = makeUi(result);
+  ui.sizeUpHighlight = true;
+  const originalDocument = global.document;
+  global.document = makeDocumentStub();
+  try {
+    const tree = ui.createNodeElement(result.tree);
+    return { ui, tree };
+  } finally {
+    global.document = originalDocument;
+  }
+}
+
+function makeStar2Result() {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeLongPipeTree({
+    laLen: 20, lbLen: 20, lAEq: 5, laEq: 40, lbEq: 40, kitEq: 8, indoorEq: 3
+  }), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'star2');
+  return result;
+}
+
+function makeStar3Result() {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeLongPipeTree(), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'star3');
+  return result;
+}
+
+function makeNoneResult() {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeLongPipeTree({
+    laLen: 25, lbLen: 25, lAEq: 5, laEq: 25, lbEq: 25, kitEq: 8, indoorEq: 3
+  }), 'fsv_uxe3', false);
+  assert.equal(result.longPipe.appliedRule, 'none');
+  return result;
+}
+
+test('sizeup highlight data for *2 marks all three pipes upsized with base and final diameters', () => {
+  const result = makeStar2Result();
+  const ui = makeUi(result);
+  ui.sizeUpHighlight = true;
+  for (const nodeId of ['lm-b2', 'lm-b3']) {
+    const hl = ui.getUxE3SizeUpHighlight(findResultNode(result.tree, nodeId));
+    assert.ok(hl, `${nodeId} has highlight data`);
+    assert.equal(hl.rule, 'star2');
+    assert.deepEqual(hl.pipes.liquid, { upsized: true, base: 12.7, final: 15.88, coverage: 1 });
+    assert.deepEqual(hl.pipes.dischargeGas, { upsized: true, base: 19.05, final: 22.22, coverage: 1 });
+    assert.deepEqual(hl.pipes.suctionGas, { upsized: true, base: 28.58, final: 31.8, coverage: 1 });
+    assert.equal(hl.anyUpsized, true);
+  }
+});
+
+test('sizeup highlight data for *3 upsizes only suction/discharge and reports partial coverage on LB', () => {
+  const result = makeStar3Result();
+  const ui = makeUi(result);
+  ui.sizeUpHighlight = true;
+
+  const la = ui.getUxE3SizeUpHighlight(findResultNode(result.tree, 'lm-b2'));
+  assert.equal(la.rule, 'star3');
+  assert.equal(la.pipes.suctionGas.upsized, true);
+  assert.equal(la.pipes.suctionGas.coverage, 1);
+  assert.equal(la.pipes.dischargeGas.upsized, true);
+  assert.equal(la.pipes.dischargeGas.coverage, 1);
+  assert.equal(la.pipes.liquid.upsized, false);
+
+  const lb = ui.getUxE3SizeUpHighlight(findResultNode(result.tree, 'lm-b3'));
+  assert.equal(lb.rule, 'star3');
+  // LB 30m のうち 20m（30〜50m）が増径区間。
+  assert.ok(Math.abs(lb.pipes.suctionGas.coverage - 2 / 3) < 1e-9);
+  assert.ok(Math.abs(lb.pipes.dischargeGas.coverage - 2 / 3) < 1e-9);
+  assert.equal(lb.pipes.liquid.upsized, false);
+  assert.equal(lb.pipes.suctionGas.base, 28.58);
+  assert.equal(lb.pipes.suctionGas.final, 31.8);
+  assert.equal(lb.pipes.dischargeGas.base, 19.05);
+  assert.equal(lb.pipes.dischargeGas.final, 22.22);
+});
+
+test('sizeup highlight data is null when no long-pipe rule applies', () => {
+  const result = makeNoneResult();
+  const ui = makeUi(result);
+  ui.sizeUpHighlight = true;
+  assert.equal(ui.getUxE3SizeUpHighlight(findResultNode(result.tree, 'lm-b2')), null);
+  assert.equal(ui.getUxE3SizeUpHighlight(findResultNode(result.tree, 'lm-b3')), null);
+});
+
+test('highlight off keeps the legacy *2 badge without base diameters', () => {
+  const result = makeStar2Result();
+  const ui = makeUi(result);
+  const node = findResultNode(result.tree, 'lm-b2');
+  const badge = ui.buildUxE3LmPipeBadgeHtml(ui.getUxE3LmEdgeDisplay(node), '');
+  assert.match(badge, /液管: φ15\.88/);
+  assert.doesNotMatch(badge, /↑増径/);
+  assert.doesNotMatch(badge, /→/);
+});
+
+test('highlight on shows base → final with ↑増径 in the *2 badge', () => {
+  const result = makeStar2Result();
+  const { tree } = renderCardsWithHighlight(result);
+  const html = findCardHtml(tree, 'lm-b2');
+  assert.ok(html, 'lm-b2 card exists');
+  assert.match(html, /液管: φ12\.7 → φ15\.88 ↑増径/);
+  assert.match(html, /吐出ガス: φ19\.05 → φ22\.22 ↑増径/);
+  assert.match(html, /吸入ガス: φ28\.58 → φ31\.8 ↑増径/);
+});
+
+test('highlight on shows per-pipe base → final in the *3 badge and leaves the standard segment row unchanged', () => {
+  const result = makeStar3Result();
+  const { tree } = renderCardsWithHighlight(result);
+  const html = findCardHtml(tree, 'lm-b3');
+  assert.ok(html, 'lm-b3 card exists');
+  assert.match(html, /吐出 φ19\.05 → φ22\.22 ↑増径/);
+  assert.match(html, /吸入 φ28\.58 → φ31\.8 ↑増径/);
+  assert.match(html, /液 φ12\.7（増径なし）/);
+  assert.match(html, /LM 50m〜60m（基準径）: 液φ12\.7・吐出φ19\.05・吸入φ28\.58/);
+});
+
+test('sizeup legend is gated by highlight mode and an applied rule and explains *2/*3', () => {
+  const star3 = makeStar3Result();
+  const ui = makeUi(star3);
+  ui.sizeUpHighlight = true;
+  assert.equal(ui.shouldShowSizeUpLegend(), true);
+  ui.sizeUpHighlight = false;
+  assert.equal(ui.shouldShowSizeUpLegend(), false);
+
+  const noneUi = makeUi(makeNoneResult());
+  noneUi.sizeUpHighlight = true;
+  assert.equal(noneUi.shouldShowSizeUpLegend(), false);
+
+  const html = ui.buildSizeUpLegendHtml();
+  assert.match(html, /＊2/);
+  assert.match(html, /＊3/);
+  assert.match(html, /↑増径/);
+  assert.match(html, /液管は増径なし/);
+});
+
+test('pipe size formatter shows base → final only for upsized pipes', () => {
+  const ui = makeUi(makeNoneResult());
+  assert.equal(
+    ui.formatUxE3PipeSizeText('液管', { upsized: true, base: 9.52, final: 12.7, coverage: 1 }),
+    '液管: φ9.52 → φ12.7 ↑増径'
+  );
+  assert.equal(
+    ui.formatUxE3PipeSizeText('液管', { upsized: false, base: 9.52, final: 9.52, coverage: 0 }),
+    '液管: φ9.52'
+  );
+});
+
+test('highlight mode requires the flag and the UXE3 series', () => {
+  const ui = makeUi(makeNoneResult());
+  ui.sizeUpHighlight = true;
+  assert.equal(ui.isSizeUpHighlightMode(), true);
+  ui.sizeUpHighlight = false;
+  assert.equal(ui.isSizeUpHighlightMode(), false);
+  ui.sizeUpHighlight = true;
+  ui.activeSeriesId = 'fsv_ux3';
+  assert.equal(ui.isSizeUpHighlightMode(), false);
+});
