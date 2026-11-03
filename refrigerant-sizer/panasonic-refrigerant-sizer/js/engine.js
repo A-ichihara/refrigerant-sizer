@@ -379,6 +379,39 @@ class RefrigerantSizerEngine {
         return "CZ-P680KB2";
     }
 
+    /**
+     * UXE3 室内ユニット用分岐配管セット選定（決定事項D7・2026-11-03）。
+     * 根拠：UXE3専用ハンドブック（空調設備機器ハンドブック 冷暖フリー
+     * UXE3シリーズ、2014年4月、S技-146）§4-1・§4-2-2。選定基準は
+     * 分岐後（下流）の合計容量である。
+     * - 22.4kW以下: APR-RZP224B
+     * - 22.4kW超〜68.0kW以下: APR-RZP680B
+     * - 68.0kW超〜135.0kW以下: APR-RZP1350B
+     * 135.0kW超はハンドブックに区分がなく、UXE3の対応範囲（最大56.0kW）
+     * でも発生しない。従来関数の「最大区分を返す」挙動に合わせ最大区分を
+     * 返し、範囲外の担保は calculateSystem の【UXE3対応容量外】警告に委ねる。
+     * 旧 selectJointModel の CZ-P…KB2 は公式文書に存在しない品番であり、
+     * UXE3 では本関数に置き換える（他シリーズの selectJointModel は不変）。
+     */
+    selectUxE3IndoorJointModel(kw) {
+        if (kw <= 22.4) return "APR-RZP224B";
+        if (kw <= 68.0) return "APR-RZP680B";
+        return "APR-RZP1350B";
+    }
+
+    /**
+     * UXE3 室外ユニット用分岐配管セット選定（決定事項D7・2026-11-03）。
+     * 根拠：同ハンドブック §4-1・§4-2-1。選定基準は分岐後（組合せ室外機
+     * の場合は組合せ合計）容量である。
+     * - 68.0kW以下: CZ-680BKE3
+     * - 68.0kW超〜135.0kW以下: CZ-1350BKE3
+     * 135.0kW超の扱いは室内側と同じ（最大区分を返す）。
+     */
+    selectUxE3OutdoorJointModel(kw) {
+        if (kw <= 68.0) return "CZ-680BKE3";
+        return "CZ-1350BKE3";
+    }
+
     calculateSystem(rootNode, seriesId, isManualSizeUp = false) {
         if (!rootNode || rootNode.type !== 'outdoor') {
             return { error: 'Invalid root node' };
@@ -522,6 +555,24 @@ class RefrigerantSizerEngine {
             warnings.push(...outdoorGroups.warnings);
             if (outdoorGroups.status === 'applied') {
                 this.applyUxE3OutdoorGroupToTotals(totals, outdoorGroups);
+            }
+            // 組合せ室外機の合流部には、室外ユニット用分岐配管セットが
+            // 1組必要である（決定事項D7・2026-11-03、ハンドブック
+            // S技-146 §4-2-1）。合流部はツリーの分岐ノードとしては表現
+            // されない（室外第一分岐との位置関係は未決事項D6）ため、
+            // 分岐ノードへ付け替えず、グループ単位で1組だけ計上する。
+            // 選定基準は組合せ合計容量であり、LOの長さ入力の有無には
+            // 依存しない（LO・バランス管の長さ集計とは別の計上である）。
+            if (outdoorGroups.status !== 'not_applicable') {
+                const jointModel = this.selectUxE3OutdoorJointModel(outdoorGroups.groupCapacityKw);
+                totals.joints[jointModel] = (totals.joints[jointModel] || 0) + 1;
+                outdoorGroups.branchJoint = {
+                    model: jointModel,
+                    capacityBasisKw: outdoorGroups.groupCapacityKw,
+                    basis: 'combination_total_kw',
+                    counted: true
+                };
+                outdoorGroups.notes.push(`室外ユニット用分岐配管セット ${jointModel} を組合せ室外機の合流部として1組計上した（決定事項D7・2026-11-03、ハンドブック S技-146 §4-2-1、選定基準は組合せ合計容量 ${outdoorGroups.groupCapacityKw}kW）。`);
             }
         }
 
@@ -2062,6 +2113,17 @@ class RefrigerantSizerEngine {
         // UX3等の2管式では、分岐ノードの下流合計容量で型番を決め、分岐1箇所につき1個集計する。
         if (node.type === 'branch' && seriesId !== 'fsv_uxe3') {
             node.jointModel = this.selectJointModel(this.getDownstreamCapacity(node));
+            totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
+        }
+
+        // UXE3では、分岐ノード1か所につき室内ユニット用分岐配管セットを
+        // 1個計上する（決定事項D7・2026-11-03、ハンドブック S技-146
+        // §4-2-2）。選定基準はそのノードの下流合計容量。第一分岐を含む
+        // すべての分岐ノードが対象である（公式文書に第一分岐専用の継手は
+        // 存在しない）。L3のチーズ分岐は現地手配品で品番がなく、ツリーの
+        // 分岐ノードとしては表現されないため、ここでは計上しない。
+        if (node.type === 'branch' && seriesId === 'fsv_uxe3') {
+            node.jointModel = this.selectUxE3IndoorJointModel(this.getDownstreamCapacity(node));
             totals.joints[node.jointModel] = (totals.joints[node.jointModel] || 0) + 1;
         }
 
