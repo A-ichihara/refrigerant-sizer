@@ -414,6 +414,88 @@ test('境界: R2 の接続容量比が 150% をわずかに超えると容量比
 // 根拠は review-20261102/mitsubishi/R2-TABLE-VISUAL-CHECK.md。
 const isR2Over25Warning = (w) => w.type === 'info' && w.message.includes('分岐〜分岐区間で下流合計が25.0kWを超える区間があります');
 
+// ---------------------------------------------------------------- Stage 1c: BC配下の分岐継手の誤判定修正
+// processNodeSizing で室外機/分岐判定が BC下流判定より先に評価されていたため、
+// BC→分岐継手→室内機（ボタンの操作では作れず JSON 読込でのみ生じる構成）で
+// 分岐配下の室内機が BC より前と誤判定され、3管（高圧/低圧ガス）選定・
+// 「BCコントローラーが必要です」の誤警告・集計漏れが起きていた。
+// 修正後は BC配下の分岐は BC下流として扱う。
+test('Stage1c: BC→分岐継手→室内機 の室内機区間は2管（液/ガス）で選定され、誤警告が出ない', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 22.4, [
+    bc('bc', [branch('b', [indoor('i1', 5.6, 5), indoor('i2', 5.6, 5)], 8)], 10),
+  ]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  const branchNode = r.tree.children[0].children[0];
+  // BC→分岐 の辺は従来どおり2管（分岐〜分岐扱い）
+  deepEqual(branchNode.pipes, { type: '2pipe', liquid: 9.52, gas: 15.88 });
+  assert.equal(branchNode.jointModel, 'CMY-Y102SS-G2');
+  // 分岐→室内機 の辺は BC下流の室内機サイズ（5.6kW → 9.52/15.88）
+  for (const indoorNode of branchNode.children) {
+    deepEqual(indoorNode.pipes, { type: '2pipe', liquid: 9.52, gas: 15.88 });
+    assert.equal(indoorNode.pipeSizeText, '液管: φ9.52 / ガス管: φ15.88');
+  }
+  // 誤った危険警告「BCコントローラーが必要です」は出ない
+  assert.equal(r.warnings.some((w) => w.type === 'danger' && w.message.includes('BCコントローラーが必要です')), false);
+  // 集計: 液/ガスに BC→分岐 8m + 室内機 5m×2 が計上され、高圧/低圧は室外機〜BC 10m のみ
+  deepEqual(r.totals.liquidPipes, { 9.52: 18 });
+  deepEqual(r.totals.gasPipes, { 15.88: 18 });
+  deepEqual(r.totals.highGasPipes, { 15.88: 10 });
+  deepEqual(r.totals.lowGasPipes, { 19.05: 10 });
+  assert.equal(r.totals.joints['CMY-Y102SS-G2'], 1);
+  assert.equal(r.totals.joints['CMB-P104V-J'], 1);
+  assert.equal(r.totals.totalLength, 28);
+});
+
+test('Stage1c: BC→分岐継手→室内機（14.0kW×2）でも室内機区間は2管で、25.0kW超の範囲外警告は従来どおり1回出る', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 45.0, [
+    bc('bc', [branch('b', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 8)], 10),
+  ]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  const branchNode = r.tree.children[0].children[0];
+  deepEqual(branchNode.pipes, { type: '2pipe', liquid: 9.52, gas: 22.2 });
+  for (const indoorNode of branchNode.children) {
+    deepEqual(indoorNode.pipes, { type: '2pipe', liquid: 9.52, gas: 15.88 });
+  }
+  assert.equal(r.warnings.some((w) => w.type === 'danger' && w.message.includes('BCコントローラーが必要です')), false);
+  assert.equal(r.warnings.filter(isR2Over25Warning).length, 1);
+});
+
+test('Stage1c: 子BC→分岐継手→室内機 も BC下流として2管で選定される', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 45.0, [
+    bc('bc', [subBc('sbc', [branch('b', [indoor('i1', 5.6, 5), indoor('i2', 5.6, 5)], 8)], 10)], 12),
+  ]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  const branchNode = r.tree.children[0].children[0].children[0];
+  for (const indoorNode of branchNode.children) {
+    deepEqual(indoorNode.pipes, { type: '2pipe', liquid: 9.52, gas: 15.88 });
+  }
+  assert.equal(r.warnings.some((w) => w.type === 'danger' && w.message.includes('BCコントローラーが必要です')), false);
+  deepEqual(r.totals.gasPipes, { 15.88: 18 });
+});
+
+test('Stage1c: BC配下で分岐が入れ子（BC→分岐→分岐→室内機）でも内側の分岐区間まで2管になる', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 45.0, [
+    bc('bc', [branch('b1', [branch('b2', [indoor('i1', 5.6, 5)], 6), indoor('i2', 5.6, 5)], 8)], 10),
+  ]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  const innerBranch = r.tree.children[0].children[0].children[0];
+  assert.equal(innerBranch.pipes.type, '2pipe');
+  deepEqual(innerBranch.children[0].pipes, { type: '2pipe', liquid: 9.52, gas: 15.88 });
+  assert.equal(r.warnings.some((w) => w.type === 'danger' && w.message.includes('BCコントローラーが必要です')), false);
+});
+
+test('Stage1c: BCを経由しない分岐（室外機→分岐→室内機）は従来どおり危険警告が出る（修正の巻き込みなし）', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 22.4, [branch('b', [indoor('i1', 5.6, 5)], 10)]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2');
+  assert.equal(r.warnings.some((w) => w.type === 'danger' && w.message.includes('BCコントローラーが必要です')), true);
+  assert.equal(r.tree.children[0].children[0].pipes.type, '3pipe');
+});
+
 test('範囲外警告: R2 で分岐〜分岐区間の下流合計が 25.0kW を超えると警告が出て、管径は代用値のまま', () => {
   const engine = loadEngine();
   // BC直下の分岐ジョイントの下流合計 14.0+14.0 = 28.0kW

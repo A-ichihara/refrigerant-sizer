@@ -558,8 +558,11 @@ class RefrigerantSizerEngine {
                 totals.totalLength += len;
 
                 // 3管/2管の切り替え判定 (R2シリーズの場合)
+                // BC下流判定を室外機/分岐判定より優先する: BC配下の分岐継手は
+                // 「BCより前」ではなく BC下流として扱う（JSON読込でのみ生じる
+                // BC→分岐継手→室内機 構成の誤判定修正。Stage 1c）。
                 if (seriesId === 'city_multi_r2') {
-                    if (node.type === 'outdoor' || node.type === 'branch') {
+                    if ((node.type === 'outdoor' || node.type === 'branch') && !inBCDownstream) {
                         // 親BCコントローラーに突入するまでは高圧・低圧ガス管の2管
                         // （室外機〜親BC間に液管は存在しない。D1・D3・D4。D-R2-LIQ）
                         if (child.type === 'bc_controller') {
