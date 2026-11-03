@@ -257,17 +257,85 @@ test('総配管長650mでは警告する', () => {
 });
 
 test('第一分岐後90mでは警告しない', () => {
+  // 第一分岐後の配管長は第一分岐より下流だけを測る（室外機→第一分岐は含めない）。
+  // 旧定義では分岐長80m＋室内機10m＝90mとしていたが、正しくは下流の90mで判定する。
   const engine = loadEngine();
-  const result = engine.calculateSystem(twoPipeTree(45.0, [22.4], 80, 10), 'yanmar_ghp_highpower', false);
+  const result = engine.calculateSystem(twoPipeTree(45.0, [22.4], 10, 90), 'yanmar_ghp_highpower', false);
   assert.equal(result.totals.firstBranchToIndoorMax, 90);
   assert.ok(!result.warnings.some(w => w.includes('第一分岐後')));
 });
 
 test('第一分岐後91mでは警告する', () => {
+  // 旧定義では分岐長81m＋室内機10m＝91mで警告していたが、正しくは下流の91mで警告する。
   const engine = loadEngine();
-  const result = engine.calculateSystem(twoPipeTree(45.0, [22.4], 81, 10), 'yanmar_ghp_highpower', false);
+  const result = engine.calculateSystem(twoPipeTree(45.0, [22.4], 10, 91), 'yanmar_ghp_highpower', false);
   assert.equal(result.totals.firstBranchToIndoorMax, 91);
   assert.ok(result.warnings.some(w => w.includes('第一分岐後')));
+});
+
+test('第一分岐後: 室外機→第一分岐81m＋分岐→室内機10mは10mであり警告しない', () => {
+  const engine = loadEngine();
+  const result = engine.calculateSystem(twoPipeTree(45.0, [22.4], 81, 10), 'yanmar_ghp_highpower', false);
+  assert.equal(result.totals.firstBranchToIndoorMax, 10);
+  assert.ok(!result.warnings.some(w => w.includes('第一分岐後')));
+  // 総配管長・最遠配管長は室外機→第一分岐の81mを含めたまま変わらない。
+  assert.equal(result.totals.longestPath, 91);
+  assert.equal(result.totals.totalPipingLength, 91);
+});
+
+test('第一分岐後: 多段分岐では第一分岐より下流の合計が最大値になる', () => {
+  const engine = loadEngine();
+  const tree = node('outdoor', { capacity: 45.0, length: 0 }, [
+    node('branch', { length: 20 }, [
+      node('branch', { length: 30 }, [node('indoor', { capacity: 22.4, length: 40 })]),
+    ]),
+  ]);
+  const result = engine.calculateSystem(tree, 'yanmar_ghp_highpower', false);
+  assert.equal(result.totals.firstBranchToIndoorMax, 70);
+  assert.equal(result.totals.longestPath, 90);
+  assert.ok(!result.warnings.some(w => w.includes('第一分岐後')));
+});
+
+test('第一分岐後: 複数室内機では最も遠い室内機までの下流経路が最大値になる', () => {
+  const engine = loadEngine();
+  const tree = node('outdoor', { capacity: 45.0, length: 0 }, [
+    node('branch', { length: 81 }, [
+      node('indoor', { capacity: 11.2, length: 10 }),
+      node('indoor', { capacity: 11.2, length: 25 }),
+      node('indoor', { capacity: 11.2, length: 15 }),
+    ]),
+  ]);
+  const result = engine.calculateSystem(tree, 'yanmar_ghp_highpower', false);
+  assert.equal(result.totals.firstBranchToIndoorMax, 25);
+  assert.ok(!result.warnings.some(w => w.includes('第一分岐後')));
+});
+
+test('第一分岐後: 下流合計ちょうど90.0mでは警告せず、90.1mでは警告する', () => {
+  const engine = loadEngine();
+  const build = (secondBranchLength) => node('outdoor', { capacity: 45.0, length: 0 }, [
+    node('branch', { length: 5 }, [
+      node('branch', { length: secondBranchLength }, [node('indoor', { capacity: 22.4, length: 50 })]),
+    ]),
+  ]);
+  const atLimit = engine.calculateSystem(build(40), 'yanmar_ghp_highpower', false);
+  assert.equal(atLimit.totals.firstBranchToIndoorMax, 90);
+  assert.ok(!atLimit.warnings.some(w => w.includes('第一分岐後')));
+  const overLimit = engine.calculateSystem(build(40.1), 'yanmar_ghp_highpower', false);
+  assert.ok(Math.abs(overLimit.totals.firstBranchToIndoorMax - 90.1) < 1e-9);
+  assert.ok(overLimit.warnings.some(w => w.includes('第一分岐後')));
+});
+
+test('第一分岐後: 下流95mの超過系では警告が残る（10m＋第2分岐50m＋室内機45m）', () => {
+  const engine = loadEngine();
+  const tree = node('outdoor', { capacity: 45.0, length: 0 }, [
+    node('branch', { length: 10 }, [
+      node('branch', { length: 50 }, [node('indoor', { capacity: 22.4, length: 45 })]),
+    ]),
+  ]);
+  const result = engine.calculateSystem(tree, 'yanmar_ghp_highpower', false);
+  assert.equal(result.totals.firstBranchToIndoorMax, 95);
+  assert.equal(result.totals.longestPath, 105);
+  assert.ok(result.warnings.some(w => w.includes('第一分岐後') && w.includes('95.0')));
 });
 
 test('総配管長640mちょうどでは警告しない', () => {
