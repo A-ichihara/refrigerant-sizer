@@ -65,3 +65,5 @@ jobs:
         run: node --test refrigerant-sizer/tests/panasonic-ghp-corrections.test.cjs
       - name: Run Panasonic UXE3 max indoor units regression tests
         run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-max-indoor-units.test.cjs
+      - name: Run Panasonic UXE3 D7 joint models regression tests
+        run: node --test refrigerant-sizer/panasonic-refrigerant-sizer/tests/uxe3-d7-joint-models.test.cjs
