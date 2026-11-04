@@ -585,3 +585,148 @@ describe('90m自動サイズアップ (実長判定・文言是正)', () => {
         }
     });
 });
+
+// ==================== 主管サイズアップの帰属記録 (Stage 2 増径表示用、2026-11-04) ====================
+// 増径表示のために、実際に増径した管だけへ「基準径・最終径・理由」を室外機ノードの
+// sizeUpAttribution に記録する追加。選定結果（最終径・集計・警告）は従来と不変であり、
+// 変更前エンジンとの全結果比較でも一致を確認済み
+// (~/workspace/refrigerant-sizer-verification/stage2-expansion/compare-daikin-vrv-before-after.cjs で 75/75 一致)。
+describe('主管サイズアップの帰属記録 (増径表示用)', () => {
+    function treeWithFarthest(kw, farthest) {
+        return outdoor(kw, [branch('b1', [indoor('i1', 28.0, 5)], farthest - 5)]);
+    }
+
+    test('最遠実長 89.9m では帰属なし (増径自体が発動しない)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 89.9), 'vrv7_x');
+        assert.equal(result.tree.sizeUpAttribution, undefined);
+        assert.equal(result.tree.pipeLiquid, 12.7);
+        assert.equal(result.tree.pipeGas, 25.4);
+    });
+
+    test('最遠実長 90.0m (2管式) では液・ガス両方に帰属が付く (理由=auto)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv7_x');
+        assert.deepEqual(result.tree.sizeUpAttribution, {
+            liquid: { base: 12.7, final: 15.9, reason: 'auto' },
+            gas: { base: 25.4, final: 28.6, reason: 'auto' }
+        });
+        assert.equal(result.tree.pipeLiquid, 15.9);
+        assert.equal(result.tree.pipeGas, 28.6);
+    });
+
+    test('3管式R では液管のみに帰属が付く (高低圧・吸入ガス管には付かない)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv_r');
+        assert.deepEqual(Object.keys(result.tree.sizeUpAttribution), ['liquid']);
+        assert.deepEqual(result.tree.sizeUpAttribution.liquid, { base: 12.7, final: 15.9, reason: 'auto' });
+        assert.equal(result.tree.pipeHighLowGas, 19.1);
+        assert.equal(result.tree.pipeSuctionGas, 25.4);
+    });
+
+    test('ガス管 φ38.1 据え置きの場合はガス管に帰属が付かない (液管のみ)', () => {
+        const engine = makeEngine();
+        const tree = outdoor(118.0, [branch('b1', [indoor('i1', 28.0, 5)], 90)]);
+        const result = engine.calculateSystem(tree, 'vrv7_x');
+        assert.deepEqual(result.tree.sizeUpAttribution, {
+            liquid: { base: 19.1, final: 22.2, reason: 'auto' }
+        });
+        assert.equal(result.tree.pipeGas, 38.1);
+    });
+
+    test('除外シリーズ (machi_multi / skyair) では最遠実長 90.1m でも帰属なし', () => {
+        const engine = makeEngine();
+        for (const seriesId of ['machi_multi', 'skyair']) {
+            const result = engine.calculateSystem(treeWithFarthest(45.0, 90.1), seriesId);
+            assert.equal(result.tree.sizeUpAttribution, undefined, `${seriesId} に帰属が付いている`);
+        }
+    });
+
+    test('手動の強制サイズアップでは理由が manual になる (短距離でも帰属が付く)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 30.0), 'vrv7_x', true);
+        assert.deepEqual(result.tree.sizeUpAttribution, {
+            liquid: { base: 12.7, final: 15.9, reason: 'manual' },
+            gas: { base: 25.4, final: 28.6, reason: 'manual' }
+        });
+        assert.ok(result.warnings.some(w => w.includes('強制適用されています')));
+    });
+
+    test('手動ONでも最遠実長が90m以上なら理由は auto (警告文の出し分けと同じ優先順位)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 95.0), 'vrv7_x', true);
+        assert.equal(result.tree.sizeUpAttribution.liquid.reason, 'auto');
+        assert.equal(result.tree.sizeUpAttribution.gas.reason, 'auto');
+        assert.ok(result.warnings.some(w => w.includes('自動的に1サイズアップしました')));
+    });
+
+    test('帰属が付いても集計・警告は従来どおり (90.0m 系統の集計を固定)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv7_x');
+        assert.ok(result.tree.sizeUpAttribution);
+        assert.deepEqual(result.totals.liquidPipes, { '9.5': 90 });
+        assert.deepEqual(result.totals.gasPipes, { '22.2': 90 });
+        assert.deepEqual(result.totals.joints, { KHR26C72T: 1 });
+        assert.equal(result.totals.longestPath, 90);
+        assert.equal(result.totals.totalPipingLength, 90);
+        assert.equal(result.warnings.length, 1);
+        assert.ok(result.warnings[0].includes('自動的に1サイズアップしました'));
+    });
+});
+
+// ==================== 増径強調表示の UI ヘルパー (Stage 2、2026-11-04) ====================
+// 表示層の判定だけを検証する（DOM を使う描画そのものは実機確認で担保）。
+// 凡例文言は「メーカー確認済みの増径」に見える表現を含まないことを固定する。
+const RefrigerantSizerUI = require('../js/ui.js');
+
+describe('増径強調表示の UI ヘルパー', () => {
+    function treeWithFarthest(kw, farthest) {
+        return outdoor(kw, [branch('b1', [indoor('i1', 28.0, 5)], farthest - 5)]);
+    }
+    function makeUi(result, highlight) {
+        const ui = Object.create(RefrigerantSizerUI.prototype);
+        ui.sizeUpHighlight = highlight;
+        ui.sizerResult = result;
+        return ui;
+    }
+
+    test('自動増径時: 強調モードで凡例が出て、未確認である旨を含む', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv7_x');
+        const ui = makeUi(result, true);
+        assert.equal(ui.isSizeUpHighlightMode(), true);
+        assert.equal(ui.shouldShowSizeUpLegend(), true);
+        const html = ui.buildSizeUpLegendHtml();
+        assert.ok(html.includes('増径表示の凡例'));
+        assert.ok(html.includes('最遠配管実長が90m以上'));
+        assert.ok(html.includes('メーカー技術資料で未確認'));
+        assert.ok(!html.includes('メーカー確認済み'));
+    });
+
+    test('手動強制時: 凡例に強制適用（手動設定）と出る', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 30.0), 'vrv7_x', true);
+        const ui = makeUi(result, true);
+        assert.equal(ui.shouldShowSizeUpLegend(), true);
+        const html = ui.buildSizeUpLegendHtml();
+        assert.ok(html.includes('強制適用（手動設定）'));
+        assert.ok(!html.includes('最遠配管実長が90m以上'));
+    });
+
+    test('強調OFFでは凡例を出さない (表示だけの切替で結果は同じ)', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 90.0), 'vrv7_x');
+        const ui = makeUi(result, false);
+        assert.equal(ui.isSizeUpHighlightMode(), false);
+        assert.equal(ui.shouldShowSizeUpLegend(), false);
+        assert.ok(result.tree.sizeUpAttribution); // エンジン側の帰属記録自体は不変
+    });
+
+    test('増径がない系統では帰属なし・凡例なし', () => {
+        const engine = makeEngine();
+        const result = engine.calculateSystem(treeWithFarthest(45.0, 30.0), 'vrv7_x');
+        const ui = makeUi(result, true);
+        assert.equal(ui.getMainPipeSizeUpAttribution(), null);
+        assert.equal(ui.shouldShowSizeUpLegend(), false);
+    });
+});
