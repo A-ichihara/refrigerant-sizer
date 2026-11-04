@@ -240,13 +240,31 @@ class RefrigerantSizerUI {
                     </div>
                 `;
             } else if (node.pipes && node.pipes.type === '2pipe') {
-                pipeHtml = `
+                // 手動サイズアップの帰属がある辺では、増径強調トグル ON の
+                // ときに基準径 → 最終径を示す（UXE3 以外のシリーズのみ。
+                // UXE3 の ＊2・＊3 バッジは上の lmDisplay 経路が担う）。
+                const manualHl = this.activeSeriesId !== 'fsv_uxe3' && this.sizeUpHighlight === true
+                    ? this.getManualSizeUpHighlight(node) : null;
+                if (manualHl) {
+                    const rowFor = (labelText, key) => manualHl.pipes[key].upsized
+                        ? `<div class="sizeup-badge-row">${this.formatUxE3PipeSizeText(labelText, manualHl.pipes[key])}</div>`
+                        : `<div>${this.formatUxE3PipeSizeText(labelText, manualHl.pipes[key])}</div>`;
+                    pipeHtml = `
+                    <div class="pipe-result-badge">
+                        ${rowFor('液管', 'liquid')}
+                        ${rowFor('ガス管', 'gas')}
+                        <div style="font-size:0.7rem; color:var(--text-muted);">手動サイズアップ適用：基準径から1ランク増径</div>
+                    </div>
+                `;
+                } else {
+                    pipeHtml = `
                     <div class="pipe-result-badge">
                         ${unverifiedPipeLabel}
                         <div>液管: φ${node.pipes.liquid}</div>
                         <div>ガス管: φ${node.pipes.gas}</div>
                     </div>
                 `;
+                }
             } else if (node.pipeSizeText) {
                 pipeHtml = `<div class="pipe-result-badge"><div>${node.pipeSizeText}</div></div>`;
             }
@@ -363,18 +381,19 @@ class RefrigerantSizerUI {
 
                 this.svgCanvas.appendChild(path);
 
-                // UXE3 増径強調表示（表示層のみ）: 増径した管ごとに、
+                // 増径強調表示（表示層のみ）: 増径した管ごとに、
                 // 基本パスを管別にずらした太いオレンジの重ね線を描く。
-                // ＊3 で辺の一部だけが増径区間の場合は、その割合だけ線を引く。
-                const hl = this.isSizeUpHighlightMode() ? this.getUxE3SizeUpHighlight(child) : null;
+                // UXE3 の ＊3 で辺の一部だけが増径区間の場合は、その割合
+                // だけ線を引く。手動サイズアップ（他シリーズ）は辺全体。
+                const hl = this.getSizeUpHighlight(child);
                 const hlActive = !!(hl && hl.anyUpsized);
                 if (hlActive) {
-                    for (const key of ['liquid', 'dischargeGas', 'suctionGas']) {
+                    for (const key of ['liquid', 'dischargeGas', 'suctionGas', 'gas']) {
                         if (!hl.pipes[key] || !hl.pipes[key].upsized) continue;
                         const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                         overlay.setAttribute('d', pathData);
                         overlay.setAttribute('class', `connection-path sizeup-overlay sizeup-${key}`);
-                        overlay.setAttribute('transform', `translate(0 ${key === 'liquid' ? -5 : key === 'suctionGas' ? 5 : 0})`);
+                        overlay.setAttribute('transform', `translate(0 ${key === 'liquid' ? -5 : key === 'dischargeGas' ? 0 : 5})`);
                         overlay.setAttribute('data-sizeup-pipe', key);
                         overlay.setAttribute('data-sizeup-rule', hl.rule);
                         const cov = hl.pipes[key].coverage;
@@ -440,7 +459,7 @@ class RefrigerantSizerUI {
                     }
 
                     let labelWidth = is3Pipe ? 130 : 118;
-                    if (hlActive && is3Pipe && ['liquid', 'dischargeGas', 'suctionGas'].some((key) => hl.pipes[key] && hl.pipes[key].upsized && hl.pipes[key].base !== null && hl.pipes[key].base !== undefined)) {
+                    if (hlActive && ['liquid', 'dischargeGas', 'suctionGas', 'gas'].some((key) => hl.pipes[key] && hl.pipes[key].upsized && hl.pipes[key].base !== null && hl.pipes[key].base !== undefined)) {
                         labelWidth = 196;
                     }
                     const rowH = 16;
@@ -494,11 +513,11 @@ class RefrigerantSizerUI {
                         g.appendChild(tSG);
                     } else {
                         const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        tGas.setAttribute('class', 'pipe-label-text');
+                        tGas.setAttribute('class', hlActive && hl.pipes.gas && hl.pipes.gas.upsized ? 'pipe-label-text sizeup-text' : 'pipe-label-text');
                         tGas.setAttribute('x', midX);
                         tGas.setAttribute('y', boxY + rowH * 3 - 2);
                         tGas.setAttribute('fill', '#00d2ff');
-                        tGas.textContent = 'ガス管: φ' + (pGas || '-');
+                        tGas.textContent = hlActive && hl.pipes.gas ? this.formatUxE3PipeSizeText('ガス管', hl.pipes.gas) : 'ガス管: φ' + (pGas || '-');
                         g.appendChild(tGas);
                     }
 
@@ -1366,18 +1385,73 @@ class RefrigerantSizerUI {
         return this.activeSeriesId === 'fsv_uxe3' && this.sizeUpHighlight === true;
     }
 
-    /** 増径強調トグルボタンの表示状態を現在の状態に合わせる。 */
+    /**
+     * 増径強調トグルボタンの表示状態を現在の状態に合わせる。
+     * 第2段階の展開により、トグルは全シリーズ共通になった（UXE3 は
+     * ＊2・＊3、それ以外のシリーズは手動サイズアップの帰属を表示する）。
+     * トグル自体は1つのままである。
+     */
     refreshSizeUpHighlightButton() {
         const btn = document.getElementById('btn-sizeup-highlight');
         if (!btn) return;
-        if (this.activeSeriesId !== 'fsv_uxe3') {
-            btn.style.display = 'none';
-            return;
-        }
         btn.style.display = '';
         const label = btn.querySelector('span');
         if (label) label.textContent = this.sizeUpHighlight ? '🔆 増径強調：ON' : '🔆 増径強調：OFF';
         btn.classList.toggle('btn-primary', !!this.sizeUpHighlight);
+    }
+
+    /**
+     * 増径強調表示の統合ゲッター。トグル OFF の場合は null。
+     * UXE3 では長配管条件（＊2・＊3）の帰属を、それ以外のシリーズでは
+     * 手動サイズアップの帰属を返す。両者はシリーズが排他のため同時に
+     * 返ることはない（手動サイズアップは UXE3 でエンジン側が停止する）。
+     */
+    getSizeUpHighlight(node) {
+        if (this.sizeUpHighlight !== true) return null;
+        if (this.activeSeriesId === 'fsv_uxe3') return this.getUxE3SizeUpHighlight(node);
+        return this.getManualSizeUpHighlight(node);
+    }
+
+    /**
+     * 手動サイズアップの帰属（エンジンが辺ノードに記録した
+     * sizeUpAttribution）から、増径強調表示用の管ごとの情報を返す。
+     * 帰属がない場合は null。手動増径は辺全体へ一律に適用されるため
+     * coverage は常に 1 とし、帰属にない管は増径なし（最終径のみ）と
+     * して返す。
+     */
+    getManualSizeUpHighlight(node) {
+        const attribution = node ? node.sizeUpAttribution : null;
+        if (!attribution || attribution.source !== 'manual' || !attribution.pipes) return null;
+        const current = node.pipes || {};
+        const pipes = {};
+        for (const key of ['liquid', 'gas']) {
+            const entry = attribution.pipes[key];
+            if (entry) {
+                pipes[key] = { upsized: true, base: entry.base, final: entry.final, coverage: 1 };
+            } else {
+                const fin = current[key] !== undefined ? current[key] : null;
+                pipes[key] = { upsized: false, base: fin, final: fin, coverage: 0 };
+            }
+        }
+        return {
+            rule: 'manual',
+            segment: null,
+            pipes,
+            anyUpsized: Object.values(pipes).some((pipe) => pipe.upsized)
+        };
+    }
+
+    /** ツリー内に手動サイズアップの帰属がある辺が1つでもあるか。 */
+    hasManualSizeUpAttribution(node, seen = null) {
+        if (!node || typeof node !== 'object') return false;
+        if (!seen) seen = new Set();
+        if (seen.has(node)) return false;
+        seen.add(node);
+        if (node.sizeUpAttribution) return true;
+        if (Array.isArray(node.children)) {
+            return node.children.some((child) => this.hasManualSizeUpAttribution(child, seen));
+        }
+        return false;
     }
 
     /**
@@ -1456,8 +1530,21 @@ class RefrigerantSizerUI {
         return `${label}: φ${pipe.final !== null && pipe.final !== undefined ? pipe.final : pipe.base}`;
     }
 
-    /** 増径表示の凡例 HTML（キャンバス左下に重ねて表示する）。 */
+    /**
+     * 増径表示の凡例 HTML（キャンバス左下に重ねて表示する）。
+     * 自動（UXE3 の ＊2・＊3）と手動（手動サイズアップ）で文言を分け、
+     * 利用者が帰属を区別できるようにする。両者はシリーズが排他のため、
+     * 1つの凡例に混在することはない。
+     */
     buildSizeUpLegendHtml() {
+        if (this.activeSeriesId !== 'fsv_uxe3') {
+            return [
+                '<div class="sizeup-legend-title">増径表示の凡例（手動サイズアップ）</div>',
+                '<div><span class="sizeup-legend-swatch"></span>太いオレンジ線＝手動サイズアップで増径した配管。管ごとに位置をずらして表示（上：液管／下：ガス管）</div>',
+                '<div>「↑増径」＝基準径 → 増径後の径を表示</div>',
+                '<div>手動サイズアップ適用時に、基準径から1ランク増径した区間だけを表示します。既に最大径で径が変わらなかった区間は表示されません</div>'
+            ].join('');
+        }
         return [
             '<div class="sizeup-legend-title">増径表示の凡例（長配管条件 ＊2・＊3）</div>',
             '<div><span class="sizeup-legend-swatch"></span>太いオレンジ線＝増径した配管。管ごとに位置をずらして表示（上：液管／中：吐出ガス／下：吸入ガス）</div>',
@@ -1467,11 +1554,18 @@ class RefrigerantSizerUI {
         ].join('');
     }
 
-    /** 凡例を表示すべき状態か（強調モード ON かつ ＊2・＊3 のいずれか適用時）。 */
+    /**
+     * 凡例を表示すべき状態か。トグル ON であることに加え、UXE3 では
+     * ＊2・＊3 のいずれかが適用されていること、それ以外のシリーズでは
+     * 手動サイズアップの帰属がある辺が1つでもあることを条件とする。
+     */
     shouldShowSizeUpLegend() {
-        if (!this.isSizeUpHighlightMode() || !this.sizerResult) return false;
-        const lp = this.sizerResult.longPipe;
-        return !!(lp && (lp.appliedRule === 'star2' || lp.appliedRule === 'star3'));
+        if (this.sizeUpHighlight !== true || !this.sizerResult) return false;
+        if (this.activeSeriesId === 'fsv_uxe3') {
+            const lp = this.sizerResult.longPipe;
+            return !!(lp && (lp.appliedRule === 'star2' || lp.appliedRule === 'star3'));
+        }
+        return this.hasManualSizeUpAttribution(this.sizerResult.tree);
     }
 
     /** 凡例をキャンバスへ描画する（既存の凡例があれば差し替える）。 */
