@@ -19,6 +19,7 @@ class RefrigerantSizerUI {
         let loadedSeriesId = "super_multi_u_y";
         let loadedNodeId = "root";
         let loadedManualSizeUp = false;
+        let loadedSizeUpHighlight = true;
 
         try {
             const savedTree = localStorage.getItem('carrier_sizer_system_tree');
@@ -29,6 +30,8 @@ class RefrigerantSizerUI {
             if (savedNode) loadedNodeId = savedNode;
             const savedSizeUp = localStorage.getItem('carrier_sizer_enable_manual_sizeup');
             if (savedSizeUp) loadedManualSizeUp = savedSizeUp === 'true';
+            const savedHighlight = localStorage.getItem('carrier_sizer_sizeup_highlight');
+            loadedSizeUpHighlight = (savedHighlight === null || savedHighlight === undefined) ? true : savedHighlight === 'true';
         } catch (e) {
             console.error("Failed to load state from localStorage", e);
         }
@@ -36,6 +39,7 @@ class RefrigerantSizerUI {
         this.activeSeriesId = loadedSeriesId;
         this.activeNodeId = loadedNodeId;
         this.enableManualSizeUp = loadedManualSizeUp;
+        this.sizeUpHighlight = loadedSizeUpHighlight;
         
         if (loadedTree) {
             this.systemTree = loadedTree;
@@ -97,6 +101,7 @@ class RefrigerantSizerUI {
         if (forceSUpBtn) {
             forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
         }
+        this.refreshSizeUpHighlightButton();
         this.update();
     }
 
@@ -117,6 +122,7 @@ class RefrigerantSizerUI {
             localStorage.setItem('carrier_sizer_active_series_id', this.activeSeriesId);
             localStorage.setItem('carrier_sizer_active_node_id', this.activeNodeId);
             localStorage.setItem('carrier_sizer_enable_manual_sizeup', this.enableManualSizeUp ? 'true' : 'false');
+            localStorage.setItem('carrier_sizer_sizeup_highlight', this.sizeUpHighlight ? 'true' : 'false');
         } catch (e) {
             console.error("Failed to save state to localStorage", e);
         }
@@ -125,6 +131,7 @@ class RefrigerantSizerUI {
         this.drawConnections();
         this.renderTotals(results.totals);
         this.renderWarnings(results.warnings);
+        this.renderSizeUpLegend();
         this.renderPropertyEditor();
     }
 
@@ -191,19 +198,31 @@ class RefrigerantSizerUI {
         // 配管結果バッジ
         let pipeHtml = '';
         if (node.type !== 'outdoor') {
+            // 増径強調表示（表示層のみ）: 強調モードでは、増径した管の行だけ
+            // 「基準径 → 増径後径 ↑増径」に置き換える。それ以外は従来どおり。
+            const hl = this.isSizeUpHighlightMode() ? this.getCarrierSizeUpHighlight(node) : null;
+            const badgeRow = (labelText, key, style) => {
+                const pipe = hl ? hl.pipes[key] : null;
+                if (pipe && pipe.upsized) {
+                    return `<div class="sizeup-badge-row">${this.formatCarrierPipeSizeText(labelText, pipe)}</div>`;
+                }
+                return `<div${style ? ` style="${style}"` : ''}>${labelText}: φ${node.pipes[key]}</div>`;
+            };
             if (node.pipes && node.pipes.type === '3pipe') {
                 pipeHtml = `
                     <div class="pipe-result-badge">
-                        <div>液管: φ${node.pipes.liquid}</div>
-                        <div style="color:var(--color-warning);">高圧ガス: φ${node.pipes.highGas}</div>
-                        <div style="color:var(--color-secondary);">低圧ガス: φ${node.pipes.lowGas}</div>
+                        ${badgeRow('液管', 'liquid', null)}
+                        ${badgeRow('高圧ガス', 'highGas', 'color:var(--color-warning);')}
+                        ${badgeRow('低圧ガス', 'lowGas', 'color:var(--color-secondary);')}
+                        ${hl ? '<div style="font-size:0.7rem; color:var(--text-muted);">手動サイズアップによる増径</div>' : ''}
                     </div>
                 `;
             } else if (node.pipes && node.pipes.type === '2pipe') {
                 pipeHtml = `
                     <div class="pipe-result-badge">
-                        <div>液管: φ${node.pipes.liquid}</div>
-                        <div>ガス管: φ${node.pipes.gas}</div>
+                        ${badgeRow('液管', 'liquid', null)}
+                        ${badgeRow('ガス管', 'gas', null)}
+                        ${hl ? '<div style="font-size:0.7rem; color:var(--text-muted);">手動サイズアップによる増径</div>' : ''}
                     </div>
                 `;
             } else if (node.pipeSizeText) {
@@ -321,6 +340,26 @@ class RefrigerantSizerUI {
 
                 this.svgCanvas.appendChild(path);
 
+                // 手動サイズアップ増径強調表示（表示層のみ）: 増径した管ごとに、
+                // 基本パスを管別にずらした太いオレンジの重ね線を描く。
+                const hl = this.isSizeUpHighlightMode() ? this.getCarrierSizeUpHighlight(child) : null;
+                const hlActive = !!(hl && hl.anyUpsized);
+                if (hlActive) {
+                    const offsets = isThreePipe
+                        ? { liquid: -5, highGas: 0, lowGas: 5 }
+                        : { liquid: -5, gas: 5 };
+                    for (const key of Object.keys(offsets)) {
+                        if (!hl.pipes[key] || !hl.pipes[key].upsized) continue;
+                        const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        overlay.setAttribute('d', pathData);
+                        overlay.setAttribute('class', `connection-path sizeup-overlay sizeup-${key}`);
+                        overlay.setAttribute('transform', `translate(0 ${offsets[key]})`);
+                        overlay.setAttribute('data-sizeup-pipe', key);
+                        overlay.setAttribute('data-sizeup-reason', hl.reason);
+                        this.svgCanvas.appendChild(overlay);
+                    }
+                }
+
                 // 配管道中への冷媒サイズ記号（ラベル）自動記入
                 const pLiquid = child.pipeLiquid || (child.pipes && child.pipes.liquid);
                 const pGas = child.pipeGas || (child.pipes && child.pipes.gas);
@@ -349,7 +388,8 @@ class RefrigerantSizerUI {
                         segmentColor = '#a855f7';
                     }
 
-                    const labelWidth = is3Pipe ? 130 : 118;
+                    let labelWidth = is3Pipe ? 130 : 118;
+                    if (hlActive) labelWidth = is3Pipe ? 196 : 176;
                     const rowH = 16;
                     const rows = is3Pipe ? 4 : 3;
                     const boxH = rows * rowH + 6;
@@ -376,36 +416,36 @@ class RefrigerantSizerUI {
                     g.appendChild(tHeader);
 
                     const tLiq = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    tLiq.setAttribute('class', 'pipe-label-text');
+                    tLiq.setAttribute('class', hlActive && hl.pipes.liquid && hl.pipes.liquid.upsized ? 'pipe-label-text sizeup-text' : 'pipe-label-text');
                     tLiq.setAttribute('x', midX);
                     tLiq.setAttribute('y', boxY + rowH * 2 - 2);
                     tLiq.setAttribute('fill', '#e0f2fe');
-                    tLiq.textContent = '液管: φ' + (pLiquid || '-');
+                    tLiq.textContent = hlActive ? this.formatCarrierPipeSizeText('液管', hl.pipes.liquid) : '液管: φ' + (pLiquid || '-');
                     g.appendChild(tLiq);
 
                     if (is3Pipe) {
                         const tHLG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        tHLG.setAttribute('class', 'pipe-label-text');
+                        tHLG.setAttribute('class', hlActive && hl.pipes.highGas && hl.pipes.highGas.upsized ? 'pipe-label-text sizeup-text' : 'pipe-label-text');
                         tHLG.setAttribute('x', midX);
                         tHLG.setAttribute('y', boxY + rowH * 3 - 2);
                         tHLG.setAttribute('fill', '#fbbf24');
-                        tHLG.textContent = '吐出ガス: φ' + (pHighGas || '-');
+                        tHLG.textContent = hlActive ? this.formatCarrierPipeSizeText('吐出ガス', hl.pipes.highGas) : '吐出ガス: φ' + (pHighGas || '-');
                         g.appendChild(tHLG);
 
                         const tSG = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        tSG.setAttribute('class', 'pipe-label-text');
+                        tSG.setAttribute('class', hlActive && hl.pipes.lowGas && hl.pipes.lowGas.upsized ? 'pipe-label-text sizeup-text' : 'pipe-label-text');
                         tSG.setAttribute('x', midX);
                         tSG.setAttribute('y', boxY + rowH * 4 - 2);
                         tSG.setAttribute('fill', '#00d2ff');
-                        tSG.textContent = '吸入ガス: φ' + (pLowGas || '-');
+                        tSG.textContent = hlActive ? this.formatCarrierPipeSizeText('吸入ガス', hl.pipes.lowGas) : '吸入ガス: φ' + (pLowGas || '-');
                         g.appendChild(tSG);
                     } else {
                         const tGas = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        tGas.setAttribute('class', 'pipe-label-text');
+                        tGas.setAttribute('class', hlActive && hl.pipes.gas && hl.pipes.gas.upsized ? 'pipe-label-text sizeup-text' : 'pipe-label-text');
                         tGas.setAttribute('x', midX);
                         tGas.setAttribute('y', boxY + rowH * 3 - 2);
                         tGas.setAttribute('fill', '#00d2ff');
-                        tGas.textContent = 'ガス管: φ' + (pGas || '-');
+                        tGas.textContent = hlActive ? this.formatCarrierPipeSizeText('ガス管', hl.pipes.gas) : 'ガス管: φ' + (pGas || '-');
                         g.appendChild(tGas);
                     }
 
@@ -942,6 +982,98 @@ class RefrigerantSizerUI {
         container.innerHTML = html;
     }
 
+    /**
+     * 増径強調表示モードかどうか。既定は ON（localStorage の保存値が
+     * 'false' の場合のみ OFF）。表示層だけの切替であり、計算結果には影響しない。
+     */
+    isSizeUpHighlightMode() {
+        return this.sizeUpHighlight === true;
+    }
+
+    /** 増径強調トグルボタンの表示状態を現在の状態に合わせる。 */
+    refreshSizeUpHighlightButton() {
+        const btn = document.getElementById('btn-sizeup-highlight');
+        if (!btn) return;
+        const label = btn.querySelector('span');
+        if (label) label.textContent = this.sizeUpHighlight ? '🔆 増径強調：ON' : '🔆 増径強調：OFF';
+        btn.classList.toggle('btn-primary', !!this.sizeUpHighlight);
+    }
+
+    /**
+     * 辺（子ノード）について、増径強調表示に必要な管ごとの情報を返す。
+     * エンジンが記録した帰属情報（node.sizeUp）だけから組み立て、計算結果は
+     * 変更しない。帰属がない（径が変わっていない）辺は null。
+     * 帰属のない管は upsized: false で返し、ラベル整形側で通常表示にする。
+     */
+    getCarrierSizeUpHighlight(node) {
+        if (!node || !node.pipes || !node.sizeUp || !node.sizeUp.pipes) return null;
+        const keys = node.pipes.type === '3pipe' ? ['liquid', 'highGas', 'lowGas'] : ['liquid', 'gas'];
+        const pipes = {};
+        let anyUpsized = false;
+        for (const key of keys) {
+            const attr = node.sizeUp.pipes[key];
+            if (attr) {
+                pipes[key] = { upsized: true, base: attr.base, final: attr.final };
+                anyUpsized = true;
+            } else {
+                pipes[key] = { upsized: false, base: node.pipes[key], final: node.pipes[key] };
+            }
+        }
+        if (!anyUpsized) return null;
+        return { reason: node.sizeUp.reason || 'manual', pipes, anyUpsized };
+    }
+
+    /**
+     * 増径強調表示専用の管径テキスト整形。増径した管は
+     * 「基準径 → 増径後の径 ↑増径」、それ以外は最終径のみを示す。
+     * 強調表示以外の（従来の）文字列には使わない。
+     */
+    formatCarrierPipeSizeText(label, pipe) {
+        if (!pipe) return `${label}: φ-`;
+        if (pipe.upsized) {
+            return pipe.base !== null && pipe.base !== undefined
+                ? `${label}: φ${pipe.base} → φ${pipe.final} ↑増径`
+                : `${label}: φ${pipe.final} ↑増径`;
+        }
+        return `${label}: φ${pipe.final !== null && pipe.final !== undefined ? pipe.final : pipe.base}`;
+    }
+
+    /** 増径表示の凡例 HTML（キャンバス左下に重ねて表示する）。 */
+    buildSizeUpLegendHtml() {
+        return [
+            '<div class="sizeup-legend-title">増径表示の凡例（手動サイズアップ）</div>',
+            '<div><span class="sizeup-legend-swatch"></span>太いオレンジ線＝「主管サイズUP」（手動サイズアップ）で増径した配管。管ごとに位置をずらして表示（2管式：上＝液管／下＝ガス管、3管式：上＝液管／中＝吐出ガス／下＝吸入ガス）</div>',
+            '<div>「↑増径」＝基準径（サイズアップなしの場合の径） → 増径後の径を表示</div>',
+            '<div>この強調は、利用者が手動でサイズアップを適用した箇所を示す表示です。メーカー公式資料で確認済みの増径条件を示すものではありません</div>'
+        ].join('');
+    }
+
+    /** 系統ツリー内に増径の帰属情報を持つ辺があるかどうか。 */
+    treeHasCarrierSizeUp(node) {
+        if (!node) return false;
+        if (node.sizeUp && node.sizeUp.pipes && Object.keys(node.sizeUp.pipes).length > 0) return true;
+        return (node.children || []).some((child) => this.treeHasCarrierSizeUp(child));
+    }
+
+    /** 凡例を表示すべき状態か（強調モード ON かつ増径した辺が存在する時）。 */
+    shouldShowSizeUpLegend() {
+        if (!this.isSizeUpHighlightMode() || !this.sizerResult) return false;
+        return this.treeHasCarrierSizeUp(this.sizerResult.tree);
+    }
+
+    /** 凡例をキャンバスへ描画する（既存の凡例があれば差し替える）。 */
+    renderSizeUpLegend() {
+        if (!this.canvas) return;
+        const old = this.canvas.querySelector('#sizeup-legend');
+        if (old) old.remove();
+        if (!this.shouldShowSizeUpLegend()) return;
+        const div = document.createElement('div');
+        div.setAttribute('id', 'sizeup-legend');
+        div.className = 'sizeup-legend';
+        div.innerHTML = this.buildSizeUpLegendHtml();
+        this.canvas.appendChild(div);
+    }
+
     bindEvents() {
         window.addEventListener('resize', () => this.drawConnections());
 
@@ -971,6 +1103,24 @@ class RefrigerantSizerUI {
                 this.enableManualSizeUp = !this.enableManualSizeUp;
                 forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
                 this.update();
+            });
+        }
+
+        const sizeUpHighlightBtn = document.getElementById('btn-sizeup-highlight');
+        if (sizeUpHighlightBtn) {
+            sizeUpHighlightBtn.addEventListener('click', () => {
+                this.sizeUpHighlight = !this.sizeUpHighlight;
+                try {
+                    localStorage.setItem('carrier_sizer_sizeup_highlight', this.sizeUpHighlight ? 'true' : 'false');
+                } catch (e) {
+                    console.error("Failed to save state to localStorage", e);
+                }
+                this.refreshSizeUpHighlightButton();
+                if (this.sizerResult && this.sizerResult.tree) {
+                    this.renderTree(this.sizerResult.tree);
+                    this.drawConnections();
+                }
+                this.renderSizeUpLegend();
             });
         }
 
