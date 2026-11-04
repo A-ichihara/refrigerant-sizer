@@ -18,6 +18,7 @@ class RefrigerantSizerUI {
         let loadedSeriesId = "vrv7_x";
         let loadedNodeId = "root";
         let loadedManualSizeUp = false;
+        let loadedSizeUpHighlight = true;
 
         try {
             const savedTree = localStorage.getItem('daikin_sizer_system_tree');
@@ -28,6 +29,8 @@ class RefrigerantSizerUI {
             if (savedNode) loadedNodeId = savedNode;
             const savedSizeUp = localStorage.getItem('daikin_sizer_enable_manual_sizeup');
             if (savedSizeUp) loadedManualSizeUp = savedSizeUp === 'true';
+            const savedHighlight = localStorage.getItem('daikin_sizer_sizeup_highlight');
+            loadedSizeUpHighlight = (savedHighlight === null || savedHighlight === undefined) ? true : savedHighlight === 'true';
         } catch (e) {
             console.error("Failed to load state from localStorage", e);
         }
@@ -35,6 +38,7 @@ class RefrigerantSizerUI {
         this.activeSeriesId = loadedSeriesId;
         this.activeNodeId = loadedNodeId;
         this.enableManualSizeUp = loadedManualSizeUp;
+        this.sizeUpHighlight = loadedSizeUpHighlight;
         
         if (loadedTree) {
             this.systemTree = loadedTree;
@@ -98,6 +102,7 @@ class RefrigerantSizerUI {
         if (forceSUpBtn) {
             forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
         }
+        this.refreshSizeUpHighlightButton();
         this.update();
     }
 
@@ -124,6 +129,7 @@ class RefrigerantSizerUI {
             localStorage.setItem('daikin_sizer_active_series_id', this.activeSeriesId);
             localStorage.setItem('daikin_sizer_active_node_id', this.activeNodeId);
             localStorage.setItem('daikin_sizer_enable_manual_sizeup', this.enableManualSizeUp ? 'true' : 'false');
+            localStorage.setItem('daikin_sizer_sizeup_highlight', this.sizeUpHighlight ? 'true' : 'false');
         } catch (e) {
             console.error("Failed to save state to localStorage", e);
         }
@@ -132,6 +138,7 @@ class RefrigerantSizerUI {
         this.renderTree(results.tree);
         this.drawConnections();
         this.renderTotals(results.totals);
+        this.renderSizeUpLegend();
         this.renderWarnings(results.warnings);
         this.renderPropertyEditor();
     }
@@ -231,7 +238,31 @@ class RefrigerantSizerUI {
                 `;
             }
         } else {
-            if (is3Pipe) {
+            // 増径強調モードでは、実際に増径した管だけを「基準径 → 最終径 ↑増径」で示す。
+            // 据え置きになった管（ガスφ38.1以上など）は帰属がないため通常表示になる。
+            // 強調OFF時は従来表示（(サイズUP) / (主管)）と同一。
+            const sizeUpAttr = this.isSizeUpHighlightMode() ? node.sizeUpAttribution : null;
+            if (sizeUpAttr && (sizeUpAttr.liquid || sizeUpAttr.gas)) {
+                const mainRow = (label, fin, entry, style) => entry
+                    ? `<div class="sizeup-badge-row"${style ? ` style="${style}"` : ''}>${label}: φ${entry.base} → φ${entry.final} ↑増径</div>`
+                    : `<div${style ? ` style="${style}"` : ''}>${label}: φ${fin}</div>`;
+                if (is3Pipe) {
+                    pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        ${mainRow('液管', node.pipeLiquid, sizeUpAttr.liquid, null)}
+                        ${mainRow('高低圧ガス', node.pipeHighLowGas, null, 'color:var(--color-warning);')}
+                        ${mainRow('吸入ガス', node.pipeSuctionGas, null, 'color:var(--color-secondary);')}
+                    </div>
+                `;
+                } else {
+                    pipeHtml = `
+                    <div class="pipe-result-badge" style="color: var(--text-muted);">
+                        ${mainRow('液管', node.pipeLiquid, sizeUpAttr.liquid, null)}
+                        ${mainRow('ガス管', node.pipeGas, sizeUpAttr.gas, null)}
+                    </div>
+                `;
+                }
+            } else if (is3Pipe) {
                 pipeHtml = `
                     <div class="pipe-result-badge" style="color: var(--text-muted);">
                         <div>液管: φ${node.pipeLiquid} ${node.isSizedUp ? '(サイズUP)' : '(主管)'}</div>
@@ -335,6 +366,27 @@ class RefrigerantSizerUI {
                     path.setAttribute('stroke-width', '2');
                     path.setAttribute('stroke-dasharray', '4 4');
                     this.svgCanvas.appendChild(path);
+
+                    // 主管サイズアップ 増径強調表示（表示層のみ）: 室外機から出る主管区間に、
+                    // 実際に増径した管だけ、管別にずらした太いオレンジの重ね線を描く。
+                    // 帰属はエンジン結果の室外機ノード（sizeUpAttribution）だけが持ち、
+                    // 据え置きになった管には重ね線を描かない。
+                    if (this.isSizeUpHighlightMode()) {
+                        const parentObjHl = this.findNodeById(currentTree, nodeEl.getAttribute('data-id'));
+                        const attrHl = (parentObjHl && parentObjHl.type === 'outdoor') ? parentObjHl.sizeUpAttribution : null;
+                        if (attrHl) {
+                            for (const key of ['liquid', 'gas']) {
+                                if (!attrHl[key]) continue;
+                                const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                                overlay.setAttribute('d', d);
+                                overlay.setAttribute('class', `connection-path sizeup-overlay sizeup-${key}`);
+                                overlay.setAttribute('transform', `translate(0 ${key === 'liquid' ? -5 : 5})`);
+                                overlay.setAttribute('data-sizeup-pipe', key);
+                                overlay.setAttribute('data-sizeup-reason', attrHl[key].reason);
+                                this.svgCanvas.appendChild(overlay);
+                            }
+                        }
+                    }
 
                     // 配管道中への冷媒サイズ記号（ラベル）自動記入
                     const childId = childEl.getAttribute('data-id');
@@ -664,6 +716,72 @@ class RefrigerantSizerUI {
     /**
      * Render layout sizer metrics (Total system length, 1st branch constraints).
      */
+    /**
+     * 主管サイズアップ増径強調表示モードかどうか。
+     * 既定は ON（localStorage の保存値が 'false' の場合のみ OFF）。
+     * 表示層だけの切替であり、計算結果には影響しない。
+     */
+    isSizeUpHighlightMode() {
+        return this.sizeUpHighlight === true;
+    }
+
+    /** 増径強調トグルボタンの表示状態を現在の状態に合わせる。 */
+    refreshSizeUpHighlightButton() {
+        const btn = document.getElementById('btn-sizeup-highlight');
+        if (!btn) return;
+        const label = btn.querySelector('span');
+        if (label) label.textContent = this.sizeUpHighlight ? '🔆 増径強調：ON' : '🔆 増径強調：OFF';
+        btn.classList.toggle('btn-primary', !!this.sizeUpHighlight);
+    }
+
+    /**
+     * 現在の計算結果で、主管サイズアップにより実際に増径した管の帰属を返す。
+     * 帰属はエンジンが室外機ノードに記録した sizeUpAttribution（管ごとに
+     * 基準径・最終径・理由）であり、表示層はこれを読むだけ。無い場合は null。
+     */
+    getMainPipeSizeUpAttribution() {
+        if (!this.sizerResult || !this.sizerResult.tree) return null;
+        const attr = this.sizerResult.tree.sizeUpAttribution;
+        if (!attr || (!attr.liquid && !attr.gas)) return null;
+        return attr;
+    }
+
+    /** 増径表示の凡例 HTML（キャンバス左下に重ねて表示する）。 */
+    buildSizeUpLegendHtml() {
+        const attr = this.getMainPipeSizeUpAttribution();
+        const reasons = attr ? [...new Set([attr.liquid, attr.gas].filter(Boolean).map(p => p.reason))] : [];
+        const lines = [
+            '<div class="sizeup-legend-title">増径表示の凡例（主管サイズアップ）</div>',
+            '<div><span class="sizeup-legend-swatch"></span>太いオレンジ線＝サイズアップした主管の配管。管ごとに位置をずらして表示（上：液管／下：ガス管）</div>',
+            '<div>「↑増径」＝基準径 → サイズアップ後の径を表示。据え置きになった管は強調しません</div>'
+        ];
+        if (reasons.includes('auto')) {
+            lines.push('<div>最遠配管実長が90m以上のため、主管を1サイズアップしています。この判定は実長で行っており、メーカーの増径条件（配管相当長90m以上）の具体的な適用条件はメーカー技術資料で未確認です。詳細は警告欄をご確認ください</div>');
+        }
+        if (reasons.includes('manual')) {
+            lines.push('<div>主管サイズアップの強制適用（手動設定）により、主管を1サイズアップしています</div>');
+        }
+        return lines.join('');
+    }
+
+    /** 凡例を表示すべき状態か（強調モード ON かつ実際に増径した管がある場合）。 */
+    shouldShowSizeUpLegend() {
+        return this.isSizeUpHighlightMode() && !!this.getMainPipeSizeUpAttribution();
+    }
+
+    /** 凡例をキャンバスへ描画する（既存の凡例があれば差し替える）。 */
+    renderSizeUpLegend() {
+        if (!this.canvas) return;
+        const old = this.canvas.querySelector('#sizeup-legend');
+        if (old) old.remove();
+        if (!this.shouldShowSizeUpLegend()) return;
+        const div = document.createElement('div');
+        div.setAttribute('id', 'sizeup-legend');
+        div.className = 'sizeup-legend';
+        div.innerHTML = this.buildSizeUpLegendHtml();
+        this.canvas.appendChild(div);
+    }
+
     renderTotals(totals) {
         const currentSeries = this.engine.SERIES_DATABASE[this.activeSeriesId];
         
@@ -1212,6 +1330,24 @@ class RefrigerantSizerUI {
                 this.enableManualSizeUp = !this.enableManualSizeUp;
                 forceSUpBtn.classList.toggle('btn-primary', this.enableManualSizeUp);
                 this.update();
+            });
+        }
+
+        const sizeUpHighlightBtn = document.getElementById('btn-sizeup-highlight');
+        if (sizeUpHighlightBtn) {
+            sizeUpHighlightBtn.addEventListener('click', () => {
+                this.sizeUpHighlight = !this.sizeUpHighlight;
+                try {
+                    localStorage.setItem('daikin_sizer_sizeup_highlight', this.sizeUpHighlight ? 'true' : 'false');
+                } catch (e) {
+                    console.error("Failed to save state to localStorage", e);
+                }
+                this.refreshSizeUpHighlightButton();
+                if (this.sizerResult && this.sizerResult.tree) {
+                    this.renderTree(this.sizerResult.tree);
+                    this.drawConnections();
+                }
+                this.renderSizeUpLegend();
             });
         }
 

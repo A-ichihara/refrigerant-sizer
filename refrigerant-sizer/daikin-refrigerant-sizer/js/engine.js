@@ -697,7 +697,8 @@ class RefrigerantSizerEngine {
         // 4. 主管サイズアップ（90m以上またはマニュアル）
         const shouldSizeUp = enableSizeUp || (longestPath >= 90.0 && seriesId !== 'machi_multi' && seriesId !== 'skyair');
         if (shouldSizeUp) {
-            this.applyMainPipeSizeUp(tree, is3Pipe);
+            // 帰属の理由は警告文の出し分けと同じ優先順位（実長90m以上なら自動、手動のみなら強制）
+            this.applyMainPipeSizeUp(tree, is3Pipe, longestPath >= 90.0 ? 'auto' : 'manual');
             warnings.push(longestPath >= 90.0
                 ? `最遠配管実長が90m以上となったため（実長：${longestPath.toFixed(1)}m）、主管サイズを自動的に1サイズアップしました。ただし、この判定は配管相当長ではなく実長で行っています。メーカーの増径条件は配管相当長90m以上ですが、本アプリでは相当長への換算を行っていないため、実長が90m未満でも相当長が90m以上になる系統では、この判定から漏れて増径されない場合があります。また、増径の具体的な適用条件はメーカー技術資料で未確認のため、本判定はメーカーの増径条件を完全に満たすものではありません。`
                 : "主配管のサイズアップ設定が強制適用されています。");
@@ -901,8 +902,11 @@ class RefrigerantSizerEngine {
         if (node.children) node.children.forEach(c => this.selectInitialSizesForNode(c, outdoorKw, seriesId, node.type === 'outdoor'));
     }
 
-    applyMainPipeSizeUp(rootNode, is3Pipe) {
+    applyMainPipeSizeUp(rootNode, is3Pipe, sizeUpReason = 'auto') {
         if (rootNode.type !== 'outdoor') return;
+        // 増径の帰属記録用に、変更前の基準径を控える（径の計算過程自体は従来どおり変更しない）
+        const baseLiquid = rootNode.pipeLiquid;
+        const baseGas = rootNode.pipeGas;
         // 液管は2管式・3管式ともに1サイズアップ
         rootNode.pipeLiquid = this.getNextSize(rootNode.pipeLiquid, 'liquid');
         if (!is3Pipe) {
@@ -913,6 +917,18 @@ class RefrigerantSizerEngine {
         }
         // ※3管式（冷暖フリー）では「液管のみ」サイズアップとする（高低圧・吸入ガス管はサイズアップしない）。ただし、この条件は未検証でありメーカー根拠は未確認である（Rシリーズのカタログに90mの注記はなく、技術資料に基づく確定条件ではない）。
         rootNode.isSizedUp = true;
+        // 増径表示（Stage 2）用の帰属記録：実際に径が変わった管だけに、
+        // 基準径・最終径・理由（'auto' = 実長90m条件 / 'manual' = 強制サイズアップ）を残す。
+        // 据え置きになった管（ガスφ38.1以上など）や変わらなかった管には帰属を付けない。
+        // この記録は表示層だけが参照し、選定結果（径・集計・警告）には影響しない。
+        const attribution = {};
+        if (rootNode.pipeLiquid !== baseLiquid) {
+            attribution.liquid = { base: baseLiquid, final: rootNode.pipeLiquid, reason: sizeUpReason };
+        }
+        if (!is3Pipe && rootNode.pipeGas !== baseGas) {
+            attribution.gas = { base: baseGas, final: rootNode.pipeGas, reason: sizeUpReason };
+        }
+        rootNode.sizeUpAttribution = attribution;
     }
 
     // 3管/2管ハイブリッド逆転防止
