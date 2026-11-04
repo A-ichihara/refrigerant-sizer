@@ -372,6 +372,32 @@ class RefrigerantSizerEngine {
         throw new Error(`Unknown pipe segment kind: ${String(segmentKind)}`);
     }
 
+    /**
+     * 手動サイズアップの帰属データを組み立てる（第2段階の増径表示用）。
+     * 選定そのものは変更しない。同じ選定を isManualSizeUp=false で再実行
+     * して基準径とし、最終径と異なる管だけを
+     * pipes: { 管キー: { base, final } } として記録する。
+     * selectPipeSizeForSegment は状態を持たない純粋な選定関数のため、
+     * 再実行しても管径・集計・警告は変わらない。
+     * 手動OFFの場合、または全管が不変（既にラダー上限など）の場合は
+     * null を返す（変わらなかった管には帰属を付けない）。
+     * UXE3 では手動サイズアップ自体が calculateSystem で停止されるため、
+     * 本関数の帰属が ＊2・＊3 の帰属と競合することはない。
+     */
+    buildManualSizeUpAttribution(segmentKind, basis, finalSizes, isManualSizeUp) {
+        if (!isManualSizeUp) return null;
+        const baseSizes = this.selectPipeSizeForSegment(segmentKind, basis, false);
+        const pipes = {};
+        for (const key of ['liquid', 'gas', 'dischargeGas', 'suctionGas']) {
+            if (finalSizes[key] === undefined || baseSizes[key] === undefined) continue;
+            if (baseSizes[key] !== finalSizes[key]) {
+                pipes[key] = { base: baseSizes[key], final: finalSizes[key] };
+            }
+        }
+        if (Object.keys(pipes).length === 0) return null;
+        return { source: 'manual', pipes };
+    }
+
     /** 分岐ジョイント選定 (パナソニック) */
     selectJointModel(kw) {
         if (kw <= 22.4) return "CZ-P160KB2";
@@ -2092,6 +2118,14 @@ class RefrigerantSizerEngine {
                     const sizes = this.selectPipeSizeForSegment('downstream_two_pipe', { downstreamKw: childKw }, isManualSizeUp);
                     child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                     child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+
+                    // 手動サイズアップの帰属（第2段階の増径表示用データ）。
+                    // 径の計算過程・集計は変更せず、表示のために「どの管が
+                    // 基準径から変わったか」だけを辺ノードへ記録する。
+                    // 手動OFF・全管不変の場合は null を代入し、同じツリーを
+                    // 再計算した際に古い帰属が残らないようにする。
+                    child.sizeUpAttribution = this.buildManualSizeUpAttribution(
+                        'downstream_two_pipe', { downstreamKw: childKw }, sizes, isManualSizeUp);
 
                     totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                     totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;

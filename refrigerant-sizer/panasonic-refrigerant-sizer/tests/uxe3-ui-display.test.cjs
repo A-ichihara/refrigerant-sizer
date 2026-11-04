@@ -705,3 +705,219 @@ test('highlight mode requires the flag and the UXE3 series', () => {
   ui.activeSeriesId = 'fsv_ux3';
   assert.equal(ui.isSizeUpHighlightMode(), false);
 });
+
+// ---------------------------------------------------------------------------
+// 第2段階の展開：UXE3 以外のシリーズ（fsv_ux3・office_pack）の手動サイズ
+// アップ帰属と増径表示。手動サイズアップは全体トグルで、2管式の全辺に
+// 液・ガスとも1ランク増径がかかる（既にラダー上限の管は不変）。
+// UXE3 ではエンジン側で手動が停止されるため、＊2・＊3 の帰属と競合しない。
+// 帰属は表示用データであり、最終径・集計・警告は従来計算と同一であること
+// をここでも固定する（変更前エンジンとの網羅比較は検証フォルダの
+// stage2-expansion/compare-panasonic.cjs で実施）。
+// ---------------------------------------------------------------------------
+
+function makeUx3Tree() {
+  return {
+    id: 'root', name: 'Outdoor', type: 'outdoor', capacity: 45.0, length: 0,
+    children: [{
+      id: 'b1', name: 'Branch', type: 'branch', length: 10,
+      children: [
+        { id: 'i1', name: 'Indoor 1', type: 'indoor', capacity: 14.0, length: 8, children: [] },
+        { id: 'i2', name: 'Indoor 2', type: 'indoor', capacity: 14.0, length: 6, children: [] }
+      ]
+    }]
+  };
+}
+
+function makeUiForSeries(result, seriesId) {
+  const ui = Object.create(RefrigerantSizerUI.prototype);
+  ui.activeSeriesId = seriesId;
+  ui.activeNodeId = 'root';
+  ui.engine = new RefrigerantSizerEngine();
+  ui.sizerResult = result;
+  ui.sizeUpHighlight = true;
+  return ui;
+}
+
+function renderCardsForSeries(result, seriesId) {
+  const ui = makeUiForSeries(result, seriesId);
+  const originalDocument = global.document;
+  global.document = makeDocumentStub();
+  try {
+    return { ui, tree: ui.createNodeElement(result.tree) };
+  } finally {
+    global.document = originalDocument;
+  }
+}
+
+test('manual size-up attribution is recorded only on edges whose diameters changed (fsv_ux3)', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeUx3Tree(), 'fsv_ux3', true);
+  // 室外機→分岐（下流28.0kW）: 基準 液9.52／ガス25.4 → 液12.7／ガス28.58。
+  const branch = findResultNode(result.tree, 'b1');
+  assert.deepEqual(branch.sizeUpAttribution, {
+    source: 'manual',
+    pipes: {
+      liquid: { base: 9.52, final: 12.7 },
+      gas: { base: 25.4, final: 28.58 }
+    }
+  });
+  // 分岐→室内機（下流14.0kW）: 基準 液9.52／ガス19.05 → 液12.7／ガス22.2。
+  for (const id of ['i1', 'i2']) {
+    assert.deepEqual(findResultNode(result.tree, id).sizeUpAttribution, {
+      source: 'manual',
+      pipes: {
+        liquid: { base: 9.52, final: 12.7 },
+        gas: { base: 19.05, final: 22.2 }
+      }
+    });
+  }
+  // 帰属の final は実際の最終径と一致する（帰属は表示用で径を変えない）。
+  assert.equal(branch.pipes.liquid, 12.7);
+  assert.equal(branch.pipes.gas, 28.58);
+});
+
+test('manual size-up OFF records no attribution on any edge', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeUx3Tree(), 'fsv_ux3', false);
+  for (const id of ['b1', 'i1', 'i2']) {
+    assert.equal(findResultNode(result.tree, id).sizeUpAttribution, null);
+  }
+});
+
+test('manual size-up attribution is skipped on ladder-top edges and kept on changed edges', () => {
+  const engine = new RefrigerantSizerEngine();
+  // 室外機→分岐の下流84.0kWは基準径が既に上限（液19.05／ガス38.1）で不変。
+  const tree = {
+    id: 'root', name: 'Outdoor', type: 'outdoor', capacity: 85.0, length: 0,
+    children: [{
+      id: 'b1', name: 'Branch', type: 'branch', length: 12,
+      children: [28.0, 28.0, 28.0].map((kw, i) => ({
+        id: `i${i}`, name: `Indoor ${i}`, type: 'indoor', capacity: kw, length: 5, children: []
+      }))
+    }]
+  };
+  const result = engine.calculateSystem(tree, 'fsv_ux3', true);
+  const branch = findResultNode(result.tree, 'b1');
+  assert.equal(branch.sizeUpAttribution, null);
+  assert.equal(branch.pipes.liquid, 19.05);
+  assert.equal(branch.pipes.gas, 38.1);
+  // 室内機辺（28.0kW）は変わるため帰属が付く。
+  assert.deepEqual(findResultNode(result.tree, 'i0').sizeUpAttribution.pipes, {
+    liquid: { base: 9.52, final: 12.7 },
+    gas: { base: 25.4, final: 28.58 }
+  });
+});
+
+test('manual size-up attribution also applies to office_pack', () => {
+  const engine = new RefrigerantSizerEngine();
+  const tree = {
+    id: 'root', name: 'Outdoor', type: 'outdoor', capacity: 22.4, length: 0,
+    children: [
+      { id: 'i1', name: 'Indoor 1', type: 'indoor', capacity: 11.2, length: 7, children: [] },
+      { id: 'i2', name: 'Indoor 2', type: 'indoor', capacity: 11.2, length: 9, children: [] }
+    ]
+  };
+  const result = engine.calculateSystem(tree, 'office_pack', true);
+  assert.deepEqual(findResultNode(result.tree, 'i1').sizeUpAttribution, {
+    source: 'manual',
+    pipes: {
+      liquid: { base: 9.52, final: 12.7 },
+      gas: { base: 19.05, final: 22.2 }
+    }
+  });
+});
+
+test('manual attribution never appears for UXE3 even when manual size-up is requested', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeKitTree({ outdoorKw: 45, indoorCaps: [14.0] }), 'fsv_uxe3', true);
+  assert.ok(result.warnings.some((w) => w.message.includes('UXE3手動サイズアップ未適用')));
+  const stack = [result.tree];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    assert.ok(!node.sizeUpAttribution, `no manual attribution on ${node.id}`);
+    (node.children || []).forEach((c) => stack.push(c));
+  }
+});
+
+test('attribution does not change final sizes, totals or warnings versus the plain manual calculation', () => {
+  const engine = new RefrigerantSizerEngine();
+  const withAttribution = engine.calculateSystem(makeUx3Tree(), 'fsv_ux3', true);
+  // 従来計算の期待値：selectTwoPipeSize(kw, true) の径がそのまま最終径。
+  const expectedMain = engine.selectTwoPipeSize(28.0, true);
+  const branch = findResultNode(withAttribution.tree, 'b1');
+  assert.equal(branch.pipes.liquid, expectedMain.liquid);
+  assert.equal(branch.pipes.gas, expectedMain.gas);
+  // 集計は増径後の径で従来どおり（帰属の追加で集計キーは変わらない）。
+  assert.equal(withAttribution.totals.liquidPipes[12.7], 24);
+  assert.equal(withAttribution.totals.gasPipes[28.58], 10);
+  assert.equal(withAttribution.totals.gasPipes[22.2], 14);
+  assert.equal(withAttribution.totals.totalLength, 24);
+});
+
+test('manual highlight data is built from attribution and gated by the toggle', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeUx3Tree(), 'fsv_ux3', true);
+  const ui = makeUiForSeries(result, 'fsv_ux3');
+  const hl = ui.getSizeUpHighlight(findResultNode(result.tree, 'b1'));
+  assert.equal(hl.rule, 'manual');
+  assert.deepEqual(hl.pipes.liquid, { upsized: true, base: 9.52, final: 12.7, coverage: 1 });
+  assert.deepEqual(hl.pipes.gas, { upsized: true, base: 25.4, final: 28.58, coverage: 1 });
+  assert.equal(hl.anyUpsized, true);
+  // トグル OFF では統合ゲッターが null を返す。
+  ui.sizeUpHighlight = false;
+  assert.equal(ui.getSizeUpHighlight(findResultNode(result.tree, 'b1')), null);
+  // 帰属のない計算（手動OFF）ではトグル ON でも null。
+  const offResult = engine.calculateSystem(makeUx3Tree(), 'fsv_ux3', false);
+  const offUi = makeUiForSeries(offResult, 'fsv_ux3');
+  assert.equal(offUi.getSizeUpHighlight(findResultNode(offResult.tree, 'b1')), null);
+});
+
+test('manual node card shows base → final with ↑増径 only when the highlight is on', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeUx3Tree(), 'fsv_ux3', true);
+  const { tree } = renderCardsForSeries(result, 'fsv_ux3');
+  const html = findCardHtml(tree, 'i1');
+  assert.match(html, /液管: φ9\.52 → φ12\.7 ↑増径/);
+  assert.match(html, /ガス管: φ19\.05 → φ22\.2 ↑増径/);
+  assert.match(html, /手動サイズアップ適用/);
+
+  const offUi = makeUiForSeries(result, 'fsv_ux3');
+  offUi.sizeUpHighlight = false;
+  const originalDocument = global.document;
+  global.document = makeDocumentStub();
+  try {
+    const offTree = offUi.createNodeElement(result.tree);
+    const offHtml = findCardHtml(offTree, 'i1');
+    assert.match(offHtml, /液管: φ12\.7/);
+    assert.doesNotMatch(offHtml, /↑増径/);
+  } finally {
+    global.document = originalDocument;
+  }
+});
+
+test('manual legend is shown only with attribution and explains the manual rule, not *2/*3', () => {
+  const engine = new RefrigerantSizerEngine();
+  const result = engine.calculateSystem(makeUx3Tree(), 'fsv_ux3', true);
+  const ui = makeUiForSeries(result, 'fsv_ux3');
+  assert.equal(ui.shouldShowSizeUpLegend(), true);
+  const html = ui.buildSizeUpLegendHtml();
+  assert.match(html, /手動サイズアップ/);
+  assert.doesNotMatch(html, /＊2/);
+  assert.doesNotMatch(html, /＊3/);
+
+  const offResult = engine.calculateSystem(makeUx3Tree(), 'fsv_ux3', false);
+  const offUi = makeUiForSeries(offResult, 'fsv_ux3');
+  assert.equal(offUi.shouldShowSizeUpLegend(), false);
+});
+
+test('UXE3 highlight behavior is unchanged by the manual expansion', () => {
+  const result = makeStar2Result();
+  const ui = makeUi(result);
+  ui.sizeUpHighlight = true;
+  const hl = ui.getSizeUpHighlight(findResultNode(result.tree, 'lm-b2'));
+  assert.equal(hl.rule, 'star2');
+  assert.deepEqual(hl.pipes.liquid, { upsized: true, base: 12.7, final: 15.88, coverage: 1 });
+  assert.equal(ui.shouldShowSizeUpLegend(), true);
+  assert.match(ui.buildSizeUpLegendHtml(), /＊2/);
+});
