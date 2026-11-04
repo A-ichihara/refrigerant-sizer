@@ -319,6 +319,34 @@ class RefrigerantSizerEngine {
         return current;
     }
 
+    /**
+     * 手動サイズアップの帰属情報を child.sizeUp に記録する（表示専用の追加データ）。
+     * 選定計算そのものには影響しない：最終径は child.pipes に既に入っている値を
+     * そのまま参照し、基準径（サイズアップなしの場合の径）と比べて実際に径が
+     * 変わった管だけを記録する。径が変わらなかった管は記録せず、辺全体で
+     * 変わらなければ sizeUp は null のままにする。
+     * 再計算時に前回の帰属が残らないよう、対象の辺では必ず毎回呼び直すこと。
+     * 形式: { reason: 'manual', pipes: { liquid: { base, final }, ... } }
+     */
+    applySizeUpAttribution(child, isManualSizeUp, basePipesProvider) {
+        child.sizeUp = null;
+        if (!isManualSizeUp || !child.pipes || typeof basePipesProvider !== 'function') return;
+        const basePipes = basePipesProvider();
+        const finalPipes = child.pipes;
+        const keys = finalPipes.type === '3pipe' ? ['liquid', 'highGas', 'lowGas'] : ['liquid', 'gas'];
+        const pipes = {};
+        let anyChanged = false;
+        keys.forEach(key => {
+            if (basePipes[key] !== undefined && finalPipes[key] !== undefined && basePipes[key] !== finalPipes[key]) {
+                pipes[key] = { base: basePipes[key], final: finalPipes[key] };
+                anyChanged = true;
+            }
+        });
+        if (anyChanged) {
+            child.sizeUp = { reason: 'manual', pipes };
+        }
+    }
+
     /** 分岐ジョイント選定 (日本キャリア RBM-BY) */
     selectJointModel(kw) {
         if (kw <= 22.4) return "RBM-BY55";
@@ -395,6 +423,10 @@ class RefrigerantSizerEngine {
                     const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
                     child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                     child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+                    this.applySizeUpAttribution(child, isManualSizeUp, () => {
+                        const base = this.selectTwoPipeSize(childKw, false);
+                        return { liquid: base.liquid, gas: base.gas };
+                    });
 
                     totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                     totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
@@ -414,6 +446,10 @@ class RefrigerantSizerEngine {
                         const sizes = this.selectThreePipeSize(outdoorCap, isManualSizeUp);
                         child.pipeSizeText = `液管: φ${sizes.liquid} / 吐出ガス: φ${sizes.dischargeGas} / 吸入ガス: φ${sizes.suctionGas}`;
                         child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.dischargeGas, lowGas: sizes.suctionGas };
+                        this.applySizeUpAttribution(child, isManualSizeUp, () => {
+                            const base = this.selectThreePipeSize(outdoorCap, false);
+                            return { liquid: base.liquid, highGas: base.dischargeGas, lowGas: base.suctionGas };
+                        });
 
                         totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                         totals.highGasPipes[sizes.dischargeGas] = (totals.highGasPipes[sizes.dischargeGas] || 0) + len;
@@ -426,6 +462,10 @@ class RefrigerantSizerEngine {
                         const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
                         child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                         child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+                        this.applySizeUpAttribution(child, isManualSizeUp, () => {
+                            const base = this.selectTwoPipeSize(childKw, false);
+                            return { liquid: base.liquid, gas: base.gas };
+                        });
 
                         totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                         totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
@@ -437,6 +477,10 @@ class RefrigerantSizerEngine {
                     const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
                     child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                     child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+                    this.applySizeUpAttribution(child, isManualSizeUp, () => {
+                        const base = this.selectTwoPipeSize(childKw, false);
+                        return { liquid: base.liquid, gas: base.gas };
+                    });
 
                     totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                     totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
