@@ -573,3 +573,238 @@ test('Stage1a表示: R2 マスター表注記に専用表の多段適用が未�
   // 既存の 25.0kW 超・範囲外の注記と矛盾しないこと（従来文言が残っていること）
   assert.equal(ui.includes('25.0kW を超える区間はメーカーの構成範囲外であり、表示値は代用となる（計算時に警告が出る）'), true);
 });
+
+// ---------------------------------------------------------------- Stage 2 増径表示（三菱展開）
+// 手動サイズアップで実際に径が変わった管について、エンジンが帰属
+// （基準径・最終径・理由）を結果へ記録する追加と、表示層の強調表示。
+// 径の計算過程・集計・警告は変更しない。前後比較の証明は
+// ~/workspace/refrigerant-sizer-verification/stage2-expansion/compare-mitsubishi.cjs
+// （before.json / after.json、全12ランで sizeUp 除去後に完全一致）。
+
+const UI_JS = UI;
+
+function loadUiClass() {
+  const source = fs.readFileSync(UI_JS, 'utf8');
+  const context = vm.createContext({ window: {}, console });
+  vm.runInContext(source + '\n;globalThis.__UI = RefrigerantSizerUI;', context, { filename: UI_JS });
+  return context.__UI;
+}
+
+function makeUiStub() {
+  const UIClass = loadUiClass();
+  return Object.create(UIClass.prototype);
+}
+
+function findNode(node, id) {
+  if (!node) return null;
+  if (node.id === id) return node;
+  for (const c of node.children || []) {
+    const f = findNode(c, id);
+    if (f) return f;
+  }
+  return null;
+}
+
+function collectSizeUpNodes(node, acc) {
+  if (!node) return acc;
+  if (node.sizeUp) acc.push(node.id);
+  (node.children || []).forEach((c) => collectSizeUpNodes(c, acc));
+  return acc;
+}
+
+function yStandardTree() {
+  return outdoor('o', 45.0, [
+    branch('b1', [
+      branch('b2', [indoor('i1', 14.0, 6), indoor('i2', 11.2, 7)], 8),
+      indoor('i3', 5.6, 9),
+    ], 10),
+  ]);
+}
+
+test('Stage2帰属: Y 手動ONで Pipe A・分岐間にだけ帰属が付く（室内機区間 a〜d には付かない）', () => {
+  const engine = loadEngine();
+  const r = engine.calculateSystem(yStandardTree(), 'city_multi_y', true);
+  deepEqual(findNode(r.tree, 'b1').sizeUp, {
+    liquid: { base: 12.7, final: 15.88, reason: 'manual' },
+    gas: { base: 28.58, final: 31.8, reason: 'manual' },
+  });
+  deepEqual(findNode(r.tree, 'b2').sizeUp, {
+    liquid: { base: 9.52, final: 12.7, reason: 'manual' },
+    gas: { base: 22.2, final: 25.4, reason: 'manual' },
+  });
+  assert.equal(findNode(r.tree, 'i1').sizeUp, undefined);
+  assert.equal(findNode(r.tree, 'i2').sizeUp, undefined);
+  assert.equal(findNode(r.tree, 'i3').sizeUp, undefined);
+  // 最終径は従来どおり
+  deepEqual(findNode(r.tree, 'b1').pipes, { type: '2pipe', liquid: 15.88, gas: 31.8 });
+  deepEqual(findNode(r.tree, 'b2').pipes, { type: '2pipe', liquid: 12.7, gas: 25.4 });
+});
+
+test('Stage2帰属: 手動OFFではどの辺にも帰属は付かない', () => {
+  const engine = loadEngine();
+  const r = engine.calculateSystem(yStandardTree(), 'city_multi_y', false);
+  deepEqual(collectSizeUpNodes(r.tree, []), []);
+});
+
+test('Stage2帰属: 同じツリーを ON→OFF と再計算すると帰属は残らない', () => {
+  const engine = loadEngine();
+  const tree = yStandardTree();
+  engine.calculateSystem(tree, 'city_multi_y', true);
+  assert.ok(collectSizeUpNodes(tree, []).length > 0);
+  engine.calculateSystem(tree, 'city_multi_y', false);
+  deepEqual(collectSizeUpNodes(tree, []), []);
+});
+
+test('Stage2帰属: 最大径で変わらない管には帰属が付かない（部分帰属）', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 101.2, [
+    branch('b1', [
+      branch('b2', [indoor('i1', 28.0, 6), indoor('i2', 28.0, 6), indoor('i3', 28.0, 6)], 8),
+      indoor('i4', 14.0, 9),
+    ], 10),
+  ]);
+  const r = engine.calculateSystem(tree, 'city_multi_y', true);
+  // ガス管は基準径・最終径とも最大の 41.28 で変わらないため液管だけに帰属が付く
+  deepEqual(findNode(r.tree, 'b1').sizeUp, { liquid: { base: 19.05, final: 22.2, reason: 'manual' } });
+  deepEqual(findNode(r.tree, 'b2').sizeUp, { liquid: { base: 19.05, final: 22.2, reason: 'manual' } });
+});
+
+test('Stage2帰属: R2 では室外機〜親BC・主管〜子BC・分岐間に帰属が付き、BC→室内機には付かない', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 45.0, [
+    bc('bc', [
+      subBc('sbc', [indoor('i1', 14.0, 5), indoor('i2', 14.0, 5)], 10),
+      branch('b1', [indoor('i3', 14.0, 6), indoor('i4', 14.0, 6)], 8),
+      indoor('i5', 5.6, 7),
+    ], 12),
+  ]);
+  const r = engine.calculateSystem(tree, 'city_multi_r2', true);
+  deepEqual(findNode(r.tree, 'bc').sizeUp, {
+    highGas: { base: 22.2, final: 25.4, reason: 'manual' },
+    lowGas: { base: 28.58, final: 31.8, reason: 'manual' },
+  });
+  deepEqual(findNode(r.tree, 'sbc').sizeUp, {
+    liquid: { base: 9.52, final: 12.7, reason: 'manual' },
+    highGas: { base: 19.05, final: 22.2, reason: 'manual' },
+    lowGas: { base: 22.2, final: 25.4, reason: 'manual' },
+  });
+  deepEqual(findNode(r.tree, 'b1').sizeUp, {
+    liquid: { base: 9.52, final: 12.7, reason: 'manual' },
+    gas: { base: 22.2, final: 25.4, reason: 'manual' },
+  });
+  assert.equal(findNode(r.tree, 'i1').sizeUp, undefined);
+  assert.equal(findNode(r.tree, 'i5').sizeUp, undefined);
+  // 帰属が付いても集計・警告は従来（変更前ベースライン）と同一
+  deepEqual(r.totals, {
+    liquidPipes: { 12.7: 18, 9.52: 29 },
+    gasPipes: { 15.88: 29, 25.4: 8 },
+    highGasPipes: { 25.4: 12, 22.2: 10 },
+    lowGasPipes: { 31.8: 12, 25.4: 10 },
+    joints: { 'CMB-P104V-KB': 1, 'CMY-Y102LS-G2': 1, 'CMB-P108V-JA': 1 },
+    totalLength: 59,
+  });
+  assert.equal(r.warnings.filter((w) => w.message.includes('25.0kWを超える区間があります')).length, 1);
+});
+
+test('Stage2帰属: Mr.Slim では室内機区間を含む全区間に帰属が付く（selectTwoPipeSize を全区間に用いるため）', () => {
+  const engine = loadEngine();
+  const tree = outdoor('o', 28.0, [
+    branch('b1', [indoor('i1', 14.0, 6), indoor('i2', 14.0, 6)], 8),
+  ]);
+  const r = engine.calculateSystem(tree, 'mr_slim_multi', true);
+  deepEqual(findNode(r.tree, 'b1').sizeUp, {
+    liquid: { base: 9.52, final: 12.7, reason: 'manual' },
+    gas: { base: 22.2, final: 25.4, reason: 'manual' },
+  });
+  deepEqual(findNode(r.tree, 'i1').sizeUp, {
+    liquid: { base: 9.52, final: 12.7, reason: 'manual' },
+    gas: { base: 15.88, final: 19.05, reason: 'manual' },
+  });
+  // 集計・未検証警告は従来どおり
+  deepEqual(r.totals.liquidPipes, { 12.7: 20 });
+  deepEqual(r.totals.gasPipes, { 25.4: 8, 19.05: 12 });
+  assert.equal(r.warnings.filter((w) => w.type === 'info').length, 2);
+});
+
+test('Stage2帰属: 帰属が付いても Y の最終径・集計・警告は従来値と同一', () => {
+  const engine = loadEngine();
+  const r = engine.calculateSystem(yStandardTree(), 'city_multi_y', true);
+  deepEqual(r.totals, {
+    liquidPipes: { 15.88: 10, 12.7: 8, 9.52: 13, 6.35: 9 },
+    gasPipes: { 31.8: 10, 25.4: 8, 15.88: 13, 12.7: 9 },
+    highGasPipes: {},
+    lowGasPipes: {},
+    joints: { 'CMY-Y102LS-G2': 2 },
+    totalLength: 40,
+  });
+  assert.equal(r.warnings.length, 0);
+});
+
+test('Stage2表示: UI の強調データは帰属がある辺だけに組み立てられる', () => {
+  const ui = makeUiStub();
+  ui.sizeUpHighlight = true;
+  assert.equal(ui.isSizeUpHighlightMode(), true);
+  const node = {
+    pipes: { type: '2pipe', liquid: 15.88, gas: 31.8 },
+    sizeUp: { liquid: { base: 12.7, final: 15.88, reason: 'manual' } },
+  };
+  const hl = ui.getSizeUpHighlight(node);
+  assert.equal(hl.anyUpsized, true);
+  assert.equal(hl.pipes.liquid.upsized, true);
+  assert.equal(hl.pipes.liquid.base, 12.7);
+  assert.equal(hl.pipes.liquid.final, 15.88);
+  assert.equal(hl.pipes.gas.upsized, false);
+  assert.equal(hl.pipes.gas.final, 31.8);
+  assert.equal(ui.getSizeUpHighlight({ pipes: { type: '2pipe', liquid: 9.52, gas: 15.88 } }), null);
+  ui.sizeUpHighlight = false;
+  assert.equal(ui.isSizeUpHighlightMode(), false);
+});
+
+test('Stage2表示: 増径した管のラベルは「基準径 → 最終径 ↑増径」、それ以外は最終径のみ', () => {
+  const ui = makeUiStub();
+  assert.equal(
+    ui.formatPipeSizeText('液管', { upsized: true, base: 12.7, final: 15.88 }, 15.88),
+    '液管: φ12.7 → φ15.88 ↑増径'
+  );
+  assert.equal(
+    ui.formatPipeSizeText('ガス管', { upsized: false, base: null, final: 31.8 }, 31.8),
+    'ガス管: φ31.8'
+  );
+  const badge = ui.buildSizeUpBadgeHtml({
+    pipes: { type: '3pipe', highGas: 25.4, lowGas: 31.8 },
+    sizeUp: { highGas: { base: 22.2, final: 25.4, reason: 'manual' } },
+  });
+  assert.ok(badge.includes('sizeup-badge-row'));
+  assert.ok(badge.includes('高圧ガス: φ22.2 → φ25.4 ↑増径'));
+  assert.ok(badge.includes('低圧ガス: φ31.8'));
+});
+
+test('Stage2表示: 凡例は強調ONかつ増径した辺があるときだけ表示される', () => {
+  const ui = makeUiStub();
+  ui.sizeUpHighlight = true;
+  ui.sizerResult = { tree: { id: 'o', children: [{ id: 'b', sizeUp: { liquid: { base: 9.52, final: 12.7, reason: 'manual' } }, children: [] }] } };
+  assert.equal(ui.shouldShowSizeUpLegend(), true);
+  ui.sizerResult = { tree: { id: 'o', children: [{ id: 'b', children: [] }] } };
+  assert.equal(ui.shouldShowSizeUpLegend(), false);
+  ui.sizerResult = { tree: { id: 'o', children: [{ id: 'b', sizeUp: { liquid: { base: 9.52, final: 12.7, reason: 'manual' } }, children: [] }] } };
+  ui.sizeUpHighlight = false;
+  assert.equal(ui.shouldShowSizeUpLegend(), false);
+  const legend = ui.buildSizeUpLegendHtml();
+  assert.ok(legend.includes('増径表示の凡例（手動サイズアップ）'));
+  assert.ok(legend.includes('自動判定したものではありません'));
+});
+
+test('Stage2表示: トグルボタン・重ね線・凡例の実装が UI / HTML / CSS にある', () => {
+  const ui = fs.readFileSync(UI, 'utf8');
+  const index = fs.readFileSync(INDEX, 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'mitsubishi-refrigerant-sizer', 'css', 'styles.css'), 'utf8');
+  assert.ok(index.includes('id="btn-sizeup-highlight"'));
+  assert.ok(index.includes('増径強調'));
+  assert.ok(ui.includes("localStorage.getItem('mitsubishi_sizer_sizeup_highlight')"));
+  assert.ok(ui.includes('sizeup-overlay'));
+  assert.ok(ui.includes('data-sizeup-pipe'));
+  assert.ok(ui.includes('renderSizeUpLegend'));
+  assert.ok(css.includes('.connection-path.sizeup-overlay'));
+  assert.ok(css.includes('.sizeup-legend'));
+  assert.ok(css.includes('.pipe-label-text.sizeup-text'));
+});

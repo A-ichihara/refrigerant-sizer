@@ -417,6 +417,29 @@ class RefrigerantSizerEngine {
         return current;
     }
 
+    /** 手動サイズアップの帰属記録（Stage 2 増径強調表示用）。
+     * 基準径（サイズアップなしで選定した径）と最終径を比べ、実際に径が
+     * 変わった管だけ { base, final, reason: 'manual' } を child.sizeUp に
+     * 記録する。径の計算過程・集計・警告には一切影響しない（表示層が
+     * 「どの区間の・どの管が・いくつからいくつへ増径したか」を知るための
+     * 追加情報）。baseSizes が null の区間（サイズアップ対象外の選定表を
+     * 使う辺）では、過去の計算で残った帰属を消すだけにとどめる。 */
+    recordManualSizeUp(child, baseSizes, finalSizes, pipeKeys) {
+        delete child.sizeUp;
+        if (!baseSizes || !finalSizes) return;
+        const sizeUp = {};
+        (pipeKeys || []).forEach((key) => {
+            const base = baseSizes[key];
+            const fin = finalSizes[key];
+            if (base !== undefined && fin !== undefined && base !== fin) {
+                sizeUp[key] = { base, final: fin, reason: 'manual' };
+            }
+        });
+        if (Object.keys(sizeUp).length > 0) {
+            child.sizeUp = sizeUp;
+        }
+    }
+
     /** 2管式分岐ジョイント型番選定（Branch Joint）
      * 公式 Branch Joint 表（D2・D5 GB-25/27）。下流室内機合計形番（P/M）別。
      * 帯域境界は公式どおり（20.0 / 40.0 / 65.0 kW）。 */
@@ -568,8 +591,10 @@ class RefrigerantSizerEngine {
                         if (child.type === 'bc_controller') {
                             // 室外機〜親BC間は高圧・低圧ガス管のみ
                             const sizes = this.selectR2OutdoorToBCSize(outdoorCap, isManualSizeUp);
+                            const baseSizes = isManualSizeUp ? this.selectR2OutdoorToBCSize(outdoorCap, false) : null;
                             child.pipeSizeText = `高圧ガス: φ${sizes.highGas} / 低圧ガス: φ${sizes.lowGas}`;
                             child.pipes = { type: '3pipe', highGas: sizes.highGas, lowGas: sizes.lowGas };
+                            this.recordManualSizeUp(child, baseSizes, sizes, ['highGas', 'lowGas']);
 
                             // BOM集計（液管なし）
                             totals.highGasPipes[sizes.highGas] = (totals.highGasPipes[sizes.highGas] || 0) + len;
@@ -582,8 +607,10 @@ class RefrigerantSizerEngine {
                         } else {
                             // BCコントローラーを経由しない接続がある場合 (R2では設計エラー)
                             const sizes = this.selectR2OutdoorToBCSize(outdoorCap, isManualSizeUp);
+                            const baseSizes = isManualSizeUp ? this.selectR2OutdoorToBCSize(outdoorCap, false) : null;
                             child.pipeSizeText = `高圧ガス: φ${sizes.highGas} / 低圧ガス: φ${sizes.lowGas}`;
                             child.pipes = { type: '3pipe', highGas: sizes.highGas, lowGas: sizes.lowGas };
+                            this.recordManualSizeUp(child, baseSizes, sizes, ['highGas', 'lowGas']);
 
                             warnings.push({
                                 type: 'danger',
@@ -601,14 +628,18 @@ class RefrigerantSizerEngine {
                             const sizes = this.selectBCBranchToIndoorSize(childKw);
                             child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                             child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+                            // この区間は手動サイズアップの対象外（帰属は付けない）
+                            this.recordManualSizeUp(child);
 
                             totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                             totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
                         } else if (child.type === 'sub_bc_controller') {
                             // 主管〜子BC間は3管式（液管・高圧ガス管・低圧ガス管。D1 p.14、D4 §9-4 Pipes C〜I）
                             const sizes = this.selectSubBCFeedSize(childKw, isManualSizeUp);
+                            const baseSizes = isManualSizeUp ? this.selectSubBCFeedSize(childKw, false) : null;
                             child.pipeSizeText = `液管: φ${sizes.liquid} / 高圧ガス: φ${sizes.highGas} / 低圧ガス: φ${sizes.lowGas}`;
                             child.pipes = { type: '3pipe', liquid: sizes.liquid, highGas: sizes.highGas, lowGas: sizes.lowGas };
+                            this.recordManualSizeUp(child, baseSizes, sizes, ['liquid', 'highGas', 'lowGas']);
 
                             totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                             totals.highGasPipes[sizes.highGas] = (totals.highGasPipes[sizes.highGas] || 0) + len;
@@ -622,8 +653,10 @@ class RefrigerantSizerEngine {
                                 hasR2BranchSectionOver25 = true;
                             }
                             const sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
+                            const baseSizes = isManualSizeUp ? this.selectTwoPipeSize(childKw, false) : null;
                             child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                             child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+                            this.recordManualSizeUp(child, baseSizes, sizes, ['liquid', 'gas']);
 
                             totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                             totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
@@ -649,19 +682,24 @@ class RefrigerantSizerEngine {
                     // Mr.Slim は公式資料が得られていないため、従来どおり selectTwoPipeSize を
                     // 全区間に用いる（訂正後の B/C/D 帯。未検証のため CORRECTIONS.md 参照）。
                     let sizes;
+                    let baseSizes = null;
                     if (seriesId === 'city_multi_y' && child.type === 'indoor') {
                         // 分岐〜室内機（Pipe a〜d）。室外機直下の室内機も同じ室内機接続サイズ。
+                        // この区間は手動サイズアップの対象外（baseSizes は null のまま）。
                         sizes = this.selectYBranchToIndoorSize(childKw);
                     } else if (seriesId === 'city_multi_y' && node.type === 'outdoor' && child.type === 'branch') {
                         // 室外機〜第一分岐（Pipe A）。選定キーは室外機形番。
                         sizes = this.selectYPipeASize(outdoorCap, isManualSizeUp);
+                        baseSizes = isManualSizeUp ? this.selectYPipeASize(outdoorCap, false) : null;
                         child.isFirstBranch = true;
                     } else {
                         // 分岐〜分岐（Pipe B・C・D）
                         sizes = this.selectTwoPipeSize(childKw, isManualSizeUp);
+                        baseSizes = isManualSizeUp ? this.selectTwoPipeSize(childKw, false) : null;
                     }
                     child.pipeSizeText = `液管: φ${sizes.liquid} / ガス管: φ${sizes.gas}`;
                     child.pipes = { type: '2pipe', liquid: sizes.liquid, gas: sizes.gas };
+                    this.recordManualSizeUp(child, baseSizes, sizes, ['liquid', 'gas']);
 
                     totals.liquidPipes[sizes.liquid] = (totals.liquidPipes[sizes.liquid] || 0) + len;
                     totals.gasPipes[sizes.gas] = (totals.gasPipes[sizes.gas] || 0) + len;
